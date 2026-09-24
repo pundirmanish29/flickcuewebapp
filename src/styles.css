@@ -297,8 +297,10 @@ a { color: inherit; }
 .candidate-save { position: relative; margin-top: 10px; }
 .candidate-save .button { width: 100%; }
 
+/* Zero specificity, so each place a poster sits keeps its own size. */
+:where(.poster-placeholder) { width: 100%; }
 .poster-placeholder {
-  display: grid; place-items: center; width: 100%; height: 100%; aspect-ratio: 2 / 3;
+  display: grid; place-items: center; aspect-ratio: 2 / 3;
   background: linear-gradient(160deg, color-mix(in srgb, var(--tint) 34%, var(--night)), var(--night));
   color: var(--tint); font-weight: 800; font-size: clamp(18px, 3vw, 34px); letter-spacing: -0.02em;
 }
