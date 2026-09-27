@@ -74,21 +74,21 @@ function SyncIndicator() {
   const { sync: state } = useAppState();
   if (!state.connected) {
     return (
-      <button type="button" className="sync-pill" onClick={() => void connect()}>
-        <span className="dot dot-off" /> <Icon name="sync" size={14} /> <span className="sync-label">Sign in to sync</span>
+      <button type="button" className="sync-pill guest" onClick={() => void connect()} aria-label="Sign in to sync">
+        <span className="dot dot-off" /> <Icon name="sync" size={14} /> <span className="sync-label">Sign in</span>
       </button>
     );
   }
   if (state.status === "needs-auth") {
     return (
-      <button type="button" className="sync-pill warn" onClick={() => void connect()} title="Google access expired">
+      <button type="button" className="sync-pill warn" onClick={() => void connect()} title="Google access expired" aria-label="Reconnect Google sync">
         <span className="dot dot-warn" /> <span className="sync-label">Reconnect</span>
       </button>
     );
   }
   const label = state.status === "syncing" ? "Syncing" : state.status === "error" ? "Sync failed" : "Synced";
   return (
-    <button type="button" className={`sync-pill ${state.status === "error" ? "warn" : ""}`} onClick={() => void sync()} title={state.error || "Sync now"}>
+    <button type="button" className={`sync-pill ${state.status === "error" ? "warn" : ""}`} onClick={() => void sync()} title={state.error || "Sync now"} aria-label={`${label}. Sync now`}>
       {state.account?.photo ? <img src={state.account.photo} alt="" referrerPolicy="no-referrer" /> : <span className={`dot ${state.status === "error" ? "dot-warn" : "dot-on"}`} />}
       <span className={state.status === "syncing" ? "spin" : ""}><Icon name="sync" size={14} /></span>
       <span className="sync-label">{label}</span>
@@ -143,7 +143,7 @@ export default function App() {
             <Logo />
             <span className="brand-name">FLICKCUE</span>
           </a>
-          <nav className="top-nav" aria-label="Main">
+          <nav className={`top-nav ${sync.connected ? "" : "guest"}`} aria-label="Main">
             {visibleNav.map((item) => (
               <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined}>
                 {item.label}
@@ -179,6 +179,7 @@ export default function App() {
           <span className="brand"><Logo size={8} /> <span className="brand-name">FLICKCUE</span></span>
           <span className="muted">Works with the FlickCue extension and Android app.</span>
           <span className="muted">Title data from TMDB.</span>
+          <a className="muted footer-link" href="./privacy.html">Privacy</a>
         </div>
       </footer>
 

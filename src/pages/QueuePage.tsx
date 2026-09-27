@@ -19,22 +19,35 @@ const SORT_LABELS: Record<SortMode, string> = {
 };
 
 const EXTENSION_URL = "https://chromewebstore.google.com/detail/flickcue-watch-later/hmgefidihfkkeleeblhecnhlkbbojmmh?hl=en";
+// Empty until the Android app has a public listing; the buttons then read "coming soon".
+const ANDROID_URL = "";
+
+function AndroidButton({ className, children }: { className: string; children: string }) {
+  if (!ANDROID_URL) {
+    return <button type="button" className={className} disabled>{children} · coming soon</button>;
+  }
+  return (
+    <a className={className} href={ANDROID_URL} target="_blank" rel="noreferrer">
+      <Icon name="external" size={16} /> {children}
+    </a>
+  );
+}
 
 const SHOWCASE_ITEMS = [
   {
-    image: "/flickcue-extension-02.png",
+    image: "./flickcue-extension-02.webp",
     alt: "FlickCue browser library overview",
     label: "Library",
     caption: "Everything worth watching, together."
   },
   {
-    image: "/flickcue-extension-03.png",
+    image: "./flickcue-extension-03.webp",
     alt: "FlickCue saved titles grid with filters",
     label: "Filters",
     caption: "Filter the queue, not your memory."
   },
   {
-    image: "/flickcue-extension-05.png",
+    image: "./flickcue-extension-05.webp",
     alt: "FlickCue title details, ratings, reminders, and streaming options",
     label: "Details",
     caption: "Ratings, reminders, and where to watch."
@@ -78,10 +91,10 @@ function ProductPreview() {
       onPointerLeave={resetTilt}
     >
       <div className="preview-browser published-preview">
-        <img src="/flickcue-extension-01.png" alt="FlickCue extension queue and save interface" />
+        <img src="./flickcue-extension-01.webp" alt="FlickCue extension queue and save interface" />
       </div>
       <a className="preview-store-badge" href={EXTENSION_URL} target="_blank" rel="noreferrer">
-        <img src="/flickcue-extension-icon.png" alt="" />
+        <img src="./flickcue-extension-icon.png" alt="" />
         <span><b>FlickCue · Watch Later</b><small>Available in the Chrome Web Store</small></span>
         <Icon name="external" size={15} />
       </a>
@@ -134,12 +147,10 @@ function MarketingHome({ onNavigate }: { onNavigate: (route: string) => void }) 
               <a className="button button-lime large" href={EXTENSION_URL} target="_blank" rel="noreferrer">
                 <Icon name="plus" size={17} /> Add to Chrome
               </a>
-              <a className="button button-outline-light large" href="https://github.com/pundirmanish29/flickcueapp" target="_blank" rel="noreferrer">
-                <Icon name="external" size={17} /> Get the Android app
-              </a>
+              <AndroidButton className="button button-outline-light large">Android app</AndroidButton>
             </div>
             <button type="button" className="hero-web-link" onClick={() => onNavigate("discover")}>
-              Or start in the web app <Icon name="external" size={14} />
+              <Icon name="compass" size={14} /> Or start in the web app
             </button>
           </div>
           <ProductPreview />
@@ -198,7 +209,7 @@ function MarketingHome({ onNavigate }: { onNavigate: (route: string) => void }) 
             <a href={EXTENSION_URL} target="_blank" rel="noreferrer">Explore the browser extension <Icon name="external" size={14} /></a>
           </div>
           <div className="published-save-shot" aria-label="FlickCue saving a film from a web page">
-            <img src="/flickcue-extension-04.png" alt="FlickCue save card appearing on a film page" loading="lazy" />
+            <img src="./flickcue-extension-04.webp" alt="FlickCue save card appearing on a film page" loading="lazy" />
             <span><Icon name="check" size={16} /> Works on film pages across the web</span>
           </div>
         </div>
@@ -252,7 +263,7 @@ function MarketingHome({ onNavigate }: { onNavigate: (route: string) => void }) 
           </div>
           <div className="availability-actions">
             <a className="button button-ink large" href={EXTENSION_URL} target="_blank" rel="noreferrer">Chrome extension <Icon name="external" size={16} /></a>
-            <a className="button button-quiet large" href="https://github.com/pundirmanish29/flickcueapp" target="_blank" rel="noreferrer">Android app <Icon name="external" size={16} /></a>
+            <AndroidButton className="button button-quiet large">Android app</AndroidButton>
             <button type="button" className="button button-quiet large" onClick={() => void connect()}>Sign in to web app</button>
           </div>
         </div>

@@ -222,7 +222,7 @@ a { color: inherit; }
   min-height: min(820px, calc(100svh - var(--header) - 28px));
   overflow: hidden;
   color: #fff;
-  background: var(--night) url("/flickcue-cinema-hero.png") center / cover no-repeat;
+  background: var(--night) url("/flickcue-cinema-hero.webp") center / cover no-repeat;
   isolation: isolate;
 }
 .flickcue-hero::before {
@@ -892,11 +892,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .site-footer { background: var(--night); color: #fff; padding: 28px 0; }
 .footer-inner { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; font-size: 14px; }
 .site-footer .muted { color: var(--dark-muted); }
+.footer-link { text-decoration: none; }
+.footer-link:hover { color: #fff; }
 
 .bottom-nav { display: none; }
 
 @media (max-width: 900px) {
-  .top-nav { display: none; }
+  .top-nav:not(.guest) { display: none; }
+  .sync-pill.guest .sync-label { display: inline; }
+  /* The Discover link is redundant on Discover itself, and the search box needs the room. */
+  .top-nav.guest a[aria-current="page"] { display: none; }
+  .search { min-width: 0; }
   .header-inner { gap: 12px; }
   .search { flex: 1; width: auto; margin-left: auto; }
   .sync-label { display: none; }
