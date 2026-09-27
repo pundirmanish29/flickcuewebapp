@@ -4,6 +4,19 @@ import { TMDB_ATTRIBUTION } from "../lib/config";
 import { connect, disconnect, importLibrary, sync, updateSettings, useAppState } from "../lib/store";
 import type { LibraryDocument } from "../lib/types";
 
+const REGIONS = [
+  ["AR", "Argentina"], ["AU", "Australia"], ["AT", "Austria"], ["BE", "Belgium"],
+  ["BR", "Brazil"], ["CA", "Canada"], ["CL", "Chile"], ["CO", "Colombia"],
+  ["CZ", "Czechia"], ["DK", "Denmark"], ["FI", "Finland"], ["FR", "France"],
+  ["DE", "Germany"], ["HK", "Hong Kong"], ["HU", "Hungary"], ["IN", "India"],
+  ["ID", "Indonesia"], ["IE", "Ireland"], ["IL", "Israel"], ["IT", "Italy"],
+  ["JP", "Japan"], ["MY", "Malaysia"], ["MX", "Mexico"], ["NL", "Netherlands"],
+  ["NZ", "New Zealand"], ["NO", "Norway"], ["PH", "Philippines"], ["PL", "Poland"],
+  ["PT", "Portugal"], ["SG", "Singapore"], ["ZA", "South Africa"], ["KR", "South Korea"],
+  ["ES", "Spain"], ["SE", "Sweden"], ["CH", "Switzerland"], ["TW", "Taiwan"],
+  ["TH", "Thailand"], ["TR", "Turkey"], ["GB", "United Kingdom"], ["US", "United States"]
+] as const;
+
 function timeAgo(time: number) {
   if (!time) return "never";
   const minutes = Math.round((Date.now() - time) / 60000);
@@ -51,13 +64,11 @@ export function SettingsPage() {
 
   return (
     <>
-      <section className="intro paper compact">
-        <div className="wrap">
-          <p className="eyebrow">Settings</p>
-          <h1 className="display">
-            Your FlickCue.
-            <em>Your way.</em>
-          </h1>
+      <section className="settings-page-header paper">
+        <div className="wrap settings-page-heading">
+          <p className="eyebrow">FlickCue</p>
+          <h1>Settings</h1>
+          <p>Manage sync, title data, reminders, and backups.</p>
         </div>
       </section>
 
@@ -109,16 +120,16 @@ export function SettingsPage() {
               className="field-stack"
               onSubmit={(event) => {
                 event.preventDefault();
-                const cleanRegion = region.trim().toUpperCase();
-                if (!/^[A-Z]{2}$/.test(cleanRegion)) return toast("Use a two-letter country code, like IN, US or GB.");
-                updateSettings({ tmdbKey: tmdbKey.trim(), region: cleanRegion });
+                updateSettings({ tmdbKey: tmdbKey.trim(), region });
                 toast("Saved");
               }}
             >
               <label>
                 <span className="eyebrow">Streaming region</span>
-                <input value={region} onChange={(event) => setRegion(event.target.value)} maxLength={2} autoCapitalize="characters" />
-                <span className="hint">Where-to-watch is per country. It defaults to IN.</span>
+                <select value={region} onChange={(event) => setRegion(event.target.value)}>
+                  {REGIONS.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+                </select>
+                <span className="hint">Where-to-watch availability is shown for this country or region.</span>
               </label>
               <label>
                 <span className="eyebrow">Your TMDB key (optional)</span>

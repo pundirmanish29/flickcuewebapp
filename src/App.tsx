@@ -11,6 +11,8 @@ import { WatchedPage } from "./pages/WatchedPage";
 
 type Route = "queue" | "discover" | "watched" | "settings";
 
+const AUTHENTICATED_ROUTES = new Set<Route>(["watched", "settings"]);
+
 const NAV: { route: Route; label: string; icon: IconName }[] = [
   { route: "queue", label: "Queue", icon: "queue" },
   { route: "discover", label: "Discover", icon: "compass" },
@@ -95,12 +97,21 @@ function SyncIndicator() {
 }
 
 export default function App() {
-  const { route, titleId } = useHashRoute();
-  const { library } = useAppState();
+  const requestedRoute = useHashRoute();
+  const { library, sync } = useAppState();
   const [query, setQuery] = useState("");
+  const route = !sync.connected && AUTHENTICATED_ROUTES.has(requestedRoute.route) ? "queue" : requestedRoute.route;
+  const titleId = requestedRoute.titleId;
 
   useEffect(() => startBackgroundSync(), []);
   useReminderNotifications();
+
+  useEffect(() => {
+    if (!sync.connected && AUTHENTICATED_ROUTES.has(requestedRoute.route)) {
+      history.replaceState(null, "", "#/");
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    }
+  }, [requestedRoute.route, sync.connected]);
 
   useEffect(() => {
     sessionStorage.setItem("flickcue.lastRoute", route);
@@ -109,6 +120,7 @@ export default function App() {
   }, [route]);
 
   const queueCount = library.movies.filter((movie) => !movie.watched).length;
+  const visibleNav = sync.connected ? NAV : NAV.filter((item) => item.route === "discover");
 
   const openTitle = useCallback((id: string) => {
     location.hash = `#/title/${encodeURIComponent(id)}`;
@@ -132,14 +144,14 @@ export default function App() {
             <span className="brand-name">FLICKCUE</span>
           </a>
           <nav className="top-nav" aria-label="Main">
-            {NAV.map((item) => (
+            {visibleNav.map((item) => (
               <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined}>
                 {item.label}
                 {item.route === "queue" && queueCount > 0 && <span className="nav-count">{queueCount}</span>}
               </a>
             ))}
           </nav>
-          {route !== "settings" && (
+          {route !== "settings" && (sync.connected || route === "discover") && (
             <label className="search">
               <Icon name="search" size={16} />
               <span className="visually-hidden">Search</span>
@@ -162,7 +174,7 @@ export default function App() {
         {route === "settings" && <SettingsPage />}
       </main>
 
-      <footer className="site-footer">
+      <footer className={`site-footer ${sync.connected ? "with-bottom-nav" : ""}`}>
         <div className="wrap footer-inner">
           <span className="brand"><Logo size={8} /> <span className="brand-name">FLICKCUE</span></span>
           <span className="muted">Works with the FlickCue extension and Android app.</span>
@@ -170,14 +182,16 @@ export default function App() {
         </div>
       </footer>
 
-      <nav className="bottom-nav" aria-label="Main">
-        {NAV.map((item) => (
-          <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined}>
-            <Icon name={item.icon} size={20} />
-            <span>{item.label}</span>
-          </a>
-        ))}
-      </nav>
+      {sync.connected && (
+        <nav className="bottom-nav" aria-label="Main" style={{ gridTemplateColumns: `repeat(${visibleNav.length}, 1fr)` }}>
+          {visibleNav.map((item) => (
+            <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined}>
+              <Icon name={item.icon} size={20} />
+              <span>{item.label}</span>
+            </a>
+          ))}
+        </nav>
+      )}
 
       {titleId && <TitleSheet key={titleId} id={titleId} onClose={closeTitle} />}
       <ToastHost />
