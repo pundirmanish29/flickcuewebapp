@@ -84,6 +84,8 @@ export interface Candidate {
   poster: string;
   backdrop: string;
   upcoming: boolean;
+  /** Why it was suggested, e.g. "Because you saved Arrival". */
+  reason?: string;
 }
 
 export type SortMode = "added" | "reminder" | "title" | "rating" | "shortest";

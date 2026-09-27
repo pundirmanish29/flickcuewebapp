@@ -3,6 +3,7 @@
 // the shared key, the same way the extension and the Android app call it.
 
 import { PROXY_BASE_URL } from "./config";
+import { bestKnownWork, blendRecommendations, matchPerson, rankSearchResults, splitYear, type Seed } from "./discover";
 import { isUnreleased } from "./rules";
 import type { Candidate, Movie, Season } from "./types";
 
@@ -84,14 +85,59 @@ function dedupe(list: Candidate[]): Candidate[] {
   return list.filter((item) => (seen.has(item.key) ? false : (seen.add(item.key), true)));
 }
 
-export async function searchTitles(query: string): Promise<Candidate[]> {
-  const data = await tmdbGet("search/multi", { query, include_adult: "false", page: "1" });
-  const wanted = query.trim().toLowerCase();
-  return dedupe((data.results ?? [])
-    .filter((item: any) => item.media_type === "movie" || item.media_type === "tv")
-    .map((item: any) => toCandidate(item)))
-    .sort((a, b) => Number(b.title.toLowerCase().startsWith(wanted)) - Number(a.title.toLowerCase().startsWith(wanted)))
-    .slice(0, 24);
+export interface PersonMatch {
+  name: string;
+  role: string;
+  photo: string;
+  titles: Candidate[];
+}
+
+export interface SearchResult {
+  titles: Candidate[];
+  person?: PersonMatch;
+}
+
+const EMPTY = { results: [] as any[] };
+
+export async function searchTitles(query: string): Promise<SearchResult> {
+  const { text, year } = splitYear(query);
+  const search = (value: string) => tmdbGet("search/multi", { query: value, include_adult: "false", page: "1" });
+  // With a trailing year, search both ways: "dune 2021" finds nothing as
+  // typed, while "Blade Runner 2049" needs its number.
+  const [full, withoutYear] = await Promise.all([search(query.trim()), year ? search(text).catch(() => EMPTY) : Promise.resolve(EMPTY)]);
+  const results = [...(withoutYear.results ?? []), ...(full.results ?? [])];
+
+  const titles = dedupe(rankSearchResults(results, query).map((item) => toCandidate(item))).slice(0, 24);
+
+  const found = matchPerson(results, query);
+  if (!found) return { titles };
+  const credits = await tmdbGet(`person/${found.id}/combined_credits`).catch(() => null);
+  const { work: credited, role } = bestKnownWork(credits);
+  const work = dedupe(credited.map((item: any) => toCandidate(item))).slice(0, 18);
+  if (!work.length) return { titles };
+  const person: PersonMatch = {
+    name: found.name,
+    role,
+    photo: posterUrl(found.profile_path, "w185"),
+    titles: work
+  };
+  // Their films lead; the title matches follow without repeating them.
+  const shown = new Set(work.map((item) => item.key));
+  return { person, titles: titles.filter((item) => !shown.has(item.key)) };
+}
+
+/** "For you": TMDB recommendations for your recent saves, blended into one list. */
+export async function recommendFrom(seeds: Seed[], exclude: Set<string>): Promise<Candidate[]> {
+  const lists = await Promise.all(seeds.map((seed) =>
+    tmdbGet(`${seed.tmdbType}/${seed.tmdbId}/recommendations`, { page: "1" })
+      .then((data) => ({ seed, results: data.results ?? [] }))
+      .catch(() => ({ seed, results: [] as any[] }))
+  ));
+  if (lists.every((list) => !list.results.length)) {
+    // Every lookup failed: surface why, rather than an empty "For you".
+    await tmdbGet(`${seeds[0].tmdbType}/${seeds[0].tmdbId}/recommendations`, { page: "1" });
+  }
+  return blendRecommendations(lists, exclude).map(({ item, type, because }) => ({ ...toCandidate(item, type), reason: `Because you saved ${because}` }));
 }
 
 export interface DiscoverCategory {
@@ -102,11 +148,20 @@ export interface DiscoverCategory {
   type?: "movie" | "tv";
 }
 
-/** The Android app's Discover lists. */
+const FOUR_YEARS_AGO = `${new Date().getFullYear() - 4}-01-01`;
+
+/** The Android app's Discover lists, plus a few for finding something good. */
 export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
   { id: "trending", label: "Trending", path: "trending/all/week" },
   { id: "popular-films", label: "Popular films", path: "movie/popular", type: "movie" },
   { id: "top-films", label: "Top rated films", path: "movie/top_rated", type: "movie" },
+  {
+    id: "hidden-gems", label: "Hidden gems", path: "discover/movie", type: "movie",
+    // Well rated but not blockbusters: 500-4,000 votes, fiction only (no documentaries,
+    // concert films or TV movies), from the last few years.
+    params: { sort_by: "vote_average.desc", "vote_count.gte": "500", "vote_count.lte": "4000", "vote_average.gte": "7.0", "primary_release_date.gte": FOUR_YEARS_AGO, without_genres: "99,10402,10770" }
+  },
+  { id: "now-playing", label: "In cinemas", path: "movie/now_playing", type: "movie" },
   { id: "upcoming", label: "Coming soon", path: "movie/upcoming", type: "movie" },
   { id: "popular-shows", label: "Popular shows", path: "tv/popular", type: "tv" },
   { id: "top-shows", label: "Top rated shows", path: "tv/top_rated", type: "tv" },
@@ -114,16 +169,16 @@ export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
     ["action", "Action", "28"], ["comedy", "Comedy", "35"], ["drama", "Drama", "18"], ["thriller", "Thriller", "53"],
     ["horror", "Horror", "27"], ["scifi", "Sci-Fi", "878"], ["animation", "Animation", "16"], ["romance", "Romance", "10749"]
   ] as const).map(([id, label, genre]) => ({
-    id, label, path: "discover/movie", params: { with_genres: genre, sort_by: "popularity.desc" }, type: "movie" as const
+    id, label, path: "discover/movie", params: { with_genres: genre, sort_by: "popularity.desc", "vote_count.gte": "100" }, type: "movie" as const
   }))
 ];
 
-export async function browse(category: DiscoverCategory): Promise<Candidate[]> {
-  const data = await tmdbGet(category.path, { include_adult: "false", page: "1", ...(category.params ?? {}) });
-  return dedupe((data.results ?? [])
+export async function browse(category: DiscoverCategory, page = 1): Promise<{ items: Candidate[]; more: boolean }> {
+  const data = await tmdbGet(category.path, { include_adult: "false", page: String(page), ...(category.params ?? {}) });
+  const items = dedupe((data.results ?? [])
     .filter((item: any) => item.poster_path && (category.type || item.media_type === "movie" || item.media_type === "tv"))
-    .map((item: any) => toCandidate(item, category.type)))
-    .slice(0, 30);
+    .map((item: any) => toCandidate(item, category.type)));
+  return { items, more: page < Math.min(Number(data.total_pages) || 1, 10) };
 }
 
 export interface Provider {

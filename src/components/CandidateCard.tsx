@@ -36,7 +36,9 @@ export function CandidateCard({ candidate, onOpenSaved }: { candidate: Candidate
       <div className="title-card-text">
         <h3>{title}</h3>
         <p className="meta">{[candidate.mediaType, candidate.year].filter(Boolean).join(" · ")}</p>
-        {candidate.overview && <p className="candidate-overview">{candidate.overview}</p>}
+        {candidate.reason
+          ? <p className="candidate-reason">{candidate.reason}</p>
+          : candidate.overview && <p className="candidate-overview">{candidate.overview}</p>}
       </div>
       <div className="candidate-save">
         {saved ? (

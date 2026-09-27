@@ -1,12 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CandidateCard } from "../components/CandidateCard";
 import { Icon } from "../components/Icon";
+import { Poster } from "../components/Poster";
 import { ReminderChoices } from "../components/ReminderMenu";
+import { toast } from "../components/Toast";
 import * as actions from "../lib/actions";
-import { browse, DISCOVER_CATEGORIES, searchTitles } from "../lib/tmdb";
-import type { Candidate } from "../lib/types";
+import { pickSeeds, savedKeys } from "../lib/discover";
+import { useAppState } from "../lib/store";
+import { browse, DISCOVER_CATEGORIES, recommendFrom, searchTitles, type PersonMatch } from "../lib/tmdb";
+import type { Candidate, KindFilter } from "../lib/types";
 
-type Load = { state: "loading" } | { state: "done"; items: Candidate[] } | { state: "error"; message: string };
+type Load =
+  | { state: "loading" }
+  | { state: "done"; items: Candidate[]; person?: PersonMatch; more?: boolean }
+  | { state: "error"; message: string };
+
+const FOR_YOU = "for-you";
 
 function AddByHand({ onDone }: { onDone: () => void }) {
   const [title, setTitle] = useState("");
@@ -56,30 +65,80 @@ function AddByHand({ onDone }: { onDone: () => void }) {
   );
 }
 
+const matchesKindFilter = (item: Candidate, kind: KindFilter) => kind === "all" || item.tmdbType === kind;
+
+function Results({ items, onOpen }: { items: Candidate[]; onOpen: (id: string) => void }) {
+  return (
+    <div className="grid">
+      {items.map((item) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} />)}
+    </div>
+  );
+}
+
 export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; query: string }) {
-  const [category, setCategory] = useState(DISCOVER_CATEGORIES[0].id);
+  const { library } = useAppState();
+  const seeds = useMemo(() => pickSeeds(library.movies), [library.movies]);
+  const saved = useMemo(() => savedKeys(library.movies), [library.movies]);
+  // Recommendations follow the seeds, not every edit to the library.
+  const seedKey = seeds.map((seed) => seed.tmdbId).join(",");
+  const hasSeeds = seeds.length > 0;
+
+  const [category, setCategory] = useState(() => (hasSeeds ? FOR_YOU : DISCOVER_CATEGORIES[0].id));
+  const [kind, setKind] = useState<KindFilter>("all");
   const [load, setLoad] = useState<Load>({ state: "loading" });
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [manual, setManual] = useState(false);
+
   const searching = query.trim().length >= 2;
+  const forYou = !searching && category === FOR_YOU && hasSeeds;
+  const activeCategory = DISCOVER_CATEGORIES.find((item) => item.id === category) ?? DISCOVER_CATEGORIES[0];
 
   useEffect(() => {
     let live = true;
     setLoad({ state: "loading" });
+    setPage(1);
     const timer = setTimeout(() => {
-      const request = searching
-        ? searchTitles(query.trim())
-        : browse(DISCOVER_CATEGORIES.find((item) => item.id === category) ?? DISCOVER_CATEGORIES[0]);
+      const request: Promise<Load> = searching
+        ? searchTitles(query.trim()).then((result) => ({ state: "done", items: result.titles, person: result.person }))
+        : forYou
+          ? recommendFrom(seeds, saved).then((items) => ({ state: "done", items }))
+          : browse(activeCategory).then(({ items, more }) => ({ state: "done", items, more }));
       request
-        .then((items) => live && setLoad({ state: "done", items }))
+        .then((result) => live && setLoad(result))
         .catch((error) => live && setLoad({ state: "error", message: error.message }));
     }, searching ? 350 : 0);
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [category, query, searching]);
+  }, [category, query, searching, forYou, seedKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const heading = searching ? `Results for “${query.trim()}”` : DISCOVER_CATEGORIES.find((item) => item.id === category)?.label;
+  const loadMore = async () => {
+    if (load.state !== "done") return;
+    setLoadingMore(true);
+    try {
+      const next = await browse(activeCategory, page + 1);
+      const known = new Set(load.items.map((item) => item.key));
+      setLoad({ ...load, items: [...load.items, ...next.items.filter((item) => !known.has(item.key))], more: next.more });
+      setPage(page + 1);
+    } catch (error) {
+      toast((error as Error).message);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // Browsing is for finding something new, so saved titles drop out of the
+  // lists; a search still shows them, marked "In your queue".
+  const visible = load.state === "done"
+    ? load.items.filter((item) => matchesKindFilter(item, kind) && (searching || !saved.has(item.key)))
+    : [];
+  const person = load.state === "done" ? load.person : undefined;
+  const personWork = person ? person.titles.filter((item) => matchesKindFilter(item, kind)) : [];
+
+  const heading = searching ? `Results for “${query.trim()}”` : forYou ? "For you" : activeCategory.label;
+  const showKind = searching || forYou || category === "trending";
 
   return (
     <>
@@ -90,7 +149,11 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
             Find the next one.
             <em>Save it for later.</em>
           </h1>
-          <p className="lede">Search with the box at the top, or browse what's trending and what's coming soon.</p>
+          <p className="lede">
+            {hasSeeds
+              ? "Picks based on what you've saved, plus hidden gems and what's trending. Search any film, show or person at the top."
+              : "Search any film, show, actor or director at the top, or browse hidden gems and what's trending."}
+          </p>
         </div>
       </section>
 
@@ -98,6 +161,11 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
         <div className="wrap">
           {!searching && (
             <div className="category-row" role="tablist" aria-label="Lists">
+              {hasSeeds && (
+                <button type="button" role="tab" aria-selected={category === FOR_YOU} className="category" onClick={() => setCategory(FOR_YOU)}>
+                  <Icon name="star" size={13} /> For you
+                </button>
+              )}
               {DISCOVER_CATEGORIES.map((item) => (
                 <button key={item.id} type="button" role="tab" aria-selected={category === item.id} className="category" onClick={() => setCategory(item.id)}>
                   {item.label}
@@ -108,9 +176,20 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
 
           <div className="toolbar">
             <h2 className="section-title">{heading}</h2>
-            <button type="button" className="button button-quiet small" aria-expanded={manual} onClick={() => setManual((open) => !open)}>
-              <Icon name="plus" size={15} /> Add by hand
-            </button>
+            <div className="toolbar-controls">
+              {showKind && (
+                <div className="segmented" role="group" aria-label="Show">
+                  {(["all", "movie", "tv"] as KindFilter[]).map((value) => (
+                    <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
+                      {value === "all" ? "All" : value === "movie" ? "Films" : "Shows"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button type="button" className="button button-quiet small" aria-expanded={manual} onClick={() => setManual((open) => !open)}>
+                <Icon name="plus" size={15} /> Add by hand
+              </button>
+            </div>
           </div>
           {manual && <AddByHand onDone={() => setManual(false)} />}
 
@@ -120,12 +199,40 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
             </div>
           )}
           {load.state === "error" && <p className="empty">{load.message}</p>}
-          {load.state === "done" && (load.items.length ? (
-            <div className="grid">
-              {load.items.map((item) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} />)}
+
+          {person && personWork.length > 0 && (
+            <div className="person-block">
+              <div className="person-head">
+                <Poster src={person.photo} title={person.name} className="person-photo" />
+                <div>
+                  <p className="eyebrow">{person.role} · best known for</p>
+                  <h3>{person.name}</h3>
+                </div>
+              </div>
+              <Results items={personWork} onOpen={onOpen} />
+              {visible.length > 0 && <h3 className="subsection-title">Titles matching “{query.trim()}”</h3>}
             </div>
-          ) : (
-            <p className="empty">Nothing found. Try another spelling, or add it by hand.</p>
+          )}
+
+          {load.state === "done" && (visible.length > 0 ? (
+            <>
+              <Results items={visible} onOpen={onOpen} />
+              {!searching && !forYou && load.more && (
+                <div className="load-more">
+                  <button type="button" className="button button-quiet" onClick={() => void loadMore()} disabled={loadingMore}>
+                    {loadingMore ? "Loading…" : "Show more"}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : personWork.length === 0 && (
+            <p className="empty">
+              {searching
+                ? "Nothing found. Try another spelling, add the year (“dune 2021”), or add it by hand."
+                : forYou
+                  ? "No new suggestions right now. Save a few more titles and check back."
+                  : kind !== "all" ? "Nothing of that kind in this list." : "You've already saved everything in this list."}
+            </p>
           ))}
         </div>
       </section>
