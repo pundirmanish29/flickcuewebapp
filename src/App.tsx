@@ -12,6 +12,10 @@ import { WatchedPage } from "./pages/WatchedPage";
 type Route = "queue" | "discover" | "watched" | "settings";
 
 const AUTHENTICATED_ROUTES = new Set<Route>(["watched", "settings"]);
+// A #/title/<id> link followed while signed out (the extension's "Notes &
+// progress" link, say), kept for this tab and opened once signing in has
+// brought the list. Opened straight away, it would find nothing and close.
+const PENDING_TITLE_KEY = "flickcue.pendingTitle";
 
 const NAV: { route: Route; label: string; icon: IconName }[] = [
   { route: "queue", label: "Queue", icon: "queue" },
@@ -114,10 +118,36 @@ export default function App() {
   const connecting = (!sync.connected && sync.status === "connecting")
     || (sync.connected && sync.lastSyncAt === 0 && (sync.status === "idle" || sync.status === "syncing"));
   const route = !sync.connected && !connecting && AUTHENTICATED_ROUTES.has(requestedRoute.route) ? "queue" : requestedRoute.route;
-  const titleId = requestedRoute.titleId;
+  // Signed out, only titles in the list kept on this device can open.
+  const titleWaitsForSignIn = Boolean(requestedRoute.titleId) && !sync.connected && !connecting
+    && !library.movies.some((movie) => movie.id === requestedRoute.titleId);
+  const titleId = titleWaitsForSignIn ? "" : requestedRoute.titleId;
 
   useEffect(() => startBackgroundSync(), []);
   useReminderNotifications();
+
+  useEffect(() => {
+    if (!titleWaitsForSignIn) return;
+    try {
+      sessionStorage.setItem(PENDING_TITLE_KEY, requestedRoute.titleId);
+    } catch {
+      // Without storage the link just isn't reopened after signing in.
+    }
+    history.replaceState(null, "", "#/");
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  }, [titleWaitsForSignIn, requestedRoute.titleId]);
+
+  useEffect(() => {
+    if (!sync.connected || connecting) return;
+    let pending = "";
+    try {
+      pending = sessionStorage.getItem(PENDING_TITLE_KEY) || "";
+      sessionStorage.removeItem(PENDING_TITLE_KEY);
+    } catch {
+      return;
+    }
+    if (pending) location.hash = `#/title/${encodeURIComponent(pending)}`;
+  }, [sync.connected, connecting]);
 
   useEffect(() => {
     if (!sync.connected && !connecting && AUTHENTICATED_ROUTES.has(requestedRoute.route)) {
