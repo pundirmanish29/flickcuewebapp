@@ -21,6 +21,14 @@ export interface ShowSchedule {
   last?: { date: string; season: number; episode: number; finale?: boolean } | null;
 }
 
+/** How the Android app records a show's next or last episode (SHARED.md, "Known gaps" 1). */
+export interface EpisodeAir {
+  season: number;
+  episode: number;
+  airDate: string;
+  name?: string;
+}
+
 export interface Personal {
   status?: string;
   note?: string;
@@ -51,6 +59,9 @@ export interface Movie {
   genres?: string[];
   seasons?: Season[];
   showSchedule?: ShowSchedule;
+  productionStatus?: string;
+  nextEpisode?: EpisodeAir;
+  lastEpisode?: EpisodeAir;
   origin?: string;
   criticScore?: number;
   audienceScore?: number;

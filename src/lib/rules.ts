@@ -2,7 +2,7 @@
 // Drive file is shared with the extension and the Android app, so all three
 // have to read and write titles the same way.
 
-import type { KindFilter, Movie, SortMode } from "./types";
+import type { KindFilter, Movie, ShowSchedule, SortMode } from "./types";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const REMINDER_HOUR = 20;
@@ -237,9 +237,52 @@ function formatAirDate(date: string, now = Date.now(), short = false): string {
   return short ? text.toUpperCase() : text;
 }
 
+/**
+ * The Android app keeps a show's schedule in its own fields (SHARED.md, "Known
+ * gaps" 1): productionStatus, plus nextEpisode/lastEpisode with no finale flag
+ * and no check time. Read into the extension's showSchedule shape; a finale is
+ * an episode that fills its season, going by the saved season sizes. This app
+ * writes productionStatus too, when a title's details are opened. Port of
+ * shared.js scheduleFromAppFields.
+ */
+export function scheduleFromAppFields(movie: Movie): ShowSchedule | null {
+  const date = (value: unknown) => (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "");
+  const count = (value: unknown) => Math.max(0, Math.trunc(Number(value)) || 0);
+  const seasons = Array.isArray(movie.seasons) ? movie.seasons : [];
+  const episode = (entry: unknown) => {
+    const air = entry as { season?: unknown; episode?: unknown; airDate?: unknown } | null | undefined;
+    if (!air || !date(air.airDate)) return null;
+    const season = count(air.season);
+    const number = count(air.episode);
+    const size = count(seasons.find((item) => count(item?.number) === season)?.episodes);
+    return { date: date(air.airDate), season, episode: number, ...(size > 0 && number >= size ? { finale: true } : {}) };
+  };
+  const next = episode(movie.nextEpisode);
+  const last = episode(movie.lastEpisode);
+  const status = String(movie.productionStatus ?? "").slice(0, 40);
+  if (!next && !last && !status) return null;
+  return { status, firstAirDate: date(movie.releaseDate), seasons: seasons.filter((item) => count(item?.number) > 0).length, next, last };
+}
+
+/**
+ * A show's schedule from whichever client looked it up more recently. Neither
+ * records the same kind of check time, so the one that has seen the later
+ * episode air wins; level on that, the one that knows a next episode. Port of
+ * shared.js getShowSchedule.
+ */
+export function getShowSchedule(movie: Movie): ShowSchedule | null {
+  const own = movie.showSchedule || null;
+  const app = scheduleFromAppFields(movie);
+  if (!app) return own;
+  if (!own) return app;
+  const lastAired = (schedule: ShowSchedule) => schedule.last?.date || "";
+  if (lastAired(app) !== lastAired(own)) return lastAired(app) > lastAired(own) ? app : own;
+  return !own.next && app.next ? app : own;
+}
+
 export function getShowStatus(movie: Movie, now = Date.now()): ShowStatus | null {
   if (!isShow(movie)) return null;
-  const schedule = movie.showSchedule;
+  const schedule = getShowSchedule(movie);
   const today = localIsoDate(now);
   const premiere = schedule?.firstAirDate || movie.releaseDate || "";
 
