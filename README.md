@@ -30,6 +30,15 @@ Vite + React + TypeScript, no backend. It builds to static files.
 Everything works signed out, with the list kept in `localStorage`. Signing in merges
 that list into Drive.
 
+**Signed in through the extension.** In Chrome or Edge with the FlickCue extension
+signed in, the site signs in by itself: on load it asks the extension (by its ids in
+`EXTENSION_IDS`, `src/lib/config.ts`) for a short-lived Drive token, shows "Signing you
+in…", and opens the Queue, or the `#/title/<id>` the link asked for. The extension only
+answers `https://flickcue.in` and never shares its refresh token. A token it lent is
+never revoked here, since that would sign the extension out too. Signing out on the site
+stops this until you sign in on the site again. Firefox has no way for a site to reach
+an extension, so there it's the usual Google sign-in.
+
 ## Staying compatible with the extension and the app
 
 `src/lib/merge.ts` and `src/lib/editor.ts` port `drive-sync.js`'s

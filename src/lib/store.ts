@@ -4,7 +4,7 @@
 // through the editor functions, which is what keeps every edit sync-safe.
 
 import { useSyncExternalStore } from "react";
-import { getStoredToken, forgetToken, requestToken, revokeToken } from "./auth";
+import { canAskExtension, getStoredToken, forgetToken, requestExtensionSession, requestToken, revokeToken, storeToken } from "./auth";
 import { DriveError, fetchAccount, findRemoteFileId, readRemote, writeRemote, type Account } from "./drive";
 import { mergeWatchlists } from "./merge";
 import { setTmdbKey } from "./tmdb";
@@ -13,11 +13,15 @@ import type { LibraryDocument } from "./types";
 const LIBRARY_KEY = "flickcue.library";
 const SYNC_KEY = "flickcue.sync";
 const SETTINGS_KEY = "flickcue.settings";
+// Set when someone signs out here, so the extension's session isn't picked up
+// again on the next visit; signing in here clears it.
+const EXTENSION_OFF_KEY = "flickcue.extensionSignInOff";
 
 const PUSH_DELAY = 4000;
 const POLL_INTERVAL = 5 * 60 * 1000;
 
-export type SyncStatus = "local" | "idle" | "syncing" | "needs-auth" | "error";
+// "connecting": asking the FlickCue extension for its session on load.
+export type SyncStatus = "local" | "connecting" | "idle" | "syncing" | "needs-auth" | "error";
 
 export interface SyncState {
   connected: boolean;
@@ -57,7 +61,29 @@ function write(key: string, value: unknown) {
   }
 }
 
-function initialState(): AppState {
+function extensionSignInOff(): boolean {
+  try {
+    return localStorage.getItem(EXTENSION_OFF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setExtensionSignInOff(off: boolean) {
+  try {
+    if (off) localStorage.setItem(EXTENSION_OFF_KEY, "1");
+    else localStorage.removeItem(EXTENSION_OFF_KEY);
+  } catch {
+    // Without storage the choice lasts for this visit only.
+  }
+}
+
+/** Whether a first visit should wait for the extension before showing the signed-out page. */
+function willAskExtension(): boolean {
+  return canAskExtension() && !extensionSignInOff();
+}
+
+function initialState(onLoad = true): AppState {
   const library = read<LibraryDocument>(LIBRARY_KEY, { movies: [], deleted: [] });
   const stored = read<Partial<SyncState>>(SYNC_KEY, {});
   const settings = read<Settings>(SETTINGS_KEY, { tmdbKey: "", region: "IN", notifications: false });
@@ -72,7 +98,7 @@ function initialState(): AppState {
       fileId: stored.fileId ?? "",
       account: stored.account ?? null,
       lastSyncAt: stored.lastSyncAt ?? 0,
-      status: stored.connected ? (getStoredToken() ? "idle" : "needs-auth") : "local",
+      status: stored.connected ? (getStoredToken() ? "idle" : "needs-auth") : onLoad && willAskExtension() ? "connecting" : "local",
       error: ""
     },
     settings
@@ -159,9 +185,33 @@ export function sync(): Promise<void> {
   return activeSync;
 }
 
+/**
+ * Signs in with the FlickCue extension's Google session when it has one: a
+ * short-lived Drive token for the same app-data folder, lent by message. It
+ * never replaces a different account already signed in here.
+ */
+async function adoptExtensionSession(): Promise<boolean> {
+  if (!willAskExtension()) return false;
+  const session = await requestExtensionSession();
+  if (!session) return false;
+  const current = state.sync.account?.email?.toLowerCase();
+  const offered = session.account.email.toLowerCase();
+  if (state.sync.connected && current && offered && current !== offered) return false;
+  storeToken(session.token);
+  patchSync({
+    connected: true,
+    account: session.account.email ? session.account : state.sync.account,
+    status: "idle",
+    error: ""
+  });
+  return true;
+}
+
 async function runSync() {
   if (!state.sync.connected) return;
-  const token = getStoredToken();
+  // An expired token is renewed from the extension when it can be, so only
+  // someone without it is asked to reconnect.
+  const token = getStoredToken() ?? (await adoptExtensionSession() ? getStoredToken() : null);
   if (!token) {
     patchSync({ status: "needs-auth", error: "" });
     return;
@@ -201,6 +251,7 @@ async function runSync() {
 
 /** First sign-in: shows Google's consent screen, then syncs. */
 export async function connect() {
+  setExtensionSignInOff(false);
   try {
     await requestToken({ consent: !state.sync.connected, hint: state.sync.account?.email });
     patchSync({ connected: true, status: "idle", error: "" });
@@ -213,8 +264,11 @@ export async function connect() {
 /** Only the credentials go. The local list and the Drive copy both stay. */
 export async function disconnect() {
   const token = getStoredToken();
-  if (token) await revokeToken(token.accessToken);
+  // A token the extension lent is only dropped: revoking it would sign the
+  // extension out too.
+  if (token && token.source !== "extension") await revokeToken(token.accessToken);
   else forgetToken();
+  setExtensionSignInOff(true);
   patchSync({ connected: false, fileId: "", account: null, lastSyncAt: 0, status: "local", error: "" });
 }
 
@@ -230,7 +284,16 @@ let started = false;
 export function startBackgroundSync() {
   if (started) return;
   started = true;
-  void sync();
+  if (!state.sync.connected && state.sync.status === "connecting") {
+    void adoptExtensionSession()
+      .then((adopted) => {
+        if (adopted) return sync();
+        patchSync({ status: "local" });
+      })
+      .catch(() => patchSync({ status: "local" }));
+  } else {
+    void sync();
+  }
   setInterval(() => {
     if (document.visibilityState === "visible") void sync();
   }, POLL_INTERVAL);
@@ -240,7 +303,7 @@ export function startBackgroundSync() {
   // Another tab of this app edited the library or signed in.
   window.addEventListener("storage", (event) => {
     if (event.key === LIBRARY_KEY || event.key === SYNC_KEY || event.key === SETTINGS_KEY) {
-      state = initialState();
+      state = initialState(false);
       emit();
     }
   });

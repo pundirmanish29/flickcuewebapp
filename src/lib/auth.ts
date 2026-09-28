@@ -3,7 +3,8 @@
 // short-lived access token (about an hour) and asks Google for a new one when
 // it runs out. After the first consent that is a popup that closes by itself.
 
-import { GOOGLE_CLIENT_ID, GOOGLE_SCOPE } from "./config";
+import { EXTENSION_IDS, GOOGLE_CLIENT_ID, GOOGLE_SCOPE } from "./config";
+import type { Account } from "./drive";
 
 interface TokenResponse {
   access_token?: string;
@@ -18,6 +19,14 @@ interface TokenClient {
 
 declare global {
   interface Window {
+    // Present on a page only when an installed extension lists it in its
+    // manifest's externally_connectable, which the FlickCue extension does.
+    chrome?: {
+      runtime?: {
+        sendMessage?: (extensionId: string, message: unknown, callback: (response: unknown) => void) => void;
+        lastError?: unknown;
+      };
+    };
     google?: {
       accounts: {
         oauth2: {
@@ -60,6 +69,8 @@ function loadScript(): Promise<void> {
 export interface StoredToken {
   accessToken: string;
   expiresAt: number;
+  /** "extension" when the FlickCue extension lent it; that one is never revoked here. */
+  source?: "google" | "extension";
 }
 
 export function getStoredToken(): StoredToken | null {
@@ -72,7 +83,7 @@ export function getStoredToken(): StoredToken | null {
   return null;
 }
 
-function storeToken(token: StoredToken | null) {
+export function storeToken(token: StoredToken | null) {
   try {
     if (token) localStorage.setItem(TOKEN_KEY, JSON.stringify(token));
     else localStorage.removeItem(TOKEN_KEY);
@@ -109,9 +120,10 @@ export async function requestToken({ consent = false, hint = "" } = {}): Promise
           reject(new Error(describeError(response.error, response.error_description)));
           return;
         }
-        const token = {
+        const token: StoredToken = {
           accessToken: response.access_token,
-          expiresAt: Date.now() + Number(response.expires_in ?? 3600) * 1000
+          expiresAt: Date.now() + Number(response.expires_in ?? 3600) * 1000,
+          source: "google"
         };
         storeToken(token);
         resolve(token);
@@ -134,4 +146,58 @@ export async function revokeToken(token: string) {
   } catch {
     // Revoking is best effort; the token expires within the hour regardless.
   }
+}
+
+export interface ExtensionSession {
+  token: StoredToken;
+  account: Account;
+}
+
+/** Whether this browser has a FlickCue extension that could lend its session. */
+export function canAskExtension(): boolean {
+  return typeof window !== "undefined" && typeof window.chrome?.runtime?.sendMessage === "function";
+}
+
+function askOneExtension(id: string): Promise<unknown> {
+  return new Promise((resolve) => {
+    // The extension syncs before answering, for up to a few seconds.
+    const timer = setTimeout(() => resolve(null), 7000);
+    try {
+      window.chrome!.runtime!.sendMessage!(id, { type: "FLICKCUE_WEB_SESSION" }, (response) => {
+        clearTimeout(timer);
+        // Reading it marks "not installed" as handled rather than logged.
+        void window.chrome?.runtime?.lastError;
+        resolve(response ?? null);
+      });
+    } catch {
+      clearTimeout(timer);
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Asks the FlickCue extension, if it's installed and signed in, for a
+ * short-lived Drive token. Nothing is shown to the user and nothing is stored
+ * until the caller decides to use it.
+ */
+export async function requestExtensionSession(): Promise<ExtensionSession | null> {
+  if (!canAskExtension()) return null;
+  for (const id of EXTENSION_IDS) {
+    const reply = await askOneExtension(id) as {
+      signedIn?: boolean; accessToken?: unknown; expiresAt?: unknown; account?: Partial<Account>;
+    } | null;
+    if (!reply?.signedIn || typeof reply.accessToken !== "string" || !reply.accessToken) continue;
+    const expiresAt = Number(reply.expiresAt);
+    if (!(expiresAt - EXPIRY_MARGIN > Date.now())) continue;
+    return {
+      token: { accessToken: reply.accessToken, expiresAt, source: "extension" },
+      account: {
+        email: String(reply.account?.email ?? ""),
+        name: String(reply.account?.name ?? ""),
+        photo: /^https:\/\//.test(String(reply.account?.photo ?? "")) ? String(reply.account?.photo) : ""
+      }
+    };
+  }
+  return null;
 }

@@ -182,6 +182,9 @@ a { color: inherit; }
 .dot-warn { background: var(--orange); }
 .spin { display: inline-flex; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* Shown for the moment the extension is asked for its session on load. */
+.signing-in { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 50vh; color: var(--ink-soft); }
+.signing-in p { margin: 0; }
 
 /* ---- Sections ---- */
 

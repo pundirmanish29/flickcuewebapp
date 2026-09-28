@@ -72,6 +72,13 @@ function useReminderNotifications() {
 
 function SyncIndicator() {
   const { sync: state } = useAppState();
+  if (!state.connected && state.status === "connecting") {
+    return (
+      <span className="sync-pill guest" role="status">
+        <span className="spin"><Icon name="sync" size={14} /></span> <span className="sync-label">Signing in</span>
+      </span>
+    );
+  }
   if (!state.connected) {
     return (
       <button type="button" className="sync-pill guest" onClick={() => void connect()} aria-label="Sign in to sync">
@@ -100,18 +107,24 @@ export default function App() {
   const requestedRoute = useHashRoute();
   const { library, sync } = useAppState();
   const [query, setQuery] = useState("");
-  const route = !sync.connected && AUTHENTICATED_ROUTES.has(requestedRoute.route) ? "queue" : requestedRoute.route;
+  // While the extension is asked for its session, and then until the list
+  // first arrives from Drive, the requested page (or title) is kept rather
+  // than swapped for the signed-out homepage or an empty queue. A title opened
+  // before its list has loaded would find nothing and close itself.
+  const connecting = (!sync.connected && sync.status === "connecting")
+    || (sync.connected && sync.lastSyncAt === 0 && (sync.status === "idle" || sync.status === "syncing"));
+  const route = !sync.connected && !connecting && AUTHENTICATED_ROUTES.has(requestedRoute.route) ? "queue" : requestedRoute.route;
   const titleId = requestedRoute.titleId;
 
   useEffect(() => startBackgroundSync(), []);
   useReminderNotifications();
 
   useEffect(() => {
-    if (!sync.connected && AUTHENTICATED_ROUTES.has(requestedRoute.route)) {
+    if (!sync.connected && !connecting && AUTHENTICATED_ROUTES.has(requestedRoute.route)) {
       history.replaceState(null, "", "#/");
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     }
-  }, [requestedRoute.route, sync.connected]);
+  }, [requestedRoute.route, sync.connected, connecting]);
 
   useEffect(() => {
     sessionStorage.setItem("flickcue.lastRoute", route);
@@ -168,7 +181,13 @@ export default function App() {
       </header>
 
       <main id="main">
-        {route === "queue" && <QueuePage onOpen={openTitle} query={query} onNavigate={navigate} />}
+        {connecting && (
+          <div className="wrap signing-in" role="status">
+            <span className="spin"><Icon name="sync" size={20} /></span>
+            <p>Signing you in…</p>
+          </div>
+        )}
+        {!connecting && route === "queue" && <QueuePage onOpen={openTitle} query={query} onNavigate={navigate} />}
         {route === "discover" && <DiscoverPage onOpen={openTitle} query={query} />}
         {route === "watched" && <WatchedPage onOpen={openTitle} query={query} />}
         {route === "settings" && <SettingsPage />}
@@ -194,7 +213,7 @@ export default function App() {
         </nav>
       )}
 
-      {titleId && <TitleSheet key={titleId} id={titleId} onClose={closeTitle} />}
+      {titleId && !connecting && <TitleSheet key={titleId} id={titleId} onClose={closeTitle} />}
       <ToastHost />
     </>
   );
