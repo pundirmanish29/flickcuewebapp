@@ -11,6 +11,8 @@ const DAY = 24 * 60 * 60 * 1000;
 const RELEASE_WINDOW = 14 * DAY;
 const EPISODE_WINDOW = 7 * DAY;
 const LIMIT = 60;
+// A reminder overdue longer than this leaves the list; the title stays due in the queue.
+const REMINDER_WINDOW = 14 * DAY;
 const SEEN_KEY = "flickcue.notificationsSeenAt";
 const CINEMA_SEEN_KEY = "flickcue.cinemaSeenAt";
 const EPISODE_SEEN_KEY = "flickcue.episodeSeenAt";
@@ -31,7 +33,11 @@ export interface FlickNotification {
   kind: NotificationKind;
   /** When it happened: the reminder time, or midnight on the release or air date. */
   at: number;
+  /** The whole sentence, for a browser alert: "New episode of Slow Horses streams today". */
   text: string;
+  /** For the list, title first: the title, then what happened ("New episode today"). */
+  title: string;
+  event: string;
   detail: string;
   /** For an episode dated from when it was first seen: the air date, to show. */
   airedAt?: number;
@@ -59,10 +65,10 @@ export function buildNotifications(movies: Movie[], now = Date.now(), cinema?: C
     }
 
     const remindAt = Number(movie.remindAt);
-    if (remindAt > 0 && remindAt <= now) {
+    if (remindAt > 0 && remindAt <= now && now - remindAt <= REMINDER_WINDOW) {
       items.push({
         id: `reminder:${movie.id}:${remindAt}`, movieId: movie.id, kind: "reminder", at: remindAt,
-        text: `Time to watch ${title}`, detail: "Your reminder is due"
+        text: `Time to watch ${title}`, title, event: "Reminder due", detail: ""
       });
     }
 
@@ -72,7 +78,7 @@ export function buildNotifications(movies: Movie[], now = Date.now(), cinema?: C
       if (cinema && key && cinema.keys.has(key)) {
         items.push({
           id: `cinema:${movie.id}`, movieId: movie.id, kind: "cinema", at: cinema.firstSeen[key] || now,
-          text: `${title} is in cinemas`, detail: `Showing in ${cinema.place}`
+          text: `${title} is in cinemas`, title, event: "In cinemas", detail: `Showing in ${cinema.place}`
         });
         continue;
       }
@@ -80,7 +86,7 @@ export function buildNotifications(movies: Movie[], now = Date.now(), cinema?: C
       if (recent(released, RELEASE_WINDOW, now)) {
         items.push({
           id: `release:${movie.id}:${movie.releaseDate}`, movieId: movie.id, kind: "release", at: released,
-          text: `${title} is out now`, detail: released >= dayStart(localIsoDate(now)) ? "Released today" : "Newly released"
+          text: `${title} is out now`, title, event: released >= dayStart(localIsoDate(now)) ? "Out today" : "Out now", detail: ""
         });
       }
       continue;
@@ -91,7 +97,7 @@ export function buildNotifications(movies: Movie[], now = Date.now(), cinema?: C
     if (recent(premiere, RELEASE_WINDOW, now)) {
       items.push({
         id: `premiere:${movie.id}`, movieId: movie.id, kind: "premiere", at: premiere,
-        text: `${title} has premiered`, detail: "The first episode is out"
+        text: `${title} has premiered`, title, event: "Premiered", detail: "The first episode is out"
       });
     }
     episodeNews(movie, title, today, now, premiere, items);
@@ -119,6 +125,8 @@ function episodeNews(movie: Movie, title: string, today: string, now: number, pr
       text: kind === "finale" ? `The season ${next.season} finale of ${title} streams today`
         : kind === "season" ? `Season ${next.season} of ${title} starts today`
         : `New episode of ${title} streams today`,
+      title,
+      event: kind === "finale" ? `Season ${next.season} finale today` : kind === "season" ? `Season ${next.season} starts today` : "New episode today",
       detail: `S${next.season} · E${next.episode}`
     });
   }
@@ -132,6 +140,8 @@ function episodeNews(movie: Movie, title: string, today: string, now: number, pr
       text: kind === "finale" ? `The season ${last.season} finale of ${title} is out`
         : kind === "season" ? `Season ${last.season} of ${title} is here`
         : `New episode of ${title}`,
+      title,
+      event: kind === "finale" ? `Season ${last.season} finale` : kind === "season" ? `Season ${last.season} is here` : "New episode",
       detail: `S${last.season} · E${last.episode}`
     });
   }
@@ -207,6 +217,35 @@ export function stampEpisodes(items: FlickNotification[], now = Date.now()): Fli
     // Without storage the time is kept for this visit only.
   }
   return stamped.sort((a, b) => b.at - a.at);
+}
+
+/** Reminders overdue past the list's window: counted, not listed. */
+export function olderReminders(movies: Movie[], now = Date.now()): number {
+  return movies.filter((movie) => !movie.watched && Number(movie.remindAt) > 0 && now - Number(movie.remindAt) > REMINDER_WINDOW).length;
+}
+
+// Dismissed notifications, on this device (a notification is a view of the
+// list, so there's nothing to sync: dealing with the title clears it anyway).
+const DISMISSED_KEY = "flickcue.notificationsDismissed";
+export const DISMISSED_EVENT = "flickcue:notifications-dismissed";
+
+export function getDismissed(): Set<string> {
+  try {
+    const value = JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]");
+    return new Set(Array.isArray(value) ? value.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function dismiss(id: string) {
+  const ids = [...getDismissed(), id].slice(-300);
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(ids));
+  } catch {
+    // Without storage it stays dismissed for this visit only.
+  }
+  window.dispatchEvent(new Event(DISMISSED_EVENT));
 }
 
 export const countUnread = (items: FlickNotification[], seenAt: number) => items.filter((item) => item.at > seenAt).length;

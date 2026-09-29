@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildNotifications, countUnread, stampEpisodes } from "./notifications";
+import { buildNotifications, countUnread, olderReminders, stampEpisodes } from "./notifications";
 import type { Movie } from "./types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -82,5 +82,17 @@ describe("notifications from the list", () => {
     const t = stamped.find((item) => item.movieId === "t")!;
     expect(t.at).toBe(now);
     expect(t.airedAt).toBe(fresh[0].at);
+  });
+
+  it("leaves reminders overdue more than two weeks out of the list, and counts them", () => {
+    const old = film({ id: "o", remindAt: now - 20 * DAY });
+    const fresh = film({ id: "n", remindAt: now - DAY });
+    expect(buildNotifications([old, fresh], now).map((item) => item.movieId)).toEqual(["n"]);
+    expect(olderReminders([old, fresh], now)).toBe(1);
+  });
+
+  it("names the title first, then what happened", () => {
+    const item = buildNotifications([show({ lastEpisode: { season: 3, episode: 1, airDate: isoDate(-1) } })], now)[0];
+    expect([item.title, item.event]).toEqual(["Severance", "Season 3 is here"]);
   });
 });

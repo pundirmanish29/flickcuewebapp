@@ -7,6 +7,7 @@ import { toast } from "../components/Toast";
 import { chooseTheme, connect, disconnect, importLibrary, sync, updateSettings, useAppState } from "../lib/store";
 import { INDIAN_CITIES } from "../lib/cinemas";
 import { EXTENSION_URL } from "../lib/config";
+import { alertSupport } from "../lib/alerts";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import { useTheme, type ThemeChoice } from "../lib/theme";
 import type { LibraryDocument } from "../lib/types";
@@ -108,13 +109,10 @@ function Appearance() {
   );
 }
 
-/** iOS allows a site's notifications only once it's on the home screen. */
-const onIosBrowser = () =>
-  /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window.matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone);
-
 function Notifications() {
   const { settings } = useAppState();
-  const supported = typeof window !== "undefined" && "Notification" in window;
+  const support = alertSupport();
+  const supported = support === "supported";
   const [permission, setPermission] = useState(() => (supported ? Notification.permission : "default"));
 
   const toggle = async (enabled: boolean) => {
@@ -128,7 +126,7 @@ function Notifications() {
 
   const on = supported && settings.notifications && permission === "granted";
   return (
-    <article className="card">
+    <article className="card" id="notifications">
       <h2>Notifications</h2>
       <label className={`toggle ${!supported ? "disabled" : ""}`}>
         <span>
@@ -137,7 +135,7 @@ function Notifications() {
         </span>
         <input type="checkbox" role="switch" checked={on} disabled={!supported} onChange={(event) => void toggle(event.target.checked)} />
       </label>
-      {!supported && onIosBrowser() ? (
+      {support === "home-screen" ? (
         <p className="note">
           On iPhone and iPad, alerts need FlickCue on your Home Screen: tap <Icon name="external" size={13} /> Share, then <b>Add to Home Screen</b>, and open it from there.
         </p>

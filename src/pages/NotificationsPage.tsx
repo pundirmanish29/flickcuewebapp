@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 import { Poster } from "../components/Poster";
-import { buildNotifications, cinemaFirstSeen, stampEpisodes, countUnread, getSeenAt, markSeen, type FlickNotification, type NotificationKind } from "../lib/notifications";
+import { buildNotifications, cinemaFirstSeen, stampEpisodes, countUnread, dismiss, DISMISSED_EVENT, getDismissed, getSeenAt, markSeen, olderReminders, type FlickNotification, type NotificationKind } from "../lib/notifications";
+import * as actions from "../lib/actions";
+import { alertSupport } from "../lib/alerts";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { formatRelativeDay } from "../lib/rules";
 import { useAppState } from "../lib/store";
@@ -33,10 +35,16 @@ function useNotifications(): FlickNotification[] {
   }, []);
   const inCinemas = useInCinemas();
   const { place } = useWhere();
+  const [dismissed, setDismissed] = useState(getDismissed);
+  useEffect(() => {
+    const update = () => setDismissed(getDismissed());
+    window.addEventListener(DISMISSED_EVENT, update);
+    return () => window.removeEventListener(DISMISSED_EVENT, update);
+  }, []);
   return useMemo(() => {
     const cinema = inCinemas ? { keys: inCinemas, firstSeen: cinemaFirstSeen(library.movies, inCinemas, now), place } : undefined;
-    return stampEpisodes(buildNotifications(library.movies, now, cinema), now);
-  }, [library.movies, now, inCinemas, place]);
+    return stampEpisodes(buildNotifications(library.movies, now, cinema), now).filter((item) => !dismissed.has(item.id));
+  }, [library.movies, now, inCinemas, place, dismissed]);
 }
 
 function useSeenAt(): number {
@@ -71,9 +79,12 @@ function when(at: number, now: number): string {
   if (minutes < 1) return "Just now";
   if (minutes < 60) return `${minutes} min ago`;
   if (minutes < 12 * 60) return `${Math.round(minutes / 60)} h ago`;
-  const day = formatRelativeDay(at, now);
-  return day.charAt(0).toUpperCase() + day.slice(1);
+  return capitalize(formatRelativeDay(at, now));
 }
+
+/** When it happened, as shown and as sorted: the air or release day, or the reminder's time. */
+const shownAt = (item: FlickNotification) => item.airedAt ?? item.at;
+const byShown = (a: FlickNotification, b: FlickNotification) => shownAt(b) - shownAt(a);
 
 function NotificationList({ items, unread, onOpen }: { items: FlickNotification[]; unread: boolean; onOpen: (id: string) => void }) {
   const { library } = useAppState();
@@ -82,19 +93,32 @@ function NotificationList({ items, unread, onOpen }: { items: FlickNotification[
     <ul className="notification-list">
       {items.map((item) => {
         const movie = library.movies.find((entry) => entry.id === item.movieId);
+        const time = DAY_KINDS.has(item.kind) ? capitalize(formatRelativeDay(shownAt(item), now)) : when(item.at, now);
         return (
-          <li key={item.id}>
-            <button type="button" className={`notification ${unread ? "unread" : ""}`} onClick={() => onOpen(item.movieId)}>
+          <li key={item.id} className={`notification ${unread ? "unread" : ""}`}>
+            <button type="button" className="notification-open" onClick={() => onOpen(item.movieId)} aria-label={`${item.text}. Open ${item.title}`}>
               <span className="notification-art">
-                <Poster src={upscale(movie?.poster, "w185")} title={movie?.title || item.text} className="notification-poster" />
+                <Poster src={upscale(movie?.poster, "w185")} title={movie?.title || item.title} className="notification-poster" />
                 <span className={`notification-kind kind-${item.kind}`}><Icon name={KIND_ICON[item.kind]} size={12} /></span>
               </span>
               <span className="notification-text">
-                <b>{item.text}</b>
-                <span>{item.detail} · {DAY_KINDS.has(item.kind) ? capitalize(formatRelativeDay(item.airedAt ?? item.at, now)) : when(item.at, now)}</span>
+                <b>{item.title}{unread && <span className="notification-dot" aria-label="New" />}</b>
+                <span className="notification-event">{item.event}</span>
+                <span className="notification-when">{[item.detail, time].filter(Boolean).join(" · ")}</span>
               </span>
-              {unread && <span className="notification-dot" aria-label="New" />}
             </button>
+            {/* What a reminder asks for, right here; anything else can be put away. */}
+            <span className="notification-actions">
+              {item.kind === "reminder" && movie && !movie.watched && (
+                <>
+                  <button type="button" className="chip-button" onClick={() => actions.toggleWatched(item.movieId)}>Watched it</button>
+                  <button type="button" className="chip-button" onClick={() => actions.snooze(item.movieId)}>Snooze</button>
+                </>
+              )}
+              <button type="button" className="notification-dismiss" onClick={() => dismiss(item.id)} aria-label={`Dismiss: ${item.text}`} title="Dismiss">
+                <Icon name="close" size={14} />
+              </button>
+            </span>
           </li>
         );
       })}
@@ -102,22 +126,46 @@ function NotificationList({ items, unread, onOpen }: { items: FlickNotification[
   );
 }
 
+/** Today, this week, earlier: by the day shown. */
+function byDay(items: FlickNotification[], now: number) {
+  const todayStart = new Date(new Date(now).toDateString()).getTime();
+  const weekStart = todayStart - 6 * 24 * 60 * 60 * 1000;
+  const groups: { label: string; items: FlickNotification[] }[] = [
+    { label: "Today", items: [] }, { label: "This week", items: [] }, { label: "Earlier", items: [] }
+  ];
+  for (const item of [...items].sort(byShown)) {
+    const at = shownAt(item);
+    groups[at >= todayStart ? 0 : at >= weekStart ? 1 : 2].items.push(item);
+  }
+  return groups.filter((group) => group.items.length);
+}
+
+function AlertsLink() {
+  const { settings } = useAppState();
+  const support = alertSupport();
+  const on = support === "supported" && settings.notifications && Notification.permission === "granted";
+  if (on || support === "unsupported") return null;
+  return <> <a href="#/settings">{support === "home-screen" ? "Add FlickCue to your Home Screen for alerts" : "Turn on alerts"}</a></>;
+}
+
 export function NotificationsPage({ onOpen }: { onOpen: (id: string) => void }) {
   const items = useNotifications();
-  const { settings } = useAppState();
+  const { library } = useAppState();
   // What counted as new when the page opened stays marked for this visit,
   // while the bell clears straight away.
   const [seenBefore] = useState(getSeenAt);
   useEffect(() => markSeen(), [items.length]);
 
-  const fresh = items.filter((item) => item.at > seenBefore);
-  const earlier = items.filter((item) => item.at <= seenBefore);
+  const now = Date.now();
+  const fresh = items.filter((item) => item.at > seenBefore).sort(byShown);
+  const seen = byDay(items.filter((item) => item.at <= seenBefore), now);
+  const older = olderReminders(library.movies, now);
 
   return (
     <>
     <PageHeader
       title="Notifications"
-      meta={<>Reminders, releases and new episodes of shows you watch.{!settings.notifications && <> <a href="#/settings">Turn on browser alerts</a></>}</>}
+      meta={<>Reminders, releases and new episodes of shows you watch.<AlertsLink /></>}
     />
     <section className="paper notifications">
       <div className="wrap notifications-wrap">
@@ -126,7 +174,9 @@ export function NotificationsPage({ onOpen }: { onOpen: (id: string) => void }) 
           <div className="notifications-empty">
             <span className="notifications-empty-icon"><Icon name="bell" size={26} /></span>
             <p><b>You're all caught up.</b></p>
-            <p className="muted">When a reminder comes due, a saved film is released or a new episode airs, it shows up here.</p>
+            <p className="muted">
+              Set a reminder on anything in your queue, keep an eye on something coming out, or mark a show as Watching: when it's time, it shows up here.
+            </p>
           </div>
         ) : (
           <>
@@ -136,13 +186,18 @@ export function NotificationsPage({ onOpen }: { onOpen: (id: string) => void }) 
                 <NotificationList items={fresh} unread onOpen={onOpen} />
               </>
             )}
-            {earlier.length > 0 && (
-              <>
-                <h2 className="notifications-group">{fresh.length ? "Earlier" : "Recent"}</h2>
-                <NotificationList items={earlier} unread={false} onOpen={onOpen} />
-              </>
-            )}
+            {seen.map((group) => (
+              <Fragment key={group.label}>
+                <h2 className="notifications-group">{group.label}</h2>
+                <NotificationList items={group.items} unread={false} onOpen={onOpen} />
+              </Fragment>
+            ))}
           </>
+        )}
+        {older > 0 && (
+          <p className="notifications-older">
+            <a href="#/">{older} older reminder{older === 1 ? " is" : "s are"} still due in your queue</a>
+          </p>
         )}
       </div>
     </section>
