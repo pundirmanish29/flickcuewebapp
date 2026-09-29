@@ -644,6 +644,30 @@ a { color: inherit; }
 
 /* ---- Discover ---- */
 
+/* The list chips stay under the header while the list scrolls. */
+.discover-bar {
+  position: sticky; top: var(--header); z-index: 6; margin: 0 calc(-1 * var(--gutter)); padding: 10px var(--gutter);
+  background: var(--paper); box-shadow: 0 1px 0 var(--rule);
+}
+.discover-bar .category-row { margin: 0; padding: 0; }
+@media (min-width: 901px) { .discover-bar .category-row { flex-wrap: wrap; overflow: visible; } }
+.discover-toolbar { justify-content: flex-start; gap: 10px; margin: 16px 0 20px; }
+.segmented button:disabled { opacity: 0.4; cursor: default; }
+.genre-select.active select { background-color: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.meta-rating { display: inline-flex; align-items: center; gap: 3px; }
+.meta-rating svg { color: var(--green); fill: currentColor; align-self: center; }
+.add-by-hand-hint { margin: 32px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
+.link-button.inline { min-height: 0; padding: 0; font-size: inherit; }
+.shelf-tools { display: flex; align-items: center; gap: 14px; }
+.shelf-arrows { display: none; gap: 6px; }
+@media (hover: hover) and (min-width: 901px) { .shelf-arrows { display: inline-flex; } }
+.shelf-arrow {
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--rule);
+  background: var(--paper-surface); color: var(--ink); cursor: pointer; transition: border-color 160ms ease;
+}
+.shelf-arrow:hover { border-color: var(--ink); }
+.shelf-arrow.flip svg { transform: scaleX(-1); }
+
 .category-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 20px; }
 .category {
   flex-shrink: 0; height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--rule);
@@ -1047,6 +1071,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .candidate-card .meta, .candidate-reason, .candidate-overview { font-size: 12px; }
   .candidate-quick { width: 36px; height: 36px; right: 6px; bottom: 6px; }
   .category-row { gap: 6px; margin: 0 calc(-1 * var(--gutter)) 12px; padding: 0 var(--gutter) 4px; scrollbar-width: none; }
+  .discover-bar { padding: 8px var(--gutter); }
+  .discover-bar .category-row { margin: 0 calc(-1 * var(--gutter)); padding: 0 var(--gutter); }
+  .discover-toolbar { margin: 12px 0 16px; }
   .category-row::-webkit-scrollbar { display: none; }
   .category, .titles .toolbar .segmented button { min-height: 36px; height: 36px; padding: 0 14px; font-size: 14px; }
   .titles .toolbar .button.small { height: 36px; min-height: 36px; font-size: 14px; }

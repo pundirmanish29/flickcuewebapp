@@ -50,9 +50,6 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank 
             <Poster src={upscale(candidate.poster, "w342")} title={candidate.title} />
             {rank && <span className="rank-number" aria-label={`Number ${rank}`}>{rank}</span>}
             {isUnreleased(candidate) && <span className="badge badge-amber">SOON</span>}
-            {formatRating(candidate.rating) && (
-              <span className="title-card-rating"><Icon name="star" size={11} /> {formatRating(candidate.rating)}</span>
-            )}
           </div>
         </button>
         {/* Saving sits on the poster, so a row of results isn't a row of buttons. */}
@@ -68,7 +65,11 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank 
       </div>
       <button type="button" className="title-card-open title-card-text" onClick={() => (saved ? onOpenSaved(saved.id) : openPreview(candidate))} tabIndex={-1} aria-hidden="true">
         <h3>{title}</h3>
-        <p className="meta">{[rank ? candidate.genre || candidate.mediaType : candidate.mediaType, candidate.year].filter(Boolean).join(" · ")}</p>
+        {/* The rating sits here, not on the poster, where it would cover the title art. */}
+        <p className="meta">
+          {[rank ? candidate.genre || candidate.mediaType : candidate.mediaType, candidate.year].filter(Boolean).join(" · ")}
+          {formatRating(candidate.rating) && <>{" · "}<span className="meta-rating"><Icon name="star" size={11} /> {formatRating(candidate.rating)}</span></>}
+        </p>
         {candidate.reason
           ? <p className="candidate-reason">{candidate.reason}</p>
           : candidate.overview && <p className="candidate-overview">{candidate.overview}</p>}

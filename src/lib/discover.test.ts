@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestKnownWork, blendRecommendations, matchPerson, normalizeQuery, pickSeeds, rankSearchResults, savedKeys, splitYear } from "./discover";
+import { bestKnownWork, blendRecommendations, matchPerson, recommendationRows, normalizeQuery, pickSeeds, rankSearchResults, savedKeys, splitYear } from "./discover";
 import type { Movie } from "./types";
 
 const film = (id: number, title: string, extra: Record<string, unknown> = {}) => ({
@@ -121,5 +121,29 @@ describe("recommendations", () => {
       { seed: seeds[1], results: [{ ...film(2316, "x"), title: undefined, name: "Severance", media_type: "tv" }, film(30, "Typed by Hand"), film(31, "New")] }
     ], savedKeys(movies));
     expect(blended.map((entry) => entry.item.id)).toEqual([31]);
+  });
+});
+
+describe("person by surname", () => {
+  it("takes the top result when the search is one of their names", () => {
+    const nolan = { media_type: "person", id: 9, name: "Christopher Nolan", profile_path: "/n.jpg" };
+    expect(matchPerson([nolan, { media_type: "movie", id: 2, title: "Facing Nolan" }], "nolan")?.id).toBe(9);
+    expect(matchPerson([{ media_type: "movie", id: 2, title: "Facing Nolan" }, nolan], "nolan")).toBeUndefined();
+    expect(matchPerson([nolan], "nol")).toBeUndefined();
+  });
+});
+
+describe("recommendation rows", () => {
+  const item = (id: number) => ({ id, title: `T${id}`, poster_path: "/p.jpg", media_type: "movie" });
+  it("gives each save its own row, a title once, and drops thin rows", () => {
+    const rows = recommendationRows([
+      { seed: { tmdbId: "1", tmdbType: "tv", title: "One Piece" }, results: [1, 2, 3, 4, 5].map(item) },
+      { seed: { tmdbId: "2", tmdbType: "movie", title: "Heat" }, results: [3, 4, 5, 6, 7, 8, 9].map(item) },
+      { seed: { tmdbId: "3", tmdbType: "movie", title: "Thin" }, results: [1, 10].map(item) }
+    ], new Set(["tmdb:movie:2"]));
+    expect(rows.map((row) => [row.because, row.items.map((entry) => entry.item.id)])).toEqual([
+      ["One Piece", [1, 3, 4, 5]],
+      ["Heat", [6, 7, 8, 9]]
+    ]);
   });
 });

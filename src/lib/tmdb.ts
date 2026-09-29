@@ -3,7 +3,7 @@
 
 import { PROXY_BASE_URL } from "./config";
 import { dedupeProviders } from "./providers";
-import { bestKnownWork, blendRecommendations, matchPerson, rankSearchResults, splitYear, type Seed } from "./discover";
+import { bestKnownWork, blendRecommendations, matchPerson, rankSearchResults, recommendationRows, splitYear, type Seed } from "./discover";
 import { isUnreleased } from "./rules";
 import type { Candidate, Movie, Season } from "./types";
 
@@ -127,6 +127,22 @@ export async function recommendFrom(seeds: Seed[], exclude: Set<string>): Promis
   return blendRecommendations(lists, exclude).map(({ item, type, because }) => ({ ...toCandidate(item, type), reason: `Because you saved ${because}` }));
 }
 
+/** "For you" as a row per recent save. */
+export async function recommendRows(seeds: Seed[], exclude: Set<string>): Promise<{ because: string; items: Candidate[] }[]> {
+  const lists = await Promise.all(seeds.map((seed) =>
+    tmdbGet(`${seed.tmdbType}/${seed.tmdbId}/recommendations`, { page: "1" })
+      .then((data) => ({ seed, results: data.results ?? [] }))
+      .catch(() => ({ seed, results: [] as any[] }))
+  ));
+  if (lists.every((list) => !list.results.length)) {
+    await tmdbGet(`${seeds[0].tmdbType}/${seeds[0].tmdbId}/recommendations`, { page: "1" });
+  }
+  return recommendationRows(lists, exclude).map((row) => ({
+    because: row.because,
+    items: row.items.map(({ item, type }) => toCandidate(item, type))
+  }));
+}
+
 export interface DiscoverCategory {
   id: string;
   label: string;
@@ -135,6 +151,8 @@ export interface DiscoverCategory {
   type?: "movie" | "tv";
   /** Asked for the reader's region: what's in cinemas in India isn't what's in cinemas in the US. */
   regional?: boolean;
+  /** A chart: shown numbered, saved titles kept in place. */
+  ranked?: boolean;
 }
 
 const FOUR_YEARS_AGO = `${new Date().getFullYear() - 4}-01-01`;
@@ -142,7 +160,7 @@ const FOUR_YEARS_AGO = `${new Date().getFullYear() - 4}-01-01`;
 /** The Android app's Discover lists, plus a few for finding something good. */
 export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
   { id: "trending", label: "Trending", path: "trending/all/week" },
-  { id: "trending-shows", label: "Trending shows", path: "trending/tv/week", type: "tv" },
+  { id: "trending-shows", label: "Trending shows", path: "trending/tv/week", type: "tv", ranked: true },
   { id: "now-playing", label: "In cinemas", path: "movie/now_playing", type: "movie", regional: true },
   { id: "upcoming", label: "Coming soon", path: "movie/upcoming", type: "movie", regional: true },
   { id: "popular-films", label: "Popular films", path: "movie/popular", type: "movie" },
@@ -154,14 +172,45 @@ export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
     params: { sort_by: "vote_average.desc", "vote_count.gte": "500", "vote_count.lte": "4000", "vote_average.gte": "7.0", "primary_release_date.gte": FOUR_YEARS_AGO, without_genres: "99,10402,10770" }
   },
   { id: "popular-shows", label: "Popular shows", path: "tv/popular", type: "tv" },
-  { id: "top-shows", label: "Top rated shows", path: "tv/top_rated", type: "tv" },
-  ...([
-    ["action", "Action", "28"], ["comedy", "Comedy", "35"], ["drama", "Drama", "18"], ["thriller", "Thriller", "53"],
-    ["horror", "Horror", "27"], ["scifi", "Sci-Fi", "878"], ["animation", "Animation", "16"], ["romance", "Romance", "10749"]
-  ] as const).map(([id, label, genre]) => ({
-    id, label, path: "discover/movie", params: { with_genres: genre, sort_by: "popularity.desc", "vote_count.gte": "100" }, type: "movie" as const
-  }))
+  { id: "top-shows", label: "Top rated shows", path: "tv/top_rated", type: "tv" }
 ];
+
+/** Genres, for films and, where TMDB has the same genre for TV, shows. */
+export const GENRES_LIST: { id: string; label: string; movie: string; tv?: string }[] = [
+  { id: "action", label: "Action", movie: "28", tv: "10759" },
+  { id: "comedy", label: "Comedy", movie: "35", tv: "35" },
+  { id: "drama", label: "Drama", movie: "18", tv: "18" },
+  { id: "crime", label: "Crime", movie: "80", tv: "80" },
+  { id: "thriller", label: "Thriller", movie: "53" },
+  { id: "mystery", label: "Mystery", movie: "9648", tv: "9648" },
+  { id: "horror", label: "Horror", movie: "27" },
+  { id: "scifi", label: "Sci-Fi", movie: "878", tv: "10765" },
+  { id: "animation", label: "Animation", movie: "16", tv: "16" },
+  { id: "romance", label: "Romance", movie: "10749" },
+  { id: "documentary", label: "Documentary", movie: "99", tv: "99" }
+];
+
+function genreCategory(genre: (typeof GENRES_LIST)[number], type: "movie" | "tv"): DiscoverCategory {
+  return {
+    id: `genre-${genre.id}-${type}`, label: genre.label, path: `discover/${type}`, type,
+    params: { with_genres: type === "tv" ? genre.tv! : genre.movie, sort_by: "popularity.desc", "vote_count.gte": type === "tv" ? "50" : "100" }
+  };
+}
+
+/** A genre's popular titles: films, shows, or both taken in turn. */
+export async function browseGenre(genreId: string, kind: "all" | "movie" | "tv", page = 1): Promise<{ items: Candidate[]; more: boolean }> {
+  const genre = GENRES_LIST.find((item) => item.id === genreId) ?? GENRES_LIST[0];
+  const types: ("movie" | "tv")[] = kind === "movie" || !genre.tv ? ["movie"] : kind === "tv" ? ["tv"] : ["movie", "tv"];
+  const pages = await Promise.all(types.map((type) => browse(genreCategory(genre, type), page)));
+  const items: Candidate[] = [];
+  for (let index = 0; index < Math.max(...pages.map((result) => result.items.length)); index++) {
+    for (const result of pages) if (result.items[index]) items.push(result.items[index]);
+  }
+  return { items: dedupe(items), more: pages.some((result) => result.more) };
+}
+
+/** Whether a genre has shows at all (Thriller, Horror and Romance are film-only on TMDB). */
+export const genreHasShows = (genreId: string) => Boolean(GENRES_LIST.find((item) => item.id === genreId)?.tv);
 
 export const IN_CINEMAS = DISCOVER_CATEGORIES.find((category) => category.id === "now-playing")!;
 export const TRENDING_SHOWS = DISCOVER_CATEGORIES.find((category) => category.id === "trending-shows")!;

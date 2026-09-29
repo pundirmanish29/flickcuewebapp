@@ -74,8 +74,11 @@ export function matchPerson(results: any[], query: string): any | undefined {
   const wanted = normalizeQuery(splitYear(query).text);
   if (wanted.length < 3) return undefined;
   const people = results.filter((item) => item.media_type === "person" && item.profile_path);
+  // A full name, or the top result's first name or surname ("nolan", "gerwig").
+  const top = results[0];
+  const namedBy = (name: string) => normalizeQuery(name).startsWith(wanted) || normalizeQuery(name).split(" ").some((word) => word === wanted);
   return people.find((person) => normalizeQuery(person.name) === wanted)
-    ?? (results[0]?.media_type === "person" && normalizeQuery(results[0].name).startsWith(wanted) ? results[0] : undefined);
+    ?? (top?.media_type === "person" && top.profile_path && namedBy(top.name) ? top : undefined);
 }
 
 const PERSON_JOBS = new Set(["Director", "Writer", "Screenplay", "Creator", "Novel"]);
@@ -184,4 +187,33 @@ export function blendRecommendations(lists: { seed: Seed; results: any[] }[], ex
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map(({ item, type, because }) => ({ item, type, because }));
+}
+
+export interface RecommendationRow {
+  because: string;
+  items: { item: any; type: "movie" | "tv" }[];
+}
+
+/**
+ * "For you" as rows, one per recent save ("Because you saved One Piece"), so
+ * no one save's taste fills the page. A title shows once, in the first row
+ * that has it; saved titles are left out; a row with too little is dropped.
+ */
+export function recommendationRows(lists: { seed: Seed; results: any[] }[], exclude: Set<string>, perRow = 12, minimum = 4): RecommendationRow[] {
+  const used = new Set<string>();
+  const rows: RecommendationRow[] = [];
+  for (const { seed, results } of lists) {
+    const items: RecommendationRow["items"] = [];
+    for (const item of results) {
+      if (!item?.poster_path || items.length >= perRow) continue;
+      const type = item.media_type === "tv" || item.media_type === "movie" ? item.media_type : seed.tmdbType;
+      const key = `tmdb:${type}:${item.id}`;
+      if (used.has(key) || exclude.has(key) || exclude.has(`title:${normalizeQuery(item.title || item.name || "")}`)) continue;
+      items.push({ item, type });
+    }
+    if (items.length < minimum) continue;
+    items.forEach(({ item, type }) => used.add(`tmdb:${type}:${item.id}`));
+    rows.push({ because: seed.title, items });
+  }
+  return rows;
 }
