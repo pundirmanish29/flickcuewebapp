@@ -63,12 +63,32 @@ function useSeenAt(): number {
   return seenAt;
 }
 
+// The page Notifications was opened from, for the bell to go back to.
+let cameFrom = "#/";
+if (typeof window !== "undefined") {
+  window.addEventListener("hashchange", (event) => {
+    const from = new URL(event.oldURL).hash;
+    if (location.hash.startsWith("#/notifications") && !from.startsWith("#/notifications") && !from.startsWith("#/title/")) cameFrom = from || "#/";
+  });
+}
+
 /** The header bell, with how many notifications arrived since the page was last opened. */
 export function NotificationBell({ current }: { current: boolean }) {
   const unread = countUnread(useNotifications(), useSeenAt());
   const label = unread ? `Notifications, ${unread} new` : "Notifications";
   return (
-    <a className="header-icon" href="#/notifications" aria-label={label} aria-current={current ? "page" : undefined}>
+    <a
+      className="header-icon"
+      href="#/notifications"
+      aria-label={current ? "Close notifications" : label}
+      aria-current={current ? "page" : undefined}
+      onClick={(event) => {
+        // Open already: the bell closes it, back to where you were.
+        if (!current) return;
+        event.preventDefault();
+        location.hash = cameFrom;
+      }}
+    >
       <Icon name="bell" size={21} />
       {unread > 0 && <span key={unread} className="header-badge" aria-hidden="true">{unread > 9 ? "9+" : unread}</span>}
     </a>
