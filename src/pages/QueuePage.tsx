@@ -4,11 +4,12 @@ import { Poster } from "../components/Poster";
 import { TitleCard } from "../components/TitleCard";
 import * as actions from "../lib/actions";
 import {
-  displayTitle, formatRating, shortDay, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
+  displayTitle, formatRating, shortDay, seasonProgress, watchingShows, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
 } from "../lib/rules";
 import { connect, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
 import { upscale } from "../lib/tmdb";
+import { useShowScheduleRefresh } from "../lib/showSync";
 import type { KindFilter, Movie, SortMode } from "../lib/types";
 
 /**
@@ -169,7 +170,7 @@ function pickTonight(queue: Movie[], skip: number): Movie | undefined {
 }
 
 export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; query: string }) {
-  const { library, sync } = useAppState();
+  const { library, sync, settings } = useAppState();
   const [kind, setKind] = useState<KindFilter>("all");
   const [sort, setSort] = useState<SortMode>(() => (localStorage.getItem("flickcue.sort") as SortMode) || "added");
   const [skip, setSkip] = useState(0);
@@ -190,6 +191,9 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
       .sort((a, b) => a.at - b.at)
       .slice(0, 8);
   }, [queue, tonight?.id]);
+
+  const watching = useMemo(() => watchingShows(library.movies), [library.movies]);
+  useShowScheduleRefresh(library.movies, settings.region || "IN", sync.connected);
 
   const visible = sortMovies(queue.filter((movie) => matchesKind(movie, kind) && matchesSearch(movie, query)), sort);
 
@@ -252,6 +256,32 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                 )}
               </div>
             </div>
+          </div>
+        </section>
+      )}
+
+      {sync.connected && watching.length > 0 && (
+        <section className="paper radar watching" aria-labelledby="watching-title">
+          <div className="wrap">
+            <h2 id="watching-title" className="section-title">Watching <span className="count">{watching.length}</span></h2>
+            <ul className="radar-list">
+              {watching.map(({ movie, label, detail, tone }) => {
+                const progress = seasonProgress(movie).filter((season) => season.seen > 0).at(-1);
+                return (
+                  <li key={movie.id}>
+                    <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
+                      <Poster src={movie.poster} title={movie.title} className="radar-poster" />
+                      <span className="radar-text">
+                        <span className={`radar-when tone-${tone}`}>{label}</span>
+                        <span className="radar-title">{displayTitle(movie)}</span>
+                        {detail && <span className="radar-sub">{detail}</span>}
+                        {progress && <span className="radar-sub">Watched S{progress.number} · {progress.seen} of {progress.total}</span>}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </section>
       )}

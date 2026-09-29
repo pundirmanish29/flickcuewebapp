@@ -233,6 +233,7 @@ export interface TitleDetails {
   /** Shows: the channel or service it's made for ("Apple TV+"). */
   network: string;
   nextEpisode: { season: number; episode: number; name: string; date: string } | null;
+  lastEpisode: { season: number; episode: number; name: string; date: string } | null;
   /** The original language's name ("Korean"), or "" for English. */
   language: string;
   /** Films: the theatrical release date in the reader's region, if it has its own. */
@@ -342,6 +343,9 @@ export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: 
         network: type === "tv" ? String(data.networks?.[0]?.name || "") : "",
         nextEpisode: data.next_episode_to_air?.air_date
           ? { season: Number(data.next_episode_to_air.season_number), episode: Number(data.next_episode_to_air.episode_number), name: String(data.next_episode_to_air.name || ""), date: String(data.next_episode_to_air.air_date) }
+          : null,
+        lastEpisode: data.last_episode_to_air?.air_date
+          ? { season: Number(data.last_episode_to_air.season_number), episode: Number(data.last_episode_to_air.episode_number), name: String(data.last_episode_to_air.name || ""), date: String(data.last_episode_to_air.air_date) }
           : null,
         language: languageName(String(data.original_language || "")),
         regionalRelease: type === "movie" ? regionalReleaseDate(data, region) : "",

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
-import { enrich, findExisting } from "../lib/editor";
+import { findExisting } from "../lib/editor";
 import {
   displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, reminderText, seasonProgress, smartQuotes
 } from "../lib/rules";
-import { commit, getState, useAppState } from "../lib/store";
+import { useAppState } from "../lib/store";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { FilmShowtimes } from "./Showtimes";
 import { cinemaKey, fetchDetails, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
@@ -15,24 +15,8 @@ import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
 import { providerLink, splitChannel } from "../lib/providers";
 import { regionName } from "../lib/cinemas";
+import { writeBack } from "../lib/showSync";
 
-/** Writes looked-up details back onto the saved title, the way the extension and the Android app do. */
-function writeBack(movie: Movie, details: TitleDetails) {
-  const library = getState().library;
-  const next = enrich(library, movie.id, {
-    runtimeMinutes: details.runtimeMinutes || undefined,
-    genres: details.genres.length ? details.genres : undefined,
-    genre: details.genres[0],
-    imdbId: details.imdbId,
-    productionStatus: details.status,
-    tagline: movie.tagline ? undefined : details.overview.slice(0, 200),
-    backdrop: movie.backdrop ? undefined : details.backdrop,
-    poster: movie.poster ? undefined : details.poster,
-    rating: movie.rating ? undefined : details.rating,
-    seasons: details.seasons.length ? details.seasons : undefined
-  });
-  if (next) commit(next);
-}
 
 const ProviderLogo = ({ provider }: { provider: Provider }) =>
   provider.logo ? <img src={provider.logo} alt="" /> : <b>{provider.name.slice(0, 2)}</b>;

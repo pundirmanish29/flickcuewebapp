@@ -368,3 +368,73 @@ export function smartQuotes(text: string): string {
     .replace(/(^|[\s([{\u2014-])"/g, "$1\u201c")
     .replace(/"/g, "\u201d");
 }
+
+// ---- Watching: started shows that haven't ended ----
+
+/** A show the reader has begun: marked watched, episodes ticked, or "watching" (Android). */
+export function isStartedShow(movie: Movie): boolean {
+  if (!isShow(movie)) return false;
+  return Boolean(movie.watched || movie.personal?.episodes?.length || movie.personal?.status === "watching");
+}
+
+function lastActivity(movie: Movie): number {
+  return Math.max(Number(movie.watchedAt) || 0, Number(movie.updatedAt) || 0, Number(movie.createdAt) || 0);
+}
+
+export interface WatchingEntry {
+  movie: Movie;
+  /** The next episode's air date, when one is scheduled. */
+  nextDate: string;
+  /** Short enough for the poster chip: a day, "New episode" or "Returning". */
+  label: string;
+  /** What's next, for under the title: "Next: S6 E3" or "Season 2 premiere". */
+  detail: string;
+  tone: "green" | "amber" | "neutral";
+}
+
+/**
+ * Started shows still running, soonest next episode first, then ones with a
+ * new episode out, then those returning with no date. A show whose status
+ * isn't known yet is left out until it has been looked up.
+ */
+export function watchingShows(movies: Movie[], now = Date.now()): WatchingEntry[] {
+  const today = localIsoDate(now);
+  const entries: (WatchingEntry & { rank: number })[] = [];
+  for (const movie of movies) {
+    if (!isStartedShow(movie)) continue;
+    const schedule = getShowSchedule(movie);
+    if (!schedule?.status && !schedule?.next) continue;
+    if (/^(ended|canceled)$/i.test(schedule.status ?? "")) continue;
+    const next = schedule.next && schedule.next.date >= today ? schedule.next : null;
+    const status = getShowStatus(movie, now);
+    if (next) {
+      const day = shortDay(new Date(`${next.date}T20:00:00`).getTime(), now, false);
+      const detail = next.episode === 1 ? `Season ${next.season} premiere` : `Next: S${next.season} E${next.episode}`;
+      entries.push({ movie, nextDate: next.date, label: day, detail, tone: next.episode === 1 ? "amber" : "green", rank: 0 });
+    } else if (status?.kind === "new-episode") {
+      entries.push({ movie, nextDate: "", label: "New episode", detail: "", tone: "green", rank: 1 });
+    } else {
+      entries.push({ movie, nextDate: "", label: /in production|planned|pilot/i.test(schedule.status ?? "") ? "In production" : "Returning", detail: "", tone: "neutral", rank: 2 });
+    }
+  }
+  return entries
+    .sort((a, b) => a.rank - b.rank || a.nextDate.localeCompare(b.nextDate) || lastActivity(b.movie) - lastActivity(a.movie))
+    .map(({ rank: _rank, ...entry }) => entry);
+}
+
+/**
+ * Started shows whose status is unknown or out of date (their next episode
+ * has aired since), most recently active first: the ones worth looking up.
+ */
+export function showsToRefresh(movies: Movie[], now = Date.now()): Movie[] {
+  const today = localIsoDate(now);
+  return movies
+    .filter((movie) => {
+      if (!isStartedShow(movie) || !movie.tmdbId) return false;
+      const schedule = getShowSchedule(movie);
+      if (/^(ended|canceled)$/i.test(schedule?.status ?? "")) return false;
+      if (!schedule?.status) return true;
+      return Boolean(schedule.next && schedule.next.date < today);
+    })
+    .sort((a, b) => lastActivity(b) - lastActivity(a));
+}
