@@ -3,6 +3,7 @@ import { timeAgo } from "../components/AccountMenu";
 import { PageHeader } from "../components/PageHeader";
 import { toast } from "../components/Toast";
 import { connect, disconnect, importLibrary, sync, updateSettings, useAppState } from "../lib/store";
+import { INDIAN_CITIES } from "../lib/cinemas";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import type { LibraryDocument } from "../lib/types";
 
@@ -22,6 +23,10 @@ const REGIONS = [
 export function SettingsPage() {
   const { sync: syncState, settings, library } = useAppState();
   const [region, setRegion] = useState(settings.region);
+  const [city, setCity] = useState(settings.city);
+  // A place not in the list (or outside India) is typed instead of picked.
+  const listed = INDIAN_CITIES.some((item) => item.id === city);
+  const [typingCity, setTypingCity] = useState(Boolean(settings.city) && !INDIAN_CITIES.some((item) => item.id === settings.city));
   const [letterboxd, setLetterboxd] = useState(settings.letterboxd);
   const lbStats = letterboxdStats(library.movies);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -109,7 +114,7 @@ export function SettingsPage() {
               className="field-stack"
               onSubmit={(event) => {
                 event.preventDefault();
-                updateSettings({ region });
+                updateSettings({ region, city: city.trim() });
                 toast("Saved");
               }}
             >
@@ -118,7 +123,33 @@ export function SettingsPage() {
                 <select value={region} onChange={(event) => setRegion(event.target.value)}>
                   {REGIONS.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
                 </select>
-                <span className="hint">Where-to-watch availability is shown for this country or region.</span>
+                <span className="hint">Where-to-watch availability, and what's in cinemas, are shown for this country or region.</span>
+              </label>
+              <label>
+                <span className="eyebrow">Your city</span>
+                {region === "IN" && !typingCity ? (
+                  <select
+                    value={listed ? city : ""}
+                    onChange={(event) => {
+                      if (event.target.value === "other") {
+                        setTypingCity(true);
+                        setCity("");
+                      } else setCity(event.target.value);
+                    }}
+                  >
+                    <option value="">Not set</option>
+                    {INDIAN_CITIES.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    <option value="other">Somewhere else…</option>
+                  </select>
+                ) : (
+                  <input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Your city" maxLength={60} autoComplete="address-level2" />
+                )}
+                <span className="hint">
+                  For cinema showtimes. It stays on this device.
+                  {typingCity && region === "IN" && (
+                    <> <button type="button" className="inline-link" onClick={() => { setTypingCity(false); setCity(""); }}>Pick from the list</button></>
+                  )}
+                </span>
               </label>
               <button type="submit" className="button button-ink">Save</button>
             </form>

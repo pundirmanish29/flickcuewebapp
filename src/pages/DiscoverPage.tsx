@@ -7,6 +7,7 @@ import { ReminderChoices } from "../components/ReminderMenu";
 import { toast } from "../components/Toast";
 import * as actions from "../lib/actions";
 import { pickSeeds, savedKeys } from "../lib/discover";
+import { regionName } from "../lib/cinemas";
 import { findExisting } from "../lib/editor";
 import { displayTitle } from "../lib/rules";
 import { useAppState } from "../lib/store";
@@ -158,21 +159,12 @@ function AddByHand({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string
 
 const matchesKindFilter = (item: Candidate, kind: KindFilter) => kind === "all" || item.tmdbType === kind;
 
-function Results({ items, onOpen }: { items: Candidate[]; onOpen: (id: string) => void }) {
+function Results({ items, onOpen, showtimes = false }: { items: Candidate[]; onOpen: (id: string) => void; showtimes?: boolean }) {
   return (
     <div className="grid">
-      {items.map((item) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} />)}
+      {items.map((item) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} showtimes={showtimes} />)}
     </div>
   );
-}
-
-/** "India", from a region code, for headings; the code itself when the browser can't name it. */
-function regionName(code: string): string {
-  try {
-    return new Intl.DisplayNames(["en"], { type: "region" }).of(code.toUpperCase()) || code;
-  } catch {
-    return code;
-  }
 }
 
 /** What's showing in cinemas in the reader's region, as a row above the lists. */
@@ -199,7 +191,7 @@ function CinemaShelf({ region, onOpen, onSeeAll }: { region: string; onOpen: (id
       </div>
       <div className="cinema-row" aria-busy={!items}>
         {items
-          ? items.map((item) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} />)
+          ? items.map((item) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} showtimes />)
           : Array.from({ length: 6 }, (_, index) => <div key={index} className="skeleton-card" />)}
       </div>
     </section>
@@ -339,7 +331,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
 
           {load.state === "done" && (visible.length > 0 ? (
             <>
-              <Results items={visible} onOpen={onOpen} />
+              <Results items={visible} onOpen={onOpen} showtimes={!searching && category === IN_CINEMAS.id} />
               {!searching && !forYou && load.more && (
                 <div className="load-more">
                   <button type="button" className="button button-quiet" onClick={() => void loadMore()} disabled={loadingMore}>

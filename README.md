@@ -18,6 +18,11 @@ Vite + React + TypeScript, no backend. It builds to static files.
   progress for shows, and a "why I saved this" note. You can mark it watched, set a
   reminder (tonight, tomorrow, weekend, release day or an exact time), mark it
   Interested if it's unreleased, or remove it with Undo.
+- **In cinemas**: what's showing in your region (a row on Discover, and a list),
+  with showtimes links for your city: Google, plus BookMyShow and District for the
+  cities in `src/lib/cinemas.ts` (District's city pages were each checked; BookMyShow
+  refuses automated checks, so it's linked for major cities only). Saved films that
+  reach cinemas show up in Notifications. Title details show the same links.
 - **Discover**: TMDB search, plus the Android app's lists (trending, popular, top
   rated, coming soon, genres). Saving asks when to remind you, the way the
   extension's on-page card does. Titles can also be added by hand.

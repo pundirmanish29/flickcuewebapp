@@ -153,6 +153,32 @@ export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
 
 export const IN_CINEMAS = DISCOVER_CATEGORIES.find((category) => category.id === "now-playing")!;
 
+const cinemaLists = new Map<string, Promise<Set<string>>>();
+
+/**
+ * Keys ("tmdb:movie:<id>") of the films in cinemas in a region now, fetched
+ * once per region per visit and shared by every page that asks.
+ */
+export function inCinemasNow(region: string): Promise<Set<string>> {
+  const code = region.toUpperCase();
+  let request = cinemaLists.get(code);
+  if (!request) {
+    request = Promise.all([browse(IN_CINEMAS, 1, code), browse(IN_CINEMAS, 2, code).catch(() => ({ items: [] as Candidate[] }))])
+      .then((pages) => new Set(pages.flatMap((page) => page.items.map((item) => item.key))))
+      .catch(() => {
+        // A failed lookup is retried next time rather than remembered as "nothing on".
+        cinemaLists.delete(code);
+        return new Set<string>();
+      });
+    cinemaLists.set(code, request);
+  }
+  return request;
+}
+
+/** The key a saved film has in those lists. */
+export const cinemaKey = (movie: { tmdbId?: string; tmdbType?: string }) =>
+  movie.tmdbId && movie.tmdbType !== "tv" ? `tmdb:movie:${movie.tmdbId}` : "";
+
 export async function browse(category: DiscoverCategory, page = 1, region = ""): Promise<{ items: Candidate[]; more: boolean }> {
   const params: Record<string, string> = { include_adult: "false", page: String(page), ...(category.params ?? {}) };
   if (category.regional && /^[A-Z]{2}$/i.test(region)) params.region = region.toUpperCase();

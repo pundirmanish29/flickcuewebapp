@@ -5,7 +5,9 @@ import {
   displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, reminderText, seasonProgress
 } from "../lib/rules";
 import { commit, getState, useAppState } from "../lib/store";
-import { fetchDetails, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
+import { useInCinemas, useWhere } from "../lib/useCinemas";
+import { ShowtimeLinks } from "./Showtimes";
+import { cinemaKey, fetchDetails, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
 import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
 import { Poster } from "./Poster";
@@ -54,6 +56,9 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
   const [choosingReminder, setChoosingReminder] = useState(false);
   const [note, setNote] = useState(movie?.personal?.note ?? "");
   const [openSeason, setOpenSeason] = useState<number | null>(null);
+  const inCinemas = useInCinemas();
+  const { place } = useWhere();
+  const showing = Boolean(movie && inCinemas?.has(cinemaKey(movie)));
 
   useEffect(() => {
     dialog.current?.showModal();
@@ -180,6 +185,13 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
             ) : null}
             {details?.director && <p className="muted small-print">{movie.tmdbType === "tv" ? "Created by" : "Directed by"} {details.director}</p>}
           </section>
+
+          {showing && !movie.watched && (
+            <section className="sheet-section">
+              <h3 className="section-label">In cinemas · showtimes in {place}</h3>
+              <ShowtimeLinks title={movie.title} year={movie.year} />
+            </section>
+          )}
 
           {details && (details.streaming.length > 0 || details.rentOrBuy.length > 0) && (
             <section className="sheet-section">

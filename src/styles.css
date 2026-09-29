@@ -432,6 +432,13 @@ a { color: inherit; }
   margin: 0 calc(-1 * var(--gutter, 16px)); padding: 0 var(--gutter, 16px) 8px; scrollbar-width: thin;
 }
 .cinema-row > * { scroll-snap-align: start; }
+/* A scrolling row clips anything that overflows it, so its cards' popovers sit over the page instead. */
+.cinema-row .popover {
+  position: fixed; top: auto; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 40;
+  width: min(420px, calc(100vw - 32px)); transform: translateX(-50%);
+  box-shadow: 0 24px 64px rgba(11, 13, 15, 0.35);
+}
+@media (max-width: 900px) { .cinema-row .popover { bottom: calc(88px + env(safe-area-inset-bottom)); } }
 
 .title-card { position: relative; display: flex; flex-direction: column; min-width: 0; }
 .title-card-open { display: block; padding: 0; border: 0; background: none; text-align: left; }
@@ -467,6 +474,16 @@ a { color: inherit; }
 .candidate-overview { margin: 6px 0 0; font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .candidate-save { position: relative; margin-top: 10px; }
 .candidate-save .button { width: 100%; }
+.showtimes-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 36px; margin-top: 6px;
+  border: 0; border-radius: 999px; background: none; color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: background-color 160ms ease;
+}
+.showtimes-button:hover { background: var(--paper-deep); }
+.showtime-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.showtime-hint { margin: 10px 0 0; color: var(--ink-soft); font-size: 14px; }
+.showtime-hint a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+.inline-link { padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 
 /* Zero specificity, so each place a poster sits keeps its own size. */
 :where(.poster-placeholder) { width: 100%; }

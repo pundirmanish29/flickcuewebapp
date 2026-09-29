@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 import { Poster } from "../components/Poster";
-import { buildNotifications, countUnread, getSeenAt, markSeen, type FlickNotification, type NotificationKind } from "../lib/notifications";
+import { buildNotifications, cinemaFirstSeen, countUnread, getSeenAt, markSeen, type FlickNotification, type NotificationKind } from "../lib/notifications";
+import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { formatRelativeDay } from "../lib/rules";
 import { useAppState } from "../lib/store";
 import { upscale } from "../lib/tmdb";
@@ -12,6 +13,7 @@ const SEEN_EVENT = "flickcue:notifications-seen";
 const KIND_ICON: Record<NotificationKind, IconName> = {
   reminder: "bell",
   release: "movie",
+  cinema: "movie",
   premiere: "show",
   episode: "play",
   season: "show",
@@ -26,7 +28,12 @@ function useNotifications(): FlickNotification[] {
     const timer = setInterval(() => setNow(Date.now()), 60 * 1000);
     return () => clearInterval(timer);
   }, []);
-  return useMemo(() => buildNotifications(library.movies, now), [library.movies, now]);
+  const inCinemas = useInCinemas();
+  const { place } = useWhere();
+  return useMemo(() => {
+    const cinema = inCinemas ? { keys: inCinemas, firstSeen: cinemaFirstSeen(library.movies, inCinemas, now), place } : undefined;
+    return buildNotifications(library.movies, now, cinema);
+  }, [library.movies, now, inCinemas, place]);
 }
 
 function useSeenAt(): number {

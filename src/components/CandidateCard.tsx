@@ -8,15 +8,24 @@ import type { Candidate } from "../lib/types";
 import { Icon } from "./Icon";
 import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
+import { ShowtimeLinks } from "./Showtimes";
+import { useWhere } from "../lib/useCinemas";
 
 /**
  * A search or Discover result. Saving asks when to be reminded first, as the
  * extension's on-page card does, so nothing lands carrying a time nobody chose.
  */
-export function CandidateCard({ candidate, onOpenSaved }: { candidate: Candidate; onOpenSaved: (id: string) => void }) {
+export function CandidateCard({ candidate, onOpenSaved, showtimes = false }: {
+  candidate: Candidate;
+  onOpenSaved: (id: string) => void;
+  /** In cinemas: offer where to see its showtimes. */
+  showtimes?: boolean;
+}) {
   const { library } = useAppState();
   const saved = findExisting(library, candidate);
   const [asking, setAsking] = useState(false);
+  const [showing, setShowing] = useState(false);
+  const { place } = useWhere();
   const title = displayTitle(candidate);
 
   const save = (remind: number | null) => {
@@ -50,6 +59,15 @@ export function CandidateCard({ candidate, onOpenSaved }: { candidate: Candidate
             <Icon name="plus" size={15} /> Save
           </button>
         )}
+        {showtimes && (
+          <button type="button" className="showtimes-button" onClick={() => setShowing((open) => !open)} aria-expanded={showing}>
+            <Icon name="clock" size={14} /> Showtimes
+          </button>
+        )}
+        <Popover open={showing} onClose={() => setShowing(false)} label={`Showtimes for ${title}`}>
+          <p className="popover-label">{title} · showtimes in {place}</p>
+          <ShowtimeLinks title={candidate.title} year={candidate.year} />
+        </Popover>
         <Popover open={asking} onClose={() => setAsking(false)} label={`Remind me about ${title}`}>
           <p className="popover-label">Remind me…</p>
           <ReminderChoices releaseDate={candidate.releaseDate} onPick={save} onNone={() => save(null)} noneLabel="Just save it" />

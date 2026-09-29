@@ -36,6 +36,8 @@ export interface Settings {
   notifications: boolean;
   /** This device's link to a Letterboxd profile, never synced, as in the other clients. */
   letterboxd: string;
+  /** The reader's city for showtimes: a listed city's id, or a place typed by name. Kept on this device. */
+  city: string;
   /** Unlinked here on purpose, so the extension's profile isn't linked again at the next sign-in. */
   letterboxdUnlinked: boolean;
 }
@@ -88,7 +90,7 @@ function willAskExtension(): boolean {
 function initialState(onLoad = true): AppState {
   const library = read<LibraryDocument>(LIBRARY_KEY, { movies: [], deleted: [] });
   const stored = read<Partial<SyncState>>(SYNC_KEY, {});
-  const settings = read<Settings>(SETTINGS_KEY, { region: "IN", notifications: false, letterboxd: "", letterboxdUnlinked: false });
+  const settings = read<Settings>(SETTINGS_KEY, { region: "IN", notifications: false, letterboxd: "", letterboxdUnlinked: false, city: "" });
   return {
     library: {
       movies: Array.isArray(library.movies) ? library.movies : [],
