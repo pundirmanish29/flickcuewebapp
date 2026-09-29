@@ -5,7 +5,8 @@
 
 import { useSyncExternalStore } from "react";
 import { canAskExtension, getStoredToken, forgetToken, requestExtensionSession, requestToken, revokeToken, storeToken } from "./auth";
-import { DriveError, fetchAccount, findRemoteFileId, findSettingsFileId, readRemote, readRemoteSettings, writeRemote, writeRemoteSettings, type Account } from "./drive";
+import { needsConfirmation, newRemovals } from "./syncGuard";
+import { DriveError, fetchAccount, fileVersion, findRemoteFileId, findSettingsFileId, readRemote, readRemoteSettings, writeRemote, writeRemoteSettings, type Account } from "./drive";
 import { readSynced, settingsDirection, SYNCED_KEYS, type SyncedSettings } from "./settingsSync";
 import { getThemeChoice, setThemeChoice, type ThemeChoice } from "./theme";
 import { mergeWatchlists } from "./merge";
@@ -33,6 +34,8 @@ export interface SyncState {
   lastSyncAt: number;
   status: SyncStatus;
   error: string;
+  /** Titles a sync would remove from Drive, held until the reader confirms (lib/syncGuard.ts). */
+  held?: number;
 }
 
 export interface Settings {
@@ -279,20 +282,37 @@ async function runSync() {
     return;
   }
 
-  patchSync({ status: "syncing", error: "" });
+  patchSync({ status: "syncing", error: "", held: 0 });
   try {
     const fileId = state.sync.fileId || await findRemoteFileId(token.accessToken);
-    const remote = fileId ? await readRemote(fileId, token.accessToken) : { movies: [], deleted: [] };
-    // Read the local copy after the network round trip, so an edit made while
-    // Drive was answering is part of the merge rather than overwritten by it.
-    const local = state.library;
-    const merged = mergeWatchlists(local, remote);
+    let nextFileId = fileId;
+    // Read, merge, and save only if Drive's copy is still the one read: when
+    // another device saved in between, go round again with its copy.
+    for (let attempt = 0; ; attempt++) {
+      const version = fileId ? await fileVersion(fileId, token.accessToken) : "";
+      const remote = fileId ? await readRemote(fileId, token.accessToken) : { movies: [], deleted: [] };
+      // Read the local copy after the network round trip, so an edit made while
+      // Drive was answering is part of the merge rather than overwritten by it.
+      const local = state.library;
+      const merged = mergeWatchlists(local, remote);
 
-    if (JSON.stringify(local) !== JSON.stringify(merged)) setLibrary(merged);
+      // Many titles leaving Drive at once waits for a yes (Settings > Account).
+      const removing = newRemovals(remote, merged);
+      if (needsConfirmation(removing.length, remote.movies.length) && Date.now() > bulkRemovalAllowedUntil) {
+        heldRemovals = removing;
+        patchSync({ status: "error", held: removing.length, error: `Sync paused: this device would remove ${removing.length} titles from your list everywhere.` });
+        return;
+      }
 
-    const remoteChanged = JSON.stringify(remote.movies) !== JSON.stringify(merged.movies)
-      || JSON.stringify(remote.deleted ?? []) !== JSON.stringify(merged.deleted);
-    const nextFileId = remoteChanged || !fileId ? await writeRemote(fileId, token.accessToken, merged) : fileId;
+      if (JSON.stringify(local) !== JSON.stringify(merged)) setLibrary(merged);
+
+      const remoteChanged = JSON.stringify(remote.movies) !== JSON.stringify(merged.movies)
+        || JSON.stringify(remote.deleted ?? []) !== JSON.stringify(merged.deleted);
+      if (!remoteChanged && fileId) break;
+      if (fileId && attempt < 3 && await fileVersion(fileId, token.accessToken) !== version) continue;
+      nextFileId = await writeRemote(fileId, token.accessToken, merged);
+      break;
+    }
     const account = state.sync.account?.email ? state.sync.account : await fetchAccount(token.accessToken);
 
     await syncSettings(token.accessToken);
@@ -333,6 +353,42 @@ export async function disconnect() {
   else forgetToken();
   setExtensionSignInOff(true);
   patchSync({ connected: false, fileId: "", settingsFileId: "", account: null, lastSyncAt: 0, status: "local", error: "" });
+}
+
+let heldRemovals: string[] = [];
+let bulkRemovalAllowedUntil = 0;
+
+/**
+ * The reader asked for a large removal here (Clear watched history), or
+ * confirmed a held one: syncs in the next few minutes may remove many titles.
+ */
+export function allowBulkRemoval() {
+  bulkRemovalAllowedUntil = Date.now() + 10 * 60 * 1000;
+}
+
+/** Confirms a held sync: the titles go from the list everywhere. */
+export function confirmHeldRemoval() {
+  allowBulkRemoval();
+  heldRemovals = [];
+  void sync();
+}
+
+/** Undoes a held sync's removals here, so the titles come back from Drive. */
+export function keepHeldTitles() {
+  const ids = new Set(heldRemovals);
+  heldRemovals = [];
+  setLibrary({ ...state.library, deleted: state.library.deleted.filter((entry) => !ids.has(entry.id)) });
+  void sync();
+}
+
+/**
+ * Brings back an earlier version of the list from Drive's history: its titles,
+ * as they were then, win over today's (a fresh updatedAt beats a tombstone,
+ * SHARED.md). Titles added since stay.
+ */
+export function restoreVersion(document: LibraryDocument, now = Date.now()) {
+  const stamped = document.movies.map((movie) => ({ ...movie, updatedAt: now }));
+  commit(mergeWatchlists(state.library, { movies: stamped, deleted: [] }, now));
 }
 
 /** Replaces the library with an imported backup, then lets sync merge it. */

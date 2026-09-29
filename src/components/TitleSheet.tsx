@@ -17,6 +17,7 @@ import { providerLink, splitChannel } from "../lib/providers";
 import { regionName } from "../lib/cinemas";
 import { writeBack } from "../lib/showSync";
 import { goDiscover } from "../lib/discoverIntent";
+import { safeImage, safeImdbId, safeLink } from "../lib/safe";
 import { useSwipeToClose } from "../lib/useSwipeToClose";
 
 
@@ -191,10 +192,10 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   const unreleased = isUnreleased(movie);
   const status = getShowStatus(movie);
   const reminderActive = hasActiveReminder(movie);
-  const backdrop = details?.backdrop || upscale(movie.backdrop, "w1280");
+  const backdrop = safeImage(details?.backdrop) || safeImage(upscale(movie.backdrop, "w1280"));
   const progress = seasonProgress(movie);
   const imdbRating = Number(movie.imdbRating) || 0;
-  const imdbId = details?.imdbId || (movie.imdbId as string | undefined);
+  const imdbId = safeImdbId(details?.imdbId) || safeImdbId(movie.imdbId);
   const show = isShow(movie);
 
   // Beside the title: who made it, in what language, and for which channel.
@@ -627,8 +628,8 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
 
           <div className="sheet-links">
             {imdbId && <a className="link-chip" href={`https://www.imdb.com/title/${imdbId}/`} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> IMDb</a>}
-            {typeof movie.sourceUrl === "string" && /^https?:\/\//.test(movie.sourceUrl) && (
-              <a className="link-chip" href={movie.sourceUrl} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> Where you found it</a>
+            {safeLink(movie.sourceUrl) && (
+              <a className="link-chip" href={safeLink(movie.sourceUrl)} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> Where you found it</a>
             )}
           </div>
         </div>

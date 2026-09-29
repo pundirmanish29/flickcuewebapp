@@ -685,6 +685,14 @@ a { color: inherit; }
 .your-take { color: var(--orange-ink); letter-spacing: 0.02em; }
 .your-heart { display: inline-flex; vertical-align: -1px; color: var(--red); }
 .your-heart svg { fill: currentColor; }
+.held-sync { margin: 12px 0; padding: 14px 16px; border-radius: 14px; background: color-mix(in srgb, var(--orange) 14%, var(--paper-surface)); border: 1px solid color-mix(in srgb, var(--orange) 45%, var(--rule)); }
+.held-sync p { margin: 0 0 12px; }
+.restore-link { display: inline-block; margin-top: 16px; font-size: 14px; }
+.restore { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.restore-list { list-style: none; margin: 8px 0 12px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.restore-item { min-height: 36px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper-surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.restore-item:hover { border-color: var(--ink); }
+.restore-preview p { margin: 8px 0 12px; }
 .danger-zone { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--rule); }
 .danger-zone p { margin: 0 0 12px; }
 .danger-link { color: var(--red); font-size: 14px; }

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { placeholderTint, titleInitials } from "../lib/rules";
+import { safeImage } from "../lib/safe";
 
 /** A poster, falling back to tinted initials when there's no artwork or it fails to load. */
-export function Poster({ src, title, className = "" }: { src?: string; title: string; className?: string }) {
+export function Poster({ src: given, title, className = "" }: { src?: string; title: string; className?: string }) {
+  const src = safeImage(given);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
 

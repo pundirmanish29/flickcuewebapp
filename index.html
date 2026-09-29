@@ -23,13 +23,7 @@
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="stylesheet" href="./fonts/fonts.css" />
-    <script>
-      // The reader's light/dark pick (src/lib/theme.ts), set before the first paint.
-      try {
-        var theme = localStorage.getItem("flickcue.theme");
-        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
-      } catch (error) {}
-    </script>
+    <script src="./theme.js"></script>
     <title>FlickCue — One watchlist. Everywhere.</title>
   </head>
   <body>

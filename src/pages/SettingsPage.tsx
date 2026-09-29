@@ -4,7 +4,9 @@ import { Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 import * as actions from "../lib/actions";
 import { toast } from "../components/Toast";
-import { chooseTheme, connect, disconnect, importLibrary, sync, updateSettings, useAppState } from "../lib/store";
+import { chooseTheme, confirmHeldRemoval, connect, disconnect, importLibrary, keepHeldTitles, restoreVersion, sync, updateSettings, useAppState } from "../lib/store";
+import { getStoredToken } from "../lib/auth";
+import { listRevisions, readRevision, type Revision } from "../lib/drive";
 import { INDIAN_CITIES } from "../lib/cinemas";
 import { EXTENSION_URL } from "../lib/config";
 import { alertSupport } from "../lib/alerts";
@@ -48,6 +50,73 @@ function ClearWatched() {
   );
 }
 
+/** Drive keeps the list's earlier saves for about 30 days; any of them can be brought back. */
+function RestoreHistory() {
+  const { sync: syncState, library } = useAppState();
+  const [open, setOpen] = useState(false);
+  const [revisions, setRevisions] = useState<Revision[] | null>(null);
+  const [error, setError] = useState("");
+  const [preview, setPreview] = useState<{ revision: Revision; document: LibraryDocument } | null>(null);
+  if (!syncState.connected || !syncState.fileId) return null;
+
+  const token = () => getStoredToken()?.accessToken;
+  const load = async () => {
+    setOpen(true);
+    setError("");
+    const accessToken = token();
+    if (!accessToken) return setError("Resume sync first, then try again.");
+    try {
+      setRevisions((await listRevisions(syncState.fileId, accessToken)).slice(0, 12));
+    } catch {
+      setError("Couldn't load earlier versions from Drive.");
+    }
+  };
+  const pick = async (revision: Revision) => {
+    const accessToken = token();
+    if (!accessToken) return setError("Resume sync first, then try again.");
+    try {
+      setPreview({ revision, document: await readRevision(syncState.fileId, revision.id, accessToken) });
+    } catch {
+      setError("Couldn't read that version.");
+    }
+  };
+  const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const have = new Set(library.movies.map((movie) => movie.id));
+  const missing = preview ? preview.document.movies.filter((movie) => !have.has(movie.id)).length : 0;
+
+  if (!open) return <button type="button" className="inline-link restore-link" onClick={() => void load()}>Restore an earlier version…</button>;
+  return (
+    <div className="restore">
+      <p className="field-label">Earlier versions in your Drive</p>
+      {error && <p className="error">{error}</p>}
+      {!revisions && !error && <p className="muted small-print">Loading…</p>}
+      {revisions && !preview && (
+        revisions.length ? (
+          <ul className="restore-list">
+            {revisions.map((revision) => (
+              <li key={revision.id}><button type="button" className="restore-item" onClick={() => void pick(revision)}>{when(revision.modifiedTime)}</button></li>
+            ))}
+          </ul>
+        ) : <p className="muted small-print">No earlier versions yet.</p>
+      )}
+      {preview && (
+        <div className="restore-preview">
+          <p>
+            <b>{when(preview.revision.modifiedTime)}</b>: {preview.document.movies.length} titles
+            {missing ? `, ${missing} of them not in your list now` : ", all still in your list"}.
+            Restoring puts those titles back as they were then; anything added since stays.
+          </p>
+          <div className="button-row">
+            <button type="button" className="button button-ink" onClick={() => { restoreVersion(preview.document); toast(`Restored the list from ${when(preview.revision.modifiedTime)}`); setOpen(false); setPreview(null); }}>Restore</button>
+            <button type="button" className="button button-quiet" onClick={() => setPreview(null)}>Pick another</button>
+          </div>
+        </div>
+      )}
+      {!preview && <button type="button" className="inline-link" onClick={() => setOpen(false)}>Close</button>}
+    </div>
+  );
+}
+
 function Account() {
   const { sync: syncState } = useAppState();
   return (
@@ -67,7 +136,15 @@ function Account() {
               ? "Sync paused. Your changes are saved on this device and sync when you resume."
               : `Your list and settings sync through your Google Drive. Last synced ${timeAgo(syncState.lastSyncAt)}.`}
           </p>
-          {syncState.error && <p className="error">{syncState.error}</p>}
+          {syncState.held ? (
+            <div className="held-sync" role="alert">
+              <p><b>Sync paused.</b> This device would remove {syncState.held} titles from your list on every device. If you didn't mean to, keep them.</p>
+              <div className="button-row">
+                <button type="button" className="button button-ink" onClick={() => keepHeldTitles()}>Keep the {syncState.held} titles</button>
+                <button type="button" className="button button-quiet" onClick={() => confirmHeldRemoval()}>Remove them</button>
+              </div>
+            </div>
+          ) : syncState.error && <p className="error">{syncState.error}</p>}
           <div className="button-row">
             {syncState.status === "needs-auth" ? (
               <button type="button" className="button button-ink" onClick={() => void connect()}>Resume sync</button>
@@ -302,6 +379,7 @@ function Backup() {
           }}
         />
       </div>
+      <RestoreHistory />
       <ClearWatched />
     </article>
   );

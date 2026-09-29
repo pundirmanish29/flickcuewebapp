@@ -9,13 +9,9 @@
     <link rel="canonical" href="https://flickcue.in/privacy.html" />
     <link rel="stylesheet" href="./fonts/fonts.css" />
     <title>FlickCue Privacy Policy</title>
-    <script>
-      // The light/dark choice made in the app (src/lib/theme.ts), applied before the page paints.
-      try {
-        var theme = localStorage.getItem("flickcue.theme");
-        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
-      } catch (error) {}
-    </script>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <!-- The light/dark choice made in the app, applied before the page paints. -->
+    <script src="./theme.js"></script>
     <style>
       /* The app's paper and ink (src/styles.css). */
       :root { --night: #0b0d0f; --paper: #f3f0e8; --surface: #fffdf8; --ink: #16181b; --muted: #5d6166; --rule: #d6d0c5; --link: #178a4a; color-scheme: light; }
@@ -80,6 +76,7 @@
         <li><code>flickcue-watchlist.json</code>: your list, shared with the extension and the Android app.</li>
         <li><code>flickcue-settings.json</code>: the web app's settings (streaming region, city, Letterboxd username, theme and Queue sort), so they follow you between browsers.</li>
       </ul>
+      <p>Drive keeps earlier versions of these files for about 30 days. Settings can bring back an earlier version of your list from them; that happens between your browser and Google too.</p>
       <p>FlickCue can't see anything else in your Drive. It also reads your Google account's name, email address and photo to show which account is syncing. All of this happens between your browser and Google; nothing goes to a FlickCue server.</p>
       <p>In Chrome or Edge with the FlickCue extension installed, the web app can use the extension's Google sign-in rather than asking you to sign in again. It's the same account and the same permission.</p>
       <p>FlickCue's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. You can remove FlickCue's access at any time in your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.</p>

@@ -4,7 +4,7 @@
 import { toast } from "../components/Toast";
 import * as editor from "./editor";
 import { displayTitle, formatReminder } from "./rules";
-import { commit, getState } from "./store";
+import { allowBulkRemoval, commit, getState } from "./store";
 import type { Candidate, LibraryDocument } from "./types";
 
 function apply(result: editor.EditResult, message?: (title: string) => string, undo?: (before: LibraryDocument) => void) {
@@ -120,6 +120,8 @@ export function clearWatched() {
   const before = getState().library;
   const { document, removed } = editor.clearWatched(before);
   if (!removed.length) return toast("Nothing watched to clear.");
+  // Confirmed in Settings, so the sync guard lets it through.
+  allowBulkRemoval();
   commit(document);
   toast(`Cleared ${removed.length} watched title${removed.length === 1 ? "" : "s"}`, {
     label: "Undo",

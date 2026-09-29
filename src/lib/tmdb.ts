@@ -3,6 +3,7 @@
 
 import { PROXY_BASE_URL } from "./config";
 import { dedupeProviders } from "./providers";
+import { safeTmdbId } from "./safe";
 import { bestKnownWork, blendRecommendations, matchPerson, rankSearchResults, recommendationRows, splitYear, type Seed } from "./discover";
 import { isUnreleased } from "./rules";
 import type { Candidate, Movie, Season } from "./types";
@@ -357,6 +358,8 @@ function providers(list: any[] | undefined): Provider[] {
 
 export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: string): Promise<TitleDetails> {
   const type = movie.tmdbType === "tv" ? "tv" : "movie";
+  // The id comes from the synced list: only a number goes into the request path.
+  if (!safeTmdbId(movie.tmdbId)) return Promise.reject(new TmdbError("This title has no valid TMDB id."));
   const key = `${type}:${movie.tmdbId}:${region}`;
   const cached = detailsCache.get(key);
   if (cached) return cached;

@@ -10,6 +10,7 @@ import { connect, updateSettings, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
 import { upscale } from "../lib/tmdb";
 import { EXTENSION_URL } from "../lib/config";
+import { safeImage } from "../lib/safe";
 import { useShowScheduleRefresh } from "../lib/showSync";
 import type { KindFilter, Movie, SortMode } from "../lib/types";
 
@@ -268,9 +269,9 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
           <div className="wrap tonight-grid">
             <div
               className={`tonight-art ${!tonight.backdrop && tonight.poster ? "poster-only" : ""}`}
-              style={!tonight.backdrop && tonight.poster ? { ["--art" as string]: `url(${upscale(tonight.poster, "w342")})` } : undefined}
+              style={!safeImage(tonight.backdrop) && safeImage(tonight.poster) ? { ["--art" as string]: `url(${safeImage(upscale(tonight.poster, "w342"))})` } : undefined}
             >
-              {tonight.backdrop && <Backdrop key={tonight.backdrop} src={tonight.backdrop} />}
+              {safeImage(tonight.backdrop) && <Backdrop key={tonight.backdrop} src={safeImage(tonight.backdrop)} />}
               <Poster src={upscale(tonight.poster, "w342")} title={tonight.title} className="tonight-poster" />
             </div>
             <div className="tonight-text">

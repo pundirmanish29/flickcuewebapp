@@ -30,10 +30,10 @@ export function AccountMenu() {
   const expired = state.status === "needs-auth";
   const failed = state.status === "error";
   const syncing = state.status === "syncing";
-  const label = expired ? "Resume sync" : syncing ? "Syncing" : failed ? "Sync failed" : "Synced";
+  const label = expired ? "Resume sync" : syncing ? "Syncing" : state.held ? "Sync paused" : failed ? "Sync failed" : "Synced";
   const status = expired
     ? "Sync paused. Your changes are saved on this device."
-    : syncing ? "Syncing…" : failed ? state.error || "Sync failed." : `Synced ${timeAgo(state.lastSyncAt)}`;
+    : syncing ? "Syncing…" : state.held ? `${state.error} Open Settings to decide.` : failed ? state.error || "Sync failed." : `Synced ${timeAgo(state.lastSyncAt)}`;
   const viaExtension = getStoredToken()?.source === "extension";
   const titles = library.movies.length;
   const lb = settings.letterboxd;

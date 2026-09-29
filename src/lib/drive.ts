@@ -8,6 +8,8 @@ const DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files";
 const DRIVE_ABOUT_URL = "https://www.googleapis.com/drive/v3/about";
 const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
 export class DriveError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
@@ -39,12 +41,40 @@ export async function findRemoteFileId(token: string, name = DRIVE_FILE_NAME): P
 }
 
 export async function readRemote(fileId: string, token: string): Promise<LibraryDocument> {
-  const response = await driveFetch(`${DRIVE_FILES_URL}/${fileId}?alt=media`, token);
-  const data = await response.json().catch(() => null);
+  return parseDocument(await (await driveFetch(`${DRIVE_FILES_URL}/${fileId}?alt=media`, token)).json().catch(() => null));
+}
+
+/** Drive's version number for the file: it goes up with every save, from any device. */
+export async function fileVersion(fileId: string, token: string): Promise<string> {
+  const data = await (await driveFetch(`${DRIVE_FILES_URL}/${fileId}?fields=version`, token)).json();
+  return String(data.version ?? "");
+}
+
+export interface Revision {
+  id: string;
+  modifiedTime: string;
+}
+
+/** The list's earlier saves that Drive keeps (about 30 days' worth), newest first. */
+export async function listRevisions(fileId: string, token: string): Promise<Revision[]> {
+  const data = await (await driveFetch(`${DRIVE_FILES_URL}/${fileId}/revisions?fields=revisions(id,modifiedTime)&pageSize=200`, token)).json();
+  return (Array.isArray(data.revisions) ? data.revisions : [])
+    .filter((revision: unknown) => isRecord(revision) && typeof revision.id === "string")
+    .map((revision: Record<string, unknown>) => ({ id: String(revision.id), modifiedTime: String(revision.modifiedTime ?? "") }))
+    .reverse();
+}
+
+export async function readRevision(fileId: string, revisionId: string, token: string): Promise<LibraryDocument> {
+  const response = await driveFetch(`${DRIVE_FILES_URL}/${fileId}/revisions/${encodeURIComponent(revisionId)}?alt=media`, token);
+  return parseDocument(await response.json().catch(() => null));
+}
+
+function parseDocument(data: any): LibraryDocument {
   if (!data || typeof data !== "object") return { movies: [], deleted: [] };
   return {
-    movies: Array.isArray(data.movies) ? data.movies : [],
-    deleted: Array.isArray(data.deleted) ? data.deleted : []
+    // Only entries shaped like titles and tombstones; the rest of each is kept as it is (SHARED.md's golden rule).
+    movies: Array.isArray(data.movies) ? data.movies.filter((movie: unknown) => isRecord(movie) && typeof movie.id === "string" && typeof movie.title === "string") : [],
+    deleted: Array.isArray(data.deleted) ? data.deleted.filter((entry: unknown) => isRecord(entry) && typeof entry.id === "string") : []
   };
 }
 

@@ -2,6 +2,7 @@
 // list (flickcue-settings.json). Notifications stay per device: each browser
 // grants them separately.
 
+import { letterboxdHandle } from "./letterboxd";
 import type { ThemeChoice } from "./theme";
 import type { SortMode } from "./types";
 
@@ -27,7 +28,7 @@ export function readSynced(raw: Record<string, unknown>, fallback: SyncedSetting
   return {
     region: region && /^[A-Z]{2}$/.test(region) ? region : fallback.region,
     city: text(raw.city, 60) ?? fallback.city,
-    letterboxd: text(raw.letterboxd, 40) ?? fallback.letterboxd,
+    letterboxd: typeof raw.letterboxd === "string" ? letterboxdHandle(raw.letterboxd) : fallback.letterboxd,
     letterboxdUnlinked: typeof raw.letterboxdUnlinked === "boolean" ? raw.letterboxdUnlinked : fallback.letterboxdUnlinked,
     theme: theme ?? fallback.theme,
     sort: SORTS.includes(raw.sort as SortMode) ? (raw.sort as SortMode) : fallback.sort
