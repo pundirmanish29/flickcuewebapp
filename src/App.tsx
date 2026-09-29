@@ -78,16 +78,14 @@ function SyncIndicator() {
   const { sync: state } = useAppState();
   if (!state.connected && state.status === "connecting") {
     return (
-      <span className="sync-pill guest" role="status">
-        <span className="spin"><Icon name="sync" size={14} /></span> <span className="sync-label">Signing in</span>
+      <span className="header-sign-in signing" role="status">
+        <span className="spin"><Icon name="sync" size={14} /></span> Signing in
       </span>
     );
   }
   if (!state.connected) {
     return (
-      <button type="button" className="sync-pill guest" onClick={() => void connect()} aria-label="Sign in to sync">
-        <span className="dot dot-off" /> <Icon name="sync" size={14} /> <span className="sync-label">Sign in</span>
-      </button>
+      <button type="button" className="button button-lime header-sign-in" onClick={() => void connect()}>Sign in</button>
     );
   }
   if (state.status === "needs-auth") {

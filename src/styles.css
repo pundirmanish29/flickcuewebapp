@@ -182,16 +182,16 @@ a { color: inherit; }
   flex-shrink: 0;
   transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
-/* Signed out there is no nav or search to push it over. */
-.sync-pill.guest { margin-left: auto; }
 .sync-pill:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.24); }
 .sync-pill:active { transform: scale(0.97); }
 .sync-pill img { width: 26px; height: 26px; border-radius: 50%; }
 .sync-pill .dot { margin-left: 6px; }
 .sync-pill.warn { border-color: var(--orange); }
+/* Signed out there is no nav or search to push it over. */
+.header-sign-in { margin-left: auto; height: 40px; padding: 0 20px; font-size: 14px; flex-shrink: 0; }
+.header-sign-in.signing { display: inline-flex; align-items: center; gap: 8px; padding: 0 4px; color: var(--dark-muted); font-weight: 500; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot-on { background: var(--green); }
-.dot-off { background: var(--dark-muted); }
 .dot-warn { background: var(--orange); }
 .spin { display: inline-flex; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -601,13 +601,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 
 @media (max-width: 900px) {
   .top-nav { display: none; }
-  .sync-pill.guest .sync-label { display: inline; }
   .search { min-width: 0; }
   .header-inner { gap: 12px; }
   .search { flex: 1; width: auto; margin-left: auto; }
   .sync-label { display: none; }
   .sync-pill { height: 44px; padding: 0 10px 0 8px; }
-  .search { height: 44px; }
+  .search, .header-sign-in { height: 44px; }
   .search-clear { width: 32px; height: 32px; margin-right: -8px; }
   .icon-button { width: 44px; height: 44px; }
   .segmented button, .chip-button, .category, .select select, .link-chip, .episode, .toast-action { min-height: 44px; height: 44px; }
