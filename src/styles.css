@@ -690,24 +690,26 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 @keyframes sheet-in { from { opacity: 0; transform: translateY(16px) scale(0.99); } }
 .sheet-inner { max-height: min(92vh, 100dvh); overflow-y: auto; overscroll-behavior: contain; }
 .sheet-hero { position: relative; height: 240px; background: var(--night) center / cover no-repeat; }
-.sheet-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, var(--paper), rgba(243, 240, 232, 0) 70%); }
+/* Fades further up than the text reaches, so the title block stays readable on a bright backdrop. */
+.sheet-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, var(--paper) 8%, color-mix(in srgb, var(--paper) 72%, transparent) 42%, transparent 88%); }
 /* Banner corner: where to watch, then close. */
 .sheet-hero-top { position: absolute; top: 14px; right: 14px; left: 14px; z-index: 2; display: flex; justify-content: flex-end; align-items: center; gap: 8px; pointer-events: none; }
 .sheet-hero-top > * { pointer-events: auto; }
 .watch-on {
-  display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 6px 0 14px; border: 0; border-radius: 999px;
-  background: rgba(11, 13, 15, 0.72); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  color: #fff; font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer;
-  transition: background-color 160ms ease;
+  display: inline-flex; align-items: center; gap: 6px; height: 44px; margin-top: 12px; padding: 0 6px 0 14px; border: 0; border-radius: 999px;
+  background: var(--paper-deep); box-shadow: inset 0 0 0 1px var(--rule);
+  color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer;
+  transition: box-shadow 160ms ease, background-color 160ms ease;
 }
-.watch-on:hover { background: rgba(11, 13, 15, 0.88); }
+.watch-on:hover { box-shadow: inset 0 0 0 1px var(--ink); }
 .watch-on > span { margin-right: 4px; }
 .watch-on:has(> svg) { padding-right: 16px; }
 .watch-on img, .watch-on b, .watch-list img, .watch-list b { width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; object-fit: cover; display: grid; place-items: center; background: #fff; color: var(--on-accent); font-size: 11px; }
 .watch-on em { font-style: normal; font-size: 13px; font-weight: 700; padding: 0 2px; }
 .watch-on > svg:last-child { margin-right: 8px; opacity: 0.8; }
 .watch-on-wrap { position: relative; }
-.watch-on-wrap .popover { left: auto; right: 0; width: min(280px, calc(100vw - 32px)); padding: 8px; color: var(--ink); }
+.watch-on-wrap { display: inline-block; }
+.watch-on-wrap .popover { left: 0; width: min(280px, calc(100vw - 32px)); padding: 8px; color: var(--ink); z-index: 30; }
 .watch-list { list-style: none; margin: 0; padding: 0; }
 .watch-list-label { margin: 8px 10px 4px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
 .watch-list li:first-child .watch-list-label { margin-top: 4px; }
@@ -734,9 +736,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .sheet-hero.playing { height: auto; aspect-ratio: 16 / 9; background-image: none !important; }
 .sheet-hero.playing::after { display: none; }
 .sheet-trailer { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-.sheet-hero.playing + .sheet-body { margin-top: 20px; }
-.sheet-hero.playing .sheet-hero-top { left: auto; top: 10px; right: 10px; }
-.sheet-hero.playing .watch-on { display: none; }
+.sheet-hero.playing ~ .sheet-body { margin-top: 20px; }
+.trailer-bar {
+  display: flex; align-items: center; gap: 8px; padding: 10px clamp(12px, 3vw, 24px);
+  background: var(--night); color: #fff; border-bottom: 1px solid var(--dark-line);
+}
+.trailer-back {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px 0 12px; border: 0; border-radius: 999px;
+  background: var(--lime); color: var(--on-accent); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.trailer-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; margin-left: auto; color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; }
+.trailer-close { background: rgba(255, 255, 255, 0.08); border-color: transparent; color: #fff; }
 .sheet-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .certification {
   display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; box-shadow: inset 0 0 0 1px currentColor;
@@ -885,6 +895,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   /* Poster and title side by side, so the space beside the poster isn't wasted. */
   .sheet-head { flex-direction: row; align-items: flex-end; gap: 14px; }
   .sheet-poster { width: 104px; }
+  /* The pill sits beside the poster; its list lines up with the sheet's edge instead of running off it. */
+  .watch-on-wrap .popover { left: -118px; width: calc(100vw - 40px); max-width: 360px; }
   .sheet-heading h2 { font-size: clamp(24px, 7vw, 30px); line-height: 1.05; overflow-wrap: anywhere; }
   .sheet-meta { gap: 6px 8px; font-size: 10px; }
   .score-row { gap: 4px 12px; margin-top: 8px; }

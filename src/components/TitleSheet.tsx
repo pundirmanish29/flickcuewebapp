@@ -203,19 +203,30 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
               <span>Trailer</span>
             </button>
           ) : null}
-          <div className="sheet-hero-top">
-            {details && (details.streaming.length > 0 || details.rentOrBuy.length > 0) ? (
-              <WatchOn title={movie.title} streaming={details.streaming} rentOrBuy={details.rentOrBuy} />
-            ) : showing && !movie.watched ? (
-              <button type="button" className="watch-on" onClick={() => showtimesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-                <Icon name="movie" size={15} /> <span>In cinemas</span>
+          {!playing && (
+            <div className="sheet-hero-top">
+              <button type="button" className="icon-button sheet-close" onClick={() => dialog.current?.close()} aria-label="Close">
+                <Icon name="close" />
               </button>
-            ) : null}
-            <button type="button" className="icon-button sheet-close" onClick={() => dialog.current?.close()} aria-label="Close">
-              <Icon name="close" />
+            </div>
+          )}
+        </div>
+        {/* YouTube's own controls fill the video, so the way back sits below it. */}
+        {playing && (
+          <div className="trailer-bar">
+            <button type="button" className="trailer-back" onClick={() => setPlaying(false)}>
+              <Icon name="back" size={18} /> Back to details
+            </button>
+            {details?.trailer && (
+              <a className="trailer-link" href={details.trailer} target="_blank" rel="noreferrer">
+                <Icon name="external" size={14} /> YouTube
+              </a>
+            )}
+            <button type="button" className="icon-button trailer-close" onClick={() => dialog.current?.close()} aria-label="Close">
+              <Icon name="close" size={18} />
             </button>
           </div>
-        </div>
+        )}
 
         <div className="sheet-body">
           <div className="sheet-head">
@@ -235,6 +246,14 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
               {(status || isSaved || unreleased) && (
                 <p className={`sheet-status ${status ? `tone-${status.tone}` : ""}`}>{status ? status.text : reminderText(movie)}</p>
               )}
+              {/* Where to watch sits with the title, in the space beside the poster. */}
+              {details && (details.streaming.length > 0 || details.rentOrBuy.length > 0) ? (
+                <WatchOn title={movie.title} streaming={details.streaming} rentOrBuy={details.rentOrBuy} />
+              ) : showing && !movie.watched ? (
+                <button type="button" className="watch-on" onClick={() => showtimesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+                  <Icon name="movie" size={15} /> <span>In cinemas · showtimes</span>
+                </button>
+              ) : null}
             </div>
           </div>
 
