@@ -86,8 +86,8 @@ export function toggleEpisode(id: string, season: number, episode: number) {
   apply(editor.toggleEpisode(getState().library, id, season, episode));
 }
 
-export function toggleSeason(id: string, season: number, total: number) {
-  apply(editor.toggleSeason(getState().library, id, season, total));
+export function toggleSeason(id: string, season: number, total: number, only?: number[]) {
+  apply(editor.toggleSeason(getState().library, id, season, total, Date.now(), only));
 }
 
 export function removeTitle(id: string) {

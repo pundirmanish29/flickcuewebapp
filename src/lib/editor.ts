@@ -134,11 +134,16 @@ export function toggleEpisode(document: LibraryDocument, id: string, season: num
   });
 }
 
-/** Marks a whole season seen, or clears it when it already is. */
-export function toggleSeason(document: LibraryDocument, id: string, season: number, total: number, now = Date.now()): EditResult {
+/**
+ * Marks a whole season seen, or clears it when it already is. `only` limits it to
+ * those episode numbers (the ones that have aired), leaving the rest as they are.
+ */
+export function toggleSeason(document: LibraryDocument, id: string, season: number, total: number, now = Date.now(), only?: number[]): EditResult {
   return edit(document, id, now, (movie) => {
     const episodes = new Set(movie.personal?.episodes ?? []);
-    const keys = Array.from({ length: Math.min(total, 1000) }, (_, index) => `${season}:${index + 1}`);
+    const keys = only
+      ? only.filter((number) => Number.isInteger(number) && number > 0 && number <= 1000).map((number) => `${season}:${number}`)
+      : Array.from({ length: Math.min(total, 1000) }, (_, index) => `${season}:${index + 1}`);
     const complete = keys.every((key) => episodes.has(key));
     for (const key of keys) {
       if (complete) episodes.delete(key);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getStoredToken } from "../lib/auth";
 import { letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import { connect, disconnect, sync, useAppState } from "../lib/store";
+import { AccountPrefs } from "./HeaderPrefs";
 import { Icon } from "./Icon";
 import { Popover } from "./ReminderMenu";
 
@@ -99,6 +100,7 @@ export function AccountMenu() {
             </a>
           )}
         </div>
+        <AccountPrefs />
         <div className="account-actions">
           {expired ? (
             <button type="button" className="account-item" onClick={() => connect()}>

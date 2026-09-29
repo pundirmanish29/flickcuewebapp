@@ -81,6 +81,18 @@ describe("library editor", () => {
     if (!cleared.ok) throw new Error();
     expect(cleared.movie.personal?.episodes).toEqual([]);
   });
+
+  it("marks only the episodes that have aired when told which", () => {
+    const marked = editor.toggleSeason(doc(), "a", 1, 4, NOW, [1, 2]);
+    if (!marked.ok) throw new Error();
+    expect(marked.movie.personal?.episodes).toEqual(["1:1", "1:2"]);
+    // Clearing takes off those two and leaves an episode ticked outside them.
+    const withLater = editor.toggleEpisode(marked.document, "a", 1, 4, NOW);
+    if (!withLater.ok) throw new Error();
+    const cleared = editor.toggleSeason(withLater.document, "a", 1, 4, NOW, [1, 2]);
+    if (!cleared.ok) throw new Error();
+    expect(cleared.movie.personal?.episodes).toEqual(["1:4"]);
+  });
 });
 
 describe("rules", () => {

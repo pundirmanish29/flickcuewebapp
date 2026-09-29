@@ -107,6 +107,20 @@ function when(at: number, now: number): string {
 const shownAt = (item: FlickNotification) => item.airedAt ?? item.at;
 const byShown = (a: FlickNotification, b: FlickNotification) => shownAt(b) - shownAt(a);
 
+/** What's new, in a few plain words under the title: "Season 1 Episode 7", "Season 2 Premiere", "New Movie". */
+function label(item: FlickNotification): string {
+  const [, season, episode] = /^S(\d+) · E(\d+)$/.exec(item.detail) ?? [];
+  switch (item.kind) {
+    case "episode": return season ? `Season ${season} Episode ${episode}` : "New Episode";
+    case "season": return season ? `Season ${season} Premiere` : "New Season";
+    case "finale": return season ? `Season ${season} Finale` : "Finale";
+    case "release": return "New Movie";
+    case "cinema": return "In Cinemas";
+    case "premiere": return "New Show";
+    default: return "Time to Watch";
+  }
+}
+
 function NotificationList({ items, unread, onOpen }: { items: FlickNotification[]; unread: boolean; onOpen: (id: string) => void }) {
   const { library } = useAppState();
   const now = Date.now();
@@ -124,8 +138,8 @@ function NotificationList({ items, unread, onOpen }: { items: FlickNotification[
               </span>
               <span className="notification-text">
                 <b>{item.title}{unread && <span className="notification-dot" aria-label="New" />}</b>
-                <span className="notification-event">{item.event}</span>
-                <span className="notification-when">{[item.detail, time].filter(Boolean).join(" · ")}</span>
+                <span className="notification-event">{label(item)}</span>
+                <span className="notification-when">{[item.kind === "cinema" ? item.detail : "", time].filter(Boolean).join(" · ")}</span>
               </span>
             </button>
             {/* What a reminder asks for, right here; anything else can be put away. */}

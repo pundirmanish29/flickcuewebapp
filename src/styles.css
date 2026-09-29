@@ -640,7 +640,7 @@ a { color: inherit; }
 .notification-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .notification-text b { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; line-height: 1.3; }
 .notification.unread .notification-text b { font-weight: 800; }
-.notification-event { color: var(--ink); font-size: 14px; }
+.notification-event { color: var(--ink-soft); font-size: 14px; }
 .notification-when { color: var(--muted); font-size: 13px; }
 .notification-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--green); }
 .notification-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -776,12 +776,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 @keyframes popover-in { from { opacity: 0; transform: translateY(-4px) scale(0.97); } }
 .popover-label { margin: 0 0 10px; font-weight: 700; }
 
-.header-menu { position: relative; flex-shrink: 0; }
-.header-menu .popover { left: auto; right: 0; width: min(300px, calc(100vw - 32px)); padding: 16px; color: var(--ink); }
-.header-prefs { gap: 14px; }
-.header-prefs select { width: 100%; }
-.header-prefs .hint { margin: 0; font-size: 13px; }
-
 .account-menu { position: relative; flex-shrink: 0; }
 .account-menu .popover { left: auto; right: 0; width: min(320px, calc(100vw - 32px)); padding: 16px; color: var(--ink); }
 .account-menu .account { margin-bottom: 10px; }
@@ -804,6 +798,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .account-lb-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .account-lb-text b { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-lb-text span { color: var(--muted); font-size: 13px; }
+.account-prefs { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.account-pref {
+  display: flex; align-items: center; gap: 8px; min-width: 0; height: 40px; padding: 0 6px 0 12px; border-radius: 10px;
+  background: var(--paper-deep); color: var(--muted);
+}
+.account-pref select { flex: 1; min-width: 0; height: 100%; padding: 0 4px 0 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; text-overflow: ellipsis; cursor: pointer; }
+.account-pref select:focus, .account-pref select:focus-visible { outline: none; }
+.account-pref-divider { flex-shrink: 0; width: 1px; height: 18px; background: var(--rule); }
+/* The open list is drawn by the browser: give it the menu's own colours, not white with pale text. */
+.account-pref select option { background: var(--paper-surface); color: var(--ink); }
+.account-pref:focus-within { box-shadow: 0 0 0 2px var(--ink); }
 .account-actions { display: flex; flex-direction: column; margin: 12px -8px -8px; padding-top: 8px; border-top: 1px solid var(--rule); }
 .account-item {
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 10px;
@@ -1059,6 +1064,31 @@ button.tag-link:hover { box-shadow: inset 0 0 0 1px var(--ink); }
 .episode-grid { animation: rise-in 220ms cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
 .episode { width: 38px; height: 34px; border-radius: 8px; border: 1px solid var(--rule); background: var(--paper-surface); font-family: var(--font-mono); font-size: 13px; }
 .episode.seen { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.episode.new { border-color: var(--green-ink); box-shadow: 0 0 0 1px var(--green-ink); }
+
+/* The latest aired episode, kept above the season list until it's watched or put away. */
+.new-episode {
+  display: grid; grid-template-columns: minmax(150px, 40%) 1fr; gap: 16px; margin-bottom: 18px; padding: 12px;
+  border-radius: 16px; background: var(--paper-deep); border: 1px solid var(--rule);
+}
+.new-episode-still { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--paper-surface); align-self: start; }
+.new-episode-still.is-empty { background: linear-gradient(90deg, var(--paper-deep), var(--paper-surface), var(--paper-deep)); background-size: 200% 100%; }
+.new-episode-still img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.new-episode-tag {
+  position: absolute; left: 8px; top: 8px; padding: 3px 8px; border-radius: 6px; background: var(--lime); color: var(--on-accent);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.new-episode-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.new-episode-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
+.new-episode-head h4 { margin: 0; font-size: 17px; line-height: 1.25; overflow-wrap: anywhere; }
+.new-episode-rating { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--ink); }
+.new-episode-meta { margin: 0; color: var(--muted); font-size: 13px; }
+.new-episode-overview { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.new-episode-actions { display: flex; gap: 8px; margin-top: 4px; }
+.new-episode-watched { display: inline-flex; align-items: center; gap: 6px; background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+@media (max-width: 600px) {
+  .new-episode { grid-template-columns: 1fr; }
+}
 
 .cast-row { list-style: none; margin: 0; padding: 0 0 6px; display: flex; gap: 14px; overflow-x: auto; }
 .cast-row li { width: 96px; flex-shrink: 0; font-size: 13px; }
@@ -1305,8 +1335,53 @@ html[data-transition="title"] .site-header, html[data-transition="title"] .botto
   .search { width: 150px; }
 }
 
-/* On a phone the buttons sit mid-header, so their popovers span the header instead of hanging off one. */
-@media (max-width: 700px) {
-  .header-menu { position: static; }
-  .header-menu .popover { left: 16px; right: 16px; width: auto; top: calc(100% + 8px); }
+
+/* ---- Seasons: a row of season cards, opening to a list of episodes ---- */
+.seasons-head { display: flex; align-items: baseline; justify-content: space-between; }
+.seasons-head .section-label { margin-bottom: 12px; }
+.season-rail { display: flex; gap: 14px; margin: 0; padding: 0 0 6px; list-style: none; overflow-x: auto; scrollbar-width: thin; scroll-snap-type: x proximity; }
+.season-rail li { flex: 0 0 auto; width: 136px; scroll-snap-align: start; }
+.season-card { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.season-card-art { position: relative; display: block; aspect-ratio: 2 / 3; border-radius: 14px; overflow: hidden; background: var(--paper-deep); }
+.season-card-art .poster { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 240ms ease; }
+.season-card:hover .poster { transform: scale(1.03); }
+.season-card-rating {
+  position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px;
+  background: rgba(11, 13, 15, 0.72); color: #fff; font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.season-card .progress { display: block; margin-top: 4px; }
+.season-card b { font-size: 15px; line-height: 1.25; }
+.season-card .muted { font-size: 13px; }
+
+.season-view { animation: rise-in 220ms cubic-bezier(0.16, 1, 0.3, 1); }
+.season-view-head { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin-bottom: 16px; }
+.season-view-head h3 { margin: 0; font-size: 22px; line-height: 1.2; }
+.season-view-head p { margin: 2px 0 0; font-size: 13px; }
+.season-back { color: var(--ink); background: var(--paper-deep); }
+.season-back:hover { background: var(--rule); }
+.episode-list { display: flex; flex-direction: column; gap: 18px; margin: 0; padding: 0; list-style: none; }
+.episode-item { display: grid; grid-template-columns: minmax(110px, 34%) 1fr auto; gap: 14px; align-items: start; }
+.episode-still { aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--paper-deep); }
+.episode-still img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.episode-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.episode-info b { font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
+.episode-meta { color: var(--muted); font-size: 13px; }
+.episode-rating { display: inline-flex; align-items: center; gap: 3px; color: var(--orange-ink); font-family: var(--font-mono); }
+.episode-info p { margin: 2px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.episode-item.unaired .episode-still, .episode-item.unaired .episode-info { opacity: 0.6; }
+.episode-check {
+  display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border-radius: 50%;
+  border: 1.5px solid var(--rule); background: none; color: transparent; cursor: pointer; align-self: center;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+.episode-check:hover:not(:disabled) { border-color: var(--green-ink); color: var(--green-ink); }
+.episode-check:active:not(:disabled) { transform: scale(0.92); }
+.episode-check.done { background: var(--green); border-color: var(--green); color: var(--on-accent); }
+.episode-check:disabled { opacity: 0.35; cursor: default; }
+.season-loading { display: flex; flex-direction: column; gap: 18px; }
+.season-loading span { height: 72px; border-radius: 10px; background: linear-gradient(90deg, var(--paper-deep), var(--paper-surface), var(--paper-deep)); background-size: 200% 100%; animation: shimmer 1.4s ease infinite; }
+@media (max-width: 600px) {
+  .episode-item { grid-template-columns: minmax(96px, 36%) 1fr auto; gap: 12px; }
+  .season-rail li { width: 124px; }
 }

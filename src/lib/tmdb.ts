@@ -437,3 +437,74 @@ export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: 
   request.catch(() => detailsCache.delete(key));
   return request;
 }
+
+export interface SeasonEpisode extends EpisodeInfo {
+  number: number;
+}
+
+const seasonCache = new Map<string, Promise<SeasonEpisode[]>>();
+
+/** Every episode of a season in one lookup: name, still, date, runtime, rating and summary. */
+export function fetchSeason(tmdbId: string | undefined, season: number): Promise<SeasonEpisode[]> {
+  if (!safeTmdbId(tmdbId) || !Number.isInteger(season) || season < 0) {
+    return Promise.reject(new TmdbError("This season can't be looked up."));
+  }
+  const key = `${tmdbId}:${season}:${contentLanguage}`;
+  const cached = seasonCache.get(key);
+  if (cached) return cached;
+  const request = tmdbGet(`tv/${tmdbId}/season/${season}`).then((data): SeasonEpisode[] =>
+    (Array.isArray(data.episodes) ? data.episodes : []).map((item: any) => {
+      const rating = Number(item.vote_average) || 0;
+      return {
+        number: Number(item.episode_number) || 0,
+        name: String(item.name || ""),
+        overview: String(item.overview || ""),
+        still: posterUrl(item.still_path, "w300"),
+        rating: rating > 0 ? rating.toFixed(1) : "",
+        runtimeMinutes: Number(item.runtime) || 0,
+        airDate: String(item.air_date || "")
+      };
+    }).filter((item: SeasonEpisode) => item.number > 0)
+  );
+  seasonCache.set(key, request);
+  request.catch(() => seasonCache.delete(key));
+  return request;
+}
+
+export interface EpisodeInfo {
+  name: string;
+  overview: string;
+  /** The episode's still, or "" when TMDB has none. */
+  still: string;
+  /** Out of ten, one decimal; "" when unrated. */
+  rating: string;
+  runtimeMinutes: number;
+  airDate: string;
+}
+
+const episodeCache = new Map<string, Promise<EpisodeInfo>>();
+
+/** One episode's name, still, rating and summary. */
+export function fetchEpisode(tmdbId: string | undefined, season: number, episode: number): Promise<EpisodeInfo> {
+  // Ids and numbers go into the request path, so only whole numbers do.
+  if (!safeTmdbId(tmdbId) || !Number.isInteger(season) || !Number.isInteger(episode) || season < 0 || episode < 1) {
+    return Promise.reject(new TmdbError("This episode can't be looked up."));
+  }
+  const key = `${tmdbId}:${season}:${episode}:${contentLanguage}`;
+  const cached = episodeCache.get(key);
+  if (cached) return cached;
+  const request = tmdbGet(`tv/${tmdbId}/season/${season}/episode/${episode}`).then((data): EpisodeInfo => {
+    const rating = Number(data.vote_average) || 0;
+    return {
+      name: String(data.name || ""),
+      overview: String(data.overview || ""),
+      still: posterUrl(data.still_path, "w500"),
+      rating: rating > 0 ? rating.toFixed(1) : "",
+      runtimeMinutes: Number(data.runtime) || 0,
+      airDate: String(data.air_date || "")
+    };
+  });
+  episodeCache.set(key, request);
+  request.catch(() => episodeCache.delete(key));
+  return request;
+}

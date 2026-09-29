@@ -16,6 +16,9 @@ import { Popover, ReminderChoices } from "./ReminderMenu";
 import { providerLink, splitChannel } from "../lib/providers";
 import { regionName } from "../lib/cinemas";
 import { writeBack } from "../lib/showSync";
+import { dismissEpisode, episodeKey, newEpisodeFor, readDismissed } from "../lib/newEpisode";
+import { NewEpisodeCard } from "./NewEpisodeCard";
+import { Seasons } from "./Seasons";
 import { goDiscover } from "../lib/discoverIntent";
 import { openTitle as openWithMotion, pop, reducedMotion } from "../lib/motion";
 import { safeImage, safeImdbId, safeLink } from "../lib/safe";
@@ -147,9 +150,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   const [detailsError, setDetailsError] = useState("");
   const [choosingReminder, setChoosingReminder] = useState(false);
   const [note, setNote] = useState(movie?.personal?.note ?? "");
-  // null: the season you're on opens by itself; 0: all closed.
-  const [openSeason, setOpenSeason] = useState<number | null>(null);
-  const [allSeasons, setAllSeasons] = useState(false);
+  const [dismissedEpisodes, setDismissedEpisodes] = useState(readDismissed);
   const [writingNote, setWritingNote] = useState(false);
   const inCinemas = useInCinemas();
   const { place } = useWhere();
@@ -213,6 +214,8 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   const reminderActive = hasActiveReminder(movie);
   const backdrop = safeImage(details?.backdrop) || safeImage(upscale(movie.backdrop, "w1280"));
   const progress = seasonProgress(movie);
+  // The latest aired episode stays up here until it is ticked off or put away.
+  const newEpisode = isSaved && isShow(movie) ? newEpisodeFor(movie, details?.lastEpisode, dismissedEpisodes) : null;
   const imdbRating = Number(movie.imdbRating) || 0;
   const imdbId = safeImdbId(details?.imdbId) || safeImdbId(movie.imdbId);
   const show = isShow(movie);
@@ -246,15 +249,6 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   })();
 
   const episodesSeen = progress.reduce((sum, season) => sum + season.seen, 0);
-  // The season you're on: the last one you've started, else the first not finished.
-  const current = [...progress].reverse().find((season) => season.seen > 0 && season.seen < season.total)
-    ?? progress.find((season) => season.seen < season.total);
-  const seasonOpen = openSeason ?? (watchingNow || episodesSeen ? current?.number ?? 0 : 0);
-  // Seasons you've touched and the one you're on; the rest wait behind "All seasons".
-  const shownSeasons = allSeasons || progress.length <= 3
-    ? progress
-    : progress.filter((season) => season.seen > 0 || season.number === current?.number);
-  const hiddenSeasons = progress.length - shownSeasons.length;
   // The status line may already name the seasons ("Canceled · 2 seasons"); don't say it twice.
   const statusNamesSeasons = /\bseasons?\b/i.test(headline?.text || status?.text || "");
   const facts = show && details?.seasonCount
@@ -530,44 +524,20 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             <p className="muted small-print">Not streaming in {regionName(settings.region || "IN")} right now.</p>
           )}
 
-          {isSaved && isShow(movie) && progress.length > 0 && (
+          {isSaved && isShow(movie) && (progress.length > 0 || newEpisode) && (
             <section className="sheet-section">
-              <h3 className="section-label">Episode progress</h3>
-              <ul className="season-list">
-                {shownSeasons.map((season) => (
-                  <li key={season.number}>
-                    <div className="season-row">
-                      <button type="button" className="season-toggle" aria-expanded={seasonOpen === season.number} onClick={() => setOpenSeason(seasonOpen === season.number ? 0 : season.number)}>
-                        <span>{season.name || `Season ${season.number}`}</span>
-                        <span className="muted">{season.seen}/{season.total}</span>
-                        <Icon name="chevron" size={16} />
-                      </button>
-                      <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={season.total} aria-valuenow={season.seen} aria-label={`Season ${season.number} progress`}>
-                        <span style={{ width: `${Math.round((season.seen / season.total) * 100)}%` }} />
-                      </div>
-                      <button type="button" className="chip-button" onClick={() => actions.toggleSeason(movie.id, season.number, season.total)}>
-                        {season.seen === season.total ? "Unmark" : "All seen"}
-                      </button>
-                    </div>
-                    {seasonOpen === season.number && (
-                      <div className="episode-grid" aria-label={`Episodes of season ${season.number}: tap to tick`}>
-                        {Array.from({ length: season.total }, (_, index) => {
-                          const episode = index + 1;
-                          const seen = movie.personal?.episodes?.includes(`${season.number}:${episode}`);
-                          return (
-                            <button key={episode} type="button" className={`episode ${seen ? "seen" : ""}`} aria-pressed={seen} aria-label={`Episode ${episode}`} onClick={() => actions.toggleEpisode(movie.id, season.number, episode)}>
-                              {episode}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {hiddenSeasons > 0 && (
-                <button type="button" className="inline-link seasons-more" onClick={() => setAllSeasons(true)}>All {progress.length} seasons</button>
+              {newEpisode && (
+                <>
+                  <h3 className="section-label">Episode progress</h3>
+                  <NewEpisodeCard
+                    tmdbId={movie.tmdbId}
+                    air={newEpisode}
+                    onWatched={() => actions.toggleEpisode(movie.id, newEpisode.season, newEpisode.episode)}
+                    onDismiss={() => setDismissedEpisodes(dismissEpisode(episodeKey(movie.id, newEpisode.season, newEpisode.episode)))}
+                  />
+                </>
               )}
+              {progress.length > 0 && <Seasons movie={movie} info={details?.seasons} />}
             </section>
           )}
 
