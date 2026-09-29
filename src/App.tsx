@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon, Logo, type IconName } from "./components/Icon";
 import { TitleSheet } from "./components/TitleSheet";
 import { ToastHost } from "./components/Toast";
@@ -111,6 +111,7 @@ export default function App() {
   const requestedRoute = useHashRoute();
   const { library, sync } = useAppState();
   const [query, setQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
   // While the extension is asked for its session, and then until the list
   // first arrives from Drive, the requested page (or title) is kept rather
   // than swapped for the signed-out homepage or an empty queue. A title opened
@@ -199,11 +200,25 @@ export default function App() {
               <Icon name="search" size={16} />
               <span className="visually-hidden">Search</span>
               <input
+                ref={searchInput}
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={route === "discover" ? "Search films and shows" : "Search your titles"}
               />
+              {query && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  aria-label="Clear search"
+                  onClick={() => {
+                    setQuery("");
+                    searchInput.current?.focus();
+                  }}
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              )}
             </label>
           )}
           <SyncIndicator />

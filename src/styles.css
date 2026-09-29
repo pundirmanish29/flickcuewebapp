@@ -167,6 +167,14 @@ a { color: inherit; }
 /* The pill's lime border already shows focus, so drop the input's own ring and the browser's clear button. */
 .search input:focus, .search input:focus-visible { outline: none; }
 .search input::-webkit-search-cancel-button, .search input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+.search-clear {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 24px; height: 24px; margin-right: -6px; padding: 0; border: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1); color: var(--dark-muted); cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+.search-clear:hover { background: var(--lime); color: var(--on-accent); }
+.search-clear:active { transform: scale(0.9); }
 
 .sync-pill {
   display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 8px;
@@ -600,6 +608,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .sync-label { display: none; }
   .sync-pill { height: 44px; padding: 0 10px 0 8px; }
   .search { height: 44px; }
+  .search-clear { width: 32px; height: 32px; margin-right: -8px; }
   .icon-button { width: 44px; height: 44px; }
   .segmented button, .chip-button, .category, .select select, .link-chip, .episode, .toast-action { min-height: 44px; height: 44px; }
   .switch { min-height: 44px; }
