@@ -9,7 +9,7 @@ import { Poster } from "./Poster";
 const stars = (value: number) => "★".repeat(Math.floor(value)) + (value % 1 ? "½" : "");
 
 /** A saved title in the poster grid. Clicking opens its details; hover shows quick actions. */
-export function TitleCard({ movie, onOpen }: { movie: Movie; onOpen: (id: string) => void }) {
+export function TitleCard({ movie, onOpen, priority = false }: { movie: Movie; onOpen: (id: string) => void; priority?: boolean }) {
   const badge = gridBadge(movie);
   const status = getShowStatus(movie);
   const unreleased = isUnreleased(movie);
@@ -25,7 +25,7 @@ export function TitleCard({ movie, onOpen }: { movie: Movie; onOpen: (id: string
     <article className="title-card">
       <button type="button" className="title-card-open" onClick={() => onOpen(movie.id)} aria-label={`Open ${title}`}>
         <div className="title-card-art">
-          <Poster src={upscale(movie.poster, "w342")} title={movie.title} />
+          <Poster src={upscale(movie.poster, "w185")} retina={upscale(movie.poster, "w342")} priority={priority} title={movie.title} />
           {badge && <span className={`badge badge-${badge.tone}`}>{badge.text}</span>}
         </div>
         <div className="title-card-text">

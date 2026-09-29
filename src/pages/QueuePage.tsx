@@ -8,7 +8,7 @@ import {
 } from "../lib/rules";
 import { connect, updateSettings, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
-import { upscale } from "../lib/tmdb";
+import { fetchDetails, upscale } from "../lib/tmdb";
 import { EXTENSION_URL } from "../lib/config";
 import { safeImage } from "../lib/safe";
 import { pop } from "../lib/motion";
@@ -240,6 +240,19 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
       .slice(0, 8);
   }, [queue, tonight?.id]);
 
+  // A saved backdrop from elsewhere (fanart.tv, say) isn't one we load; TMDB's own stands in for it, without rewriting the saved title.
+  const [fetchedBackdrop, setFetchedBackdrop] = useState<{ id: string; url: string }>({ id: "", url: "" });
+  const needsBackdrop = Boolean(tonight && !safeImage(tonight.backdrop) && tonight.tmdbId);
+  useEffect(() => {
+    if (!tonight || !needsBackdrop) return;
+    let current = true;
+    fetchDetails(tonight, settings.region || "IN")
+      .then((details) => { if (current) setFetchedBackdrop({ id: tonight.id, url: safeImage(details.backdrop) }); })
+      .catch(() => {});
+    return () => { current = false; };
+  }, [tonight?.id, tonight?.tmdbId, tonight?.tmdbType, needsBackdrop, settings.region]);
+  const tonightBackdrop = safeImage(tonight?.backdrop) || (fetchedBackdrop.id === tonight?.id ? fetchedBackdrop.url : "");
+
   const watching = useMemo(() => watchingShows(library.movies), [library.movies]);
   useShowScheduleRefresh(library.movies, settings.region || "IN", sync.connected);
 
@@ -269,10 +282,10 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
         <section className="band tonight">
           <div className="wrap tonight-grid">
             <div
-              className={`tonight-art ${!tonight.backdrop && tonight.poster ? "poster-only" : ""}`}
-              style={!safeImage(tonight.backdrop) && safeImage(tonight.poster) ? { ["--art" as string]: `url(${safeImage(upscale(tonight.poster, "w342"))})` } : undefined}
+              className={`tonight-art ${!tonightBackdrop && safeImage(tonight.poster) ? "poster-only" : ""}`}
+              style={!tonightBackdrop && safeImage(tonight.poster) ? { ["--art" as string]: `url(${safeImage(upscale(tonight.poster, "w342"))})` } : undefined}
             >
-              {safeImage(tonight.backdrop) && <Backdrop key={tonight.backdrop} src={safeImage(tonight.backdrop)} />}
+              {tonightBackdrop && <Backdrop key={tonightBackdrop} src={tonightBackdrop} />}
               <Poster src={upscale(tonight.poster, "w342")} title={tonight.title} className="tonight-poster" />
             </div>
             <div className="tonight-text" key={tonight.id}>
@@ -403,7 +416,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
           {visible.length ? (
             <>
               <div className="grid">
-                {visible.slice(0, limit).map((movie) => <TitleCard key={movie.id} movie={movie} onOpen={onOpen} />)}
+                {visible.slice(0, limit).map((movie, index) => <TitleCard key={movie.id} movie={movie} onOpen={onOpen} priority={index < 6} />)}
               </div>
               {visible.length > limit && (
                 <div className="load-more">
