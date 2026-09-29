@@ -11,6 +11,7 @@ import { PageHeader } from "../components/PageHeader";
 import { upscale } from "../lib/tmdb";
 import { EXTENSION_URL } from "../lib/config";
 import { safeImage } from "../lib/safe";
+import { pop } from "../lib/motion";
 import { useShowScheduleRefresh } from "../lib/showSync";
 import type { KindFilter, Movie, SortMode } from "../lib/types";
 
@@ -274,7 +275,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
               {safeImage(tonight.backdrop) && <Backdrop key={tonight.backdrop} src={safeImage(tonight.backdrop)} />}
               <Poster src={upscale(tonight.poster, "w342")} title={tonight.title} className="tonight-poster" />
             </div>
-            <div className="tonight-text">
+            <div className="tonight-text" key={tonight.id}>
               {/* On a phone this sits over the backdrop, so the pick takes one screen, not two. */}
               <button type="button" className="tonight-heading" onClick={() => onOpen(tonight.id)} aria-label={`${displayTitle(tonight)}, details`}>
                 <span className={`tonight-when ${tonightDue ? "due" : ""}`}>
@@ -287,7 +288,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                 </span>
               </button>
               {tonight.tagline && <p className="tonight-tagline">{tonight.tagline}</p>}
-              <div className="button-row tonight-actions">
+              <div className="button-row tonight-actions" onClickCapture={(event) => pop((event.target as Element).closest(".button"))}>
                 <button type="button" className="button button-lime" onClick={() => actions.toggleWatched(tonight.id)}>
                   <Icon name="eye" size={16} /> Watched it
                 </button>

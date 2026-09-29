@@ -11,6 +11,7 @@ import { Popover, ReminderChoices } from "./ReminderMenu";
 import { ShowtimeLinks } from "./Showtimes";
 import { useWhere } from "../lib/useCinemas";
 import { openPreview } from "../lib/preview";
+import { openTitle as openWithMotion, pop } from "../lib/motion";
 
 /**
  * A search or Discover result. Saving asks when to be reminded first, as the
@@ -38,12 +39,12 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank 
 
   return (
     <article className="title-card candidate-card">
-      <div className="candidate-art-wrap">
+      <div className="candidate-art-wrap" onClickCapture={(event) => pop((event.target as Element).closest(".candidate-quick"))}>
         {/* The poster and name open its full details, saved or not. */}
         <button
           type="button"
           className="title-card-open"
-          onClick={() => (saved ? onOpenSaved(saved.id) : openPreview(candidate))}
+          onClick={() => (saved ? onOpenSaved(saved.id) : openWithMotion(() => openPreview(candidate)))}
           aria-label={`Details for ${title}`}
         >
           <div className="title-card-art">
@@ -63,7 +64,7 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank 
           </button>
         )}
       </div>
-      <button type="button" className="title-card-open title-card-text" onClick={() => (saved ? onOpenSaved(saved.id) : openPreview(candidate))} tabIndex={-1} aria-hidden="true">
+      <button type="button" className="title-card-open title-card-text" onClick={() => (saved ? onOpenSaved(saved.id) : openWithMotion(() => openPreview(candidate)))} tabIndex={-1} aria-hidden="true">
         <h3>{title}</h3>
         {/* The rating sits here, not on the poster, where it would cover the title art. */}
         <p className="meta">

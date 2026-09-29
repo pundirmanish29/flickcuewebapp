@@ -17,6 +17,7 @@ import { providerLink, splitChannel } from "../lib/providers";
 import { regionName } from "../lib/cinemas";
 import { writeBack } from "../lib/showSync";
 import { goDiscover } from "../lib/discoverIntent";
+import { openTitle as openWithMotion, pop, reducedMotion } from "../lib/motion";
 import { safeImage, safeImdbId, safeLink } from "../lib/safe";
 import { useSwipeToClose } from "../lib/useSwipeToClose";
 
@@ -162,6 +163,24 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   }, []);
   useSwipeToClose(dialog, inner);
 
+  // Closing slides the sheet away (faster than it arrived) rather than cutting.
+  const closeSheet = useCallback(() => {
+    const sheet = dialog.current;
+    if (!sheet?.open || sheet.classList.contains("closing")) return;
+    if (reducedMotion()) return sheet.close();
+    sheet.classList.add("closing");
+    const finish = () => {
+      sheet.removeEventListener("animationend", onEnd);
+      if (!sheet.classList.contains("closing")) return;
+      sheet.classList.remove("closing");
+      sheet.close();
+    };
+    // Only the sheet's own animation, not a shimmer or pop inside it.
+    const onEnd = (event: AnimationEvent) => event.target === sheet && finish();
+    sheet.addEventListener("animationend", onEnd);
+    window.setTimeout(finish, 320);
+  }, []);
+
   const tmdbKey = movie?.tmdbId ? `${movie.tmdbType}:${movie.tmdbId}` : "";
   useEffect(() => {
     if (!movie?.tmdbId) return;
@@ -273,7 +292,12 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
       className="sheet"
       tabIndex={-1}
       onClose={onClose}
-      onClick={(event) => event.target === dialog.current && dialog.current?.close()}
+      onCancel={(event) => {
+        // Escape: the same way out as the close button.
+        event.preventDefault();
+        closeSheet();
+      }}
+      onClick={(event) => event.target === dialog.current && closeSheet()}
       aria-labelledby="sheet-title"
     >
       <div className="sheet-inner" ref={inner}>
@@ -294,7 +318,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           ) : null}
           {!playing && (
             <div className="sheet-hero-top">
-              <button type="button" className="icon-button sheet-close" onClick={() => dialog.current?.close()} aria-label="Close">
+              <button type="button" className="icon-button sheet-close" onClick={() => closeSheet()} aria-label="Close">
                 <Icon name="close" />
               </button>
             </div>
@@ -311,7 +335,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
                 <Icon name="external" size={14} /> YouTube
               </a>
             )}
-            <button type="button" className="icon-button trailer-close" onClick={() => dialog.current?.close()} aria-label="Close">
+            <button type="button" className="icon-button trailer-close" onClick={() => closeSheet()} aria-label="Close">
               <Icon name="close" size={18} />
             </button>
           </div>
@@ -370,7 +394,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           {isSaved ? (
           <>
           {/* One row of actions, icon over label, so they fit a phone's width. */}
-          <div className="sheet-actions action-row">
+          <div className="sheet-actions action-row" onClickCapture={(event) => pop((event.target as Element).closest(".action")?.querySelector(".action-icon"))}>
             <button
               type="button"
               className={`action ${movie.watched ? "" : "primary"}`}
@@ -440,7 +464,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           ) : (
             <>
               {/* Not in the list yet: each action saves it as it goes. */}
-              <div className="sheet-actions action-row">
+              <div className="sheet-actions action-row" onClickCapture={(event) => pop((event.target as Element).closest(".action")?.querySelector(".action-icon"))}>
                 <button type="button" className="action primary" aria-expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>
                   <span className="action-icon"><Icon name="plus" size={20} /></span>
                   <span>Save</span>
@@ -567,7 +591,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           {isSaved && (movie.watched || take) && (
             <section className="sheet-section">
               <h3 className="section-label">Your take</h3>
-              <div className="take">
+              <div className="take" onClickCapture={(event) => pop((event.target as Element).closest("button"))}>
                 <span className="take-stars-edit" role="group" aria-label="Your rating">
                   {[1, 2, 3, 4, 5].map((star) => {
                     const fill = takeRating >= star ? "full" : takeRating >= star - 0.5 ? "half" : "";
@@ -620,7 +644,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
               <h3 className="section-label">More like this</h3>
               <div className="cinema-row more-row">
                 {details.recommendations.map((item) => (
-                  <CandidateCard key={item.key} candidate={item} onOpenSaved={(savedId) => { location.hash = `#/title/${encodeURIComponent(savedId)}`; }} />
+                  <CandidateCard key={item.key} candidate={item} onOpenSaved={(savedId) => openWithMotion(() => { location.hash = `#/title/${encodeURIComponent(savedId)}`; })} />
                 ))}
               </div>
             </section>

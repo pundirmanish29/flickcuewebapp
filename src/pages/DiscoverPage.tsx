@@ -402,7 +402,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
 
           {visible.length > 0 && (
             <>
-              <Results items={visible} onOpen={onOpen} showtimes={!searching && category === IN_CINEMAS.id} ranked={ranked} />
+              <Results key={`${category}:${shownKind}`} items={visible} onOpen={onOpen} showtimes={!searching && category === IN_CINEMAS.id} ranked={ranked} />
               {!searching && !forYou && load.state === "done" && load.more && (
                 <div className="load-more">
                   <button type="button" className="button button-quiet" onClick={() => void loadMore()} disabled={loadingMore}>

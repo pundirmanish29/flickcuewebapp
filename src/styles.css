@@ -218,6 +218,8 @@ a { color: inherit; }
 .header-icon:hover { background: rgba(255, 255, 255, 0.08); }
 .header-icon:active { transform: scale(0.94); }
 .header-icon[aria-current="page"] { background: rgba(255, 255, 255, 0.12); }
+.header-badge { animation: badge-pop 320ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes badge-pop { from { transform: scale(0.4); opacity: 0; } }
 .header-badge {
   position: absolute; top: 3px; right: 1px; min-width: 18px; height: 18px; padding: 0 5px;
   display: inline-flex; align-items: center; justify-content: center; border-radius: 999px;
@@ -489,7 +491,9 @@ a { color: inherit; }
 }
 .cinema-row > * { scroll-snap-align: start; }
 /* A scrolling row clips anything that overflows it, so its cards' popovers sit over the page instead. */
-.cinema-row .popover {
+.cinema-row .popover { animation: popover-in 160ms cubic-bezier(0.16, 1, 0.3, 1); transform-origin: top center; }
+@keyframes popover-in { from { opacity: 0; transform: translateY(-4px) scale(0.97); } }
+.popover {
   position: fixed; top: auto; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 40;
   width: min(420px, calc(100vw - 32px)); transform: translateX(-50%);
   box-shadow: 0 24px 64px rgba(11, 13, 15, 0.35);
@@ -859,7 +863,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   border: 0; border-radius: 22px; background: var(--paper); color: var(--ink); overflow: hidden;
 }
 .sheet::backdrop { background: rgba(11, 13, 15, 0.64); backdrop-filter: blur(4px); }
-.sheet[open] { animation: sheet-in 200ms ease; }
+.sheet[open] { animation: sheet-in 260ms cubic-bezier(0.16, 1, 0.3, 1); }
+/* Closing: out faster than in, down and away. */
+.sheet.closing { animation: sheet-out 180ms cubic-bezier(0.4, 0, 1, 1) forwards; }
+.sheet.closing::backdrop { animation: fade-out 180ms ease forwards; }
+@keyframes sheet-out { to { opacity: 0; transform: translateY(18px) scale(0.99); } }
+@keyframes fade-out { to { opacity: 0; } }
+/* While a poster grows into the sheet, the sheet itself only fades, so the poster's path is the motion. */
+html[data-opening] .sheet[open] { animation: fade-in 240ms ease; }
+html[data-opening] .sheet-poster { view-transition-name: title-poster; }
 @keyframes sheet-in { from { opacity: 0; transform: translateY(16px) scale(0.99); } }
 .sheet-inner { max-height: min(92vh, 100dvh); overflow-y: auto; overscroll-behavior: contain; }
 .sheet-hero { position: relative; height: 240px; background: var(--night) center / cover no-repeat; }
@@ -1038,7 +1050,7 @@ button.tag-link:hover { box-shadow: inset 0 0 0 1px var(--ink); }
 .season-toggle { display: flex; justify-content: space-between; gap: 8px; padding: 0; border: 0; background: none; font-weight: 600; text-align: left; }
 .progress { height: 6px; border-radius: 999px; background: var(--paper-deep); overflow: hidden; }
 .progress span { display: block; height: 100%; background: var(--green-ink); border-radius: inherit; }
-.episode-grid { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.episode-grid { animation: rise-in 220ms cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
 .episode { width: 38px; height: 34px; border-radius: 8px; border: 1px solid var(--rule); background: var(--paper-surface); font-family: var(--font-mono); font-size: 13px; }
 .episode.seen { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
 
@@ -1209,4 +1221,50 @@ button.tag-link:hover { box-shadow: inset 0 0 0 1px var(--ink); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   .button:hover:not(:disabled), .button:active:not(:disabled) { transform: none; }
+}
+
+/* ---- Motion (lib/motion.ts) ---- */
+
+@keyframes rise-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes fade-in { from { opacity: 0; } }
+
+/* Pages cross-fade; a title's poster travels from its card to the sheet. */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; animation-timing-function: ease; }
+::view-transition-group(title-poster) { animation-duration: 440ms; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+::view-transition-image-pair(title-poster) { isolation: isolate; }
+::view-transition-old(title-poster), ::view-transition-new(title-poster) { animation-duration: 440ms; }
+::view-transition-group(title-poster) { z-index: 100; }
+/* Popovers placed with a transform of their own fade rather than scale, or they'd jump sideways. */
+.cinema-row .popover, .candidate-card .popover { animation: fade-in 160ms ease; }
+/* The header stays put while the page under it changes (but not over a sheet that's opening). */
+html[data-transition="title"] .site-header, html[data-transition="title"] .bottom-nav { view-transition-name: none; }
+.site-header { view-transition-name: site-header; }
+.bottom-nav { view-transition-name: bottom-nav; }
+::view-transition-old(site-header), ::view-transition-new(site-header), ::view-transition-old(bottom-nav), ::view-transition-new(bottom-nav) { animation: none; }
+
+/* Changing lists and picks: the new content settles in. */
+.discover .grid, .tonight-text, .watched-month .grid { animation: rise-in 280ms cubic-bezier(0.16, 1, 0.3, 1); }
+.tonight-text { animation-duration: 360ms; }
+
+/* Toggles confirm with colour as well as the pop. */
+.take-stars-edit .star, .take-heart, .candidate-quick, .episode { transition: color 160ms ease, background-color 160ms ease, transform 160ms ease; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The homepage's one moment: "Everywhere." wipes in, the app screen sharpens into place. */
+  .home-hero .display em { width: fit-content; animation: wipe-in 760ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both; }
+  .home-hero .hero-shot { animation: focus-in 820ms cubic-bezier(0.16, 1, 0.3, 1) 220ms both; }
+  @keyframes wipe-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  @keyframes focus-in { from { opacity: 0; transform: translateY(28px); filter: blur(10px); } }
+
+  /* Feature screenshots are uncovered as they scroll into view, from the side they sit on. */
+  @supports (animation-timeline: view()) {
+    .feature-shot { animation: uncover linear both; animation-timeline: view(); animation-range: entry 5% cover 35%; }
+    .feature:nth-child(even) .feature-shot { animation-name: uncover-left; }
+    @keyframes uncover { from { clip-path: inset(0 0 0 22% round var(--radius)); opacity: 0.4; transform: translateX(24px); } to { clip-path: inset(0 0 0 0 round var(--radius)); } }
+    @keyframes uncover-left { from { clip-path: inset(0 22% 0 0 round var(--radius)); opacity: 0.4; transform: translateX(-24px); } to { clip-path: inset(0 0 0 0 round var(--radius)); } }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }

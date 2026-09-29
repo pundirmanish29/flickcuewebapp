@@ -5,6 +5,7 @@ import { Poster } from "../components/Poster";
 import { buildNotifications, cinemaFirstSeen, stampEpisodes, countUnread, dismiss, DISMISSED_EVENT, getDismissed, getSeenAt, markSeen, olderReminders, type FlickNotification, type NotificationKind } from "../lib/notifications";
 import * as actions from "../lib/actions";
 import { alertSupport } from "../lib/alerts";
+import { pop } from "../lib/motion";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { formatRelativeDay } from "../lib/rules";
 import { useAppState } from "../lib/store";
@@ -69,7 +70,7 @@ export function NotificationBell({ current }: { current: boolean }) {
   return (
     <a className="header-icon" href="#/notifications" aria-label={label} aria-current={current ? "page" : undefined}>
       <Icon name="bell" size={21} />
-      {unread > 0 && <span className="header-badge" aria-hidden="true">{unread > 9 ? "9+" : unread}</span>}
+      {unread > 0 && <span key={unread} className="header-badge" aria-hidden="true">{unread > 9 ? "9+" : unread}</span>}
     </a>
   );
 }
@@ -108,7 +109,7 @@ function NotificationList({ items, unread, onOpen }: { items: FlickNotification[
               </span>
             </button>
             {/* What a reminder asks for, right here; anything else can be put away. */}
-            <span className="notification-actions">
+            <span className="notification-actions" onClickCapture={(event) => pop((event.target as Element).closest(".chip-button"))}>
               {item.kind === "reminder" && movie && !movie.watched && (
                 <>
                   <button type="button" className="chip-button" onClick={() => actions.toggleWatched(item.movieId)}>Watched it</button>

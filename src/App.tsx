@@ -12,6 +12,7 @@ import { DiscoverPage } from "./pages/DiscoverPage";
 import { NotificationBell, NotificationsPage } from "./pages/NotificationsPage";
 import { buildNotifications } from "./lib/notifications";
 import { hasIntent, onIntent, takeIntent } from "./lib/discoverIntent";
+import { openTitle as openWithMotion, transition, transitionRunning } from "./lib/motion";
 import { QueuePage } from "./pages/QueuePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { WatchedPage } from "./pages/WatchedPage";
@@ -43,8 +44,16 @@ function parseHash(): { route: Route; titleId: string } {
 
 function useHashRoute() {
   const [value, setValue] = useState(parseHash);
+  const current = useRef(value);
+  current.current = value;
   useEffect(() => {
-    const onChange = () => setValue(parseHash());
+    // Moving between pages cross-fades; opening a title has its own transition (lib/motion.ts).
+    const onChange = () => {
+      const next = parseHash();
+      if (next.route !== current.current.route && !next.titleId && !current.current.titleId && !transitionRunning()) {
+        transition(() => flushSync(() => setValue(next)));
+      } else setValue(next);
+    };
     window.addEventListener("hashchange", onChange);
     return () => window.removeEventListener("hashchange", onChange);
   }, []);
@@ -214,7 +223,7 @@ export default function App() {
   const queueCount = library.movies.filter((movie) => !movie.watched).length;
 
   const openTitle = useCallback((id: string) => {
-    location.hash = `#/title/${encodeURIComponent(id)}`;
+    openWithMotion(() => { location.hash = `#/title/${encodeURIComponent(id)}`; });
   }, []);
   const closeTitle = useCallback(() => {
     // Back to the page underneath, without leaving a history entry to reopen it.
