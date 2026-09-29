@@ -2,3 +2,9 @@ node_modules/
 dist/
 .env.local
 *.log
+
+# Impeccable: the engine binary is fetched (and checksum-verified) by the
+# skill's launcher on first use, and its hooks and consent are per machine.
+.claude/skills/impeccable/scripts/bin/
+.claude/settings.local.json
+.impeccable/config.local.json
