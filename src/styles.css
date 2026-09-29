@@ -164,6 +164,9 @@ a { color: inherit; }
 .search:focus-within { border-color: var(--lime); }
 .search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; color: #fff; }
 .search input::placeholder { color: var(--dark-muted); }
+/* The pill's lime border already shows focus, so drop the input's own ring and the browser's clear button. */
+.search input:focus, .search input:focus-visible { outline: none; }
+.search input::-webkit-search-cancel-button, .search input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
 
 .sync-pill {
   display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 8px;
