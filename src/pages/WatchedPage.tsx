@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { TitleCard } from "../components/TitleCard";
 import * as actions from "../lib/actions";
-import { matchesKind, matchesSearch, sortMovies } from "../lib/rules";
+import { knownWatchedAt, matchesKind, matchesSearch, sortMovies } from "../lib/rules";
+import { PageHeader } from "../components/PageHeader";
 import { useAppState } from "../lib/store";
 import type { KindFilter } from "../lib/types";
 
@@ -16,8 +17,9 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
     const yearStart = new Date(now.getFullYear(), 0, 1).getTime();
     const minutes = watched.reduce((sum, movie) => sum + (Number(movie.runtimeMinutes) || 0), 0);
     return {
-      month: watched.filter((movie) => Number(movie.watchedAt) >= monthStart).length,
-      year: watched.filter((movie) => Number(movie.watchedAt) >= yearStart).length,
+      // Only real viewing dates count, so a Letterboxd import doesn't read as a binge.
+      month: watched.filter((movie) => knownWatchedAt(movie) >= monthStart).length,
+      year: watched.filter((movie) => knownWatchedAt(movie) >= yearStart).length,
       hours: Math.round(minutes / 60)
     };
   }, [watched]);
@@ -26,30 +28,21 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
 
   return (
     <>
-      <section className="intro paper compact">
-        <div className="wrap">
-          <p className="eyebrow">Your viewing history</p>
-          <h1 className="display">
-            Watched.
-            <em>Every one of them.</em>
-          </h1>
-        </div>
-      </section>
-
-      <section className="band stats-band">
-        {/* Hours only count titles with a known runtime, so the tile waits until there are some. */}
-        <div className="wrap stats" style={{ ["--stat-count" as string]: stats.hours > 0 ? 4 : 3 }}>
-          <div><b>{watched.length}</b><span>watched in all</span></div>
-          <div><b>{stats.month}</b><span>this month</span></div>
-          <div><b>{stats.year}</b><span>this year</span></div>
-          {stats.hours > 0 && <div><b>{stats.hours}</b><span>hours watched</span></div>}
-        </div>
-      </section>
+      <PageHeader
+        title="Watched"
+        meta={[
+          `${watched.length} in all`,
+          stats.month ? `${stats.month} this month` : "",
+          stats.year ? `${stats.year} this year` : "",
+          // Hours only count titles with a known runtime, so they wait until there are some.
+          stats.hours ? `${stats.hours} hours` : ""
+        ].filter(Boolean).join(" · ")}
+      />
 
       <section className="paper titles">
         <div className="wrap">
           <div className="toolbar">
-            <h2 className="section-title">Newest first <span className="count">{visible.length}</span></h2>
+            <h2 className="toolbar-label">Newest first <span className="count">{visible.length}</span></h2>
             <div className="toolbar-controls">
               <div className="segmented" role="group" aria-label="Show">
                 {(["all", "movie", "tv"] as KindFilter[]).map((value) => (

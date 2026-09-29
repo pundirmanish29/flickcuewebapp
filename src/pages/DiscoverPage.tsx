@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CandidateCard } from "../components/CandidateCard";
+import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
 import { ReminderChoices } from "../components/ReminderMenu";
@@ -227,25 +228,11 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const person = load.state === "done" ? load.person : undefined;
   const personWork = person ? person.titles.filter((item) => matchesKindFilter(item, kind)) : [];
 
-  const heading = searching ? `Results for “${query.trim()}”` : forYou ? "For you" : activeCategory.label;
   const showKind = searching || forYou || category === "trending";
 
   return (
     <>
-      <section className="intro paper compact">
-        <div className="wrap">
-          <p className="eyebrow">Discover</p>
-          <h1 className="display">
-            Find the next one.
-            <em>Save it for later.</em>
-          </h1>
-          <p className="lede">
-            {hasSeeds
-              ? "Picks based on what you've saved, plus hidden gems and what's trending. Search any film, show or person at the top."
-              : "Search any film, show, actor or director at the top, or browse hidden gems and what's trending."}
-          </p>
-        </div>
-      </section>
+      <PageHeader title="Discover" />
 
       <section className="paper titles">
         <div className="wrap">
@@ -265,7 +252,8 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
           )}
 
           <div className="toolbar">
-            <h2 className="section-title">{heading}</h2>
+            {/* Browsing, the selected chip already names the list; only a search needs a heading. */}
+            {searching && <h2 className="section-title">Results for “{query.trim()}”</h2>}
             <div className="toolbar-controls">
               {showKind && (
                 <div className="segmented" role="group" aria-label="Show">

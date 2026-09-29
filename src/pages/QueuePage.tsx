@@ -7,6 +7,7 @@ import {
   displayTitle, formatRating, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
 } from "../lib/rules";
 import { connect, useAppState } from "../lib/store";
+import { PageHeader } from "../components/PageHeader";
 import { upscale } from "../lib/tmdb";
 import type { KindFilter, Movie, SortMode } from "../lib/types";
 
@@ -180,18 +181,10 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
       {!sync.connected ? (
         <MarketingHome />
       ) : (
-        <section className="intro compact paper signed-in-intro">
-          <div className="wrap signed-in-heading">
-            <div>
-              <p className="eyebrow">Your FlickCue</p>
-              <h1 className="display">What are we watching?</h1>
-            </div>
-            <p className="library-status">
-              {library.movies.length} saved · {queue.length} queued · {library.movies.length - queue.length} watched{dueToday ? ` · ${dueToday} due today` : ""}<br />
-              Synced with your extension and Android app.
-            </p>
-          </div>
-        </section>
+        <PageHeader
+          title="What are we watching?"
+          meta={[dueToday ? `${dueToday} due today` : "", `${queue.length} in your queue`, `${library.movies.length - queue.length} watched`].filter(Boolean).join(" · ")}
+        />
       )}
 
       {sync.connected && tonight && (

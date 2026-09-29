@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { timeAgo } from "../components/AccountMenu";
+import { PageHeader } from "../components/PageHeader";
 import { toast } from "../components/Toast";
 import { connect, disconnect, importLibrary, sync, updateSettings, useAppState } from "../lib/store";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
@@ -58,15 +59,9 @@ export function SettingsPage() {
 
   return (
     <>
-      <section className="settings-page-header paper">
-        <div className="wrap settings-page-heading">
-          <p className="eyebrow">FlickCue</p>
-          <h1>Settings</h1>
-          <p>Manage sync, title data, reminders, and backups.</p>
-        </div>
-      </section>
+      <PageHeader title="Settings" />
 
-      <section className="paper">
+      <section className="paper settings-body">
         <div className="wrap settings">
           <article className="card">
             <h2>Google sync</h2>

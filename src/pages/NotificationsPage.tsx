@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "../components/Icon";
+import { PageHeader } from "../components/PageHeader";
 import { Poster } from "../components/Poster";
 import { buildNotifications, countUnread, getSeenAt, markSeen, type FlickNotification, type NotificationKind } from "../lib/notifications";
 import { formatRelativeDay } from "../lib/rules";
@@ -103,13 +104,13 @@ export function NotificationsPage({ onOpen }: { onOpen: (id: string) => void }) 
   const earlier = items.filter((item) => item.at <= seenBefore);
 
   return (
+    <>
+    <PageHeader
+      title="Notifications"
+      meta={<>Reminders, releases and new episodes.{!settings.notifications && <> <a href="#/settings">Turn on browser alerts</a></>}</>}
+    />
     <section className="paper notifications">
       <div className="wrap notifications-wrap">
-        <h1 className="notifications-title">Notifications</h1>
-        <p className="notifications-lede">
-          Reminders coming due, releases and new episodes for the titles you've saved.
-          {!settings.notifications && <> <a href="#/settings">Get them as browser alerts</a>.</>}
-        </p>
 
         {items.length === 0 ? (
           <div className="notifications-empty">
@@ -135,5 +136,6 @@ export function NotificationsPage({ onOpen }: { onOpen: (id: string) => void }) 
         )}
       </div>
     </section>
+    </>
   );
 }

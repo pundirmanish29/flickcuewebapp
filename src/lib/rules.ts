@@ -164,7 +164,10 @@ export function formatReminder(value: number, now = Date.now()): string {
 }
 
 export function reminderText(movie: Movie, now = Date.now()): string {
-  if (movie.watched) return movie.watchedAt ? `Watched ${formatRelativeDay(movie.watchedAt, now)}` : "Watched";
+  if (movie.watched) {
+    const at = knownWatchedAt(movie);
+    return at ? `Watched ${formatRelativeDay(at, now)}` : "Watched";
+  }
   if (isUnreleased(movie, now)) {
     const release = ISO_DATE.test(movie.releaseDate || "")
       ? new Date(`${movie.releaseDate}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
@@ -174,6 +177,19 @@ export function reminderText(movie: Movie, now = Date.now()): string {
   if (!movie.remindAt) return "No reminder";
   if (movie.remindAt <= now) return "Due now";
   return `Reminder ${formatReminder(movie.remindAt, now)}`;
+}
+
+/**
+ * When a title was really watched, or 0 when that isn't known. Older extension
+ * versions stamped Letterboxd imports with the moment the import ran; a title
+ * created from Letterboxd and marked watched in the same minute carries that
+ * stamp, not a viewing date (the extension now uses diary dates instead).
+ */
+export function knownWatchedAt(movie: Movie): number {
+  const at = Number(movie.watchedAt) || 0;
+  if (!at) return 0;
+  const stampedOnImport = movie.origin === "letterboxd" && Math.abs(at - (Number(movie.createdAt) || 0)) < 60 * 1000;
+  return stampedOnImport ? 0 : at;
 }
 
 /** A score out of 10 with one decimal ("7.0", "8.4"), or "" when there isn't one. */
