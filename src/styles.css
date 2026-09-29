@@ -703,7 +703,21 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .watch-on:hover { background: rgba(11, 13, 15, 0.88); }
 .watch-on > span { margin-right: 4px; }
 .watch-on:has(> svg) { padding-right: 16px; }
-.watch-on img, .watch-on b { width: 32px; height: 32px; border-radius: 8px; object-fit: cover; display: grid; place-items: center; background: #fff; color: var(--on-accent); font-size: 11px; }
+.watch-on img, .watch-on b, .watch-list img, .watch-list b { width: 32px; height: 32px; flex-shrink: 0; border-radius: 8px; object-fit: cover; display: grid; place-items: center; background: #fff; color: var(--on-accent); font-size: 11px; }
+.watch-on em { font-style: normal; font-size: 13px; font-weight: 700; padding: 0 2px; }
+.watch-on > svg:last-child { margin-right: 8px; opacity: 0.8; }
+.watch-on-wrap { position: relative; }
+.watch-on-wrap .popover { left: auto; right: 0; width: min(280px, calc(100vw - 32px)); padding: 8px; color: var(--ink); }
+.watch-list { list-style: none; margin: 0; padding: 0; }
+.watch-list-label { margin: 8px 10px 4px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.watch-list li:first-child .watch-list-label { margin-top: 4px; }
+.watch-list a {
+  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 10px; border-radius: 10px;
+  color: var(--ink); font-weight: 600; font-size: 15px; text-decoration: none; transition: background-color 160ms ease;
+}
+.watch-list a:hover { background: var(--paper-deep); }
+.watch-list a span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.watch-list a > svg { color: var(--muted); flex-shrink: 0; }
 /* The trailer plays in the banner itself. */
 .sheet-play {
   position: absolute; left: 50%; top: 42%; z-index: 1; transform: translate(-50%, -50%);
@@ -868,8 +882,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .sheet-play-icon svg { width: 16px; height: 16px; }
   .sheet-hero-top { left: auto; }
   .sheet-body { margin-top: -90px; }
-  .sheet-head { flex-direction: column; align-items: flex-start; gap: 16px; }
-  .sheet-poster { width: 110px; }
+  /* Poster and title side by side, so the space beside the poster isn't wasted. */
+  .sheet-head { flex-direction: row; align-items: flex-end; gap: 14px; }
+  .sheet-poster { width: 104px; }
+  .sheet-heading h2 { font-size: clamp(24px, 7vw, 30px); line-height: 1.05; overflow-wrap: anywhere; }
+  .sheet-meta { gap: 6px 8px; font-size: 10px; }
+  .score-row { gap: 4px 12px; margin-top: 8px; }
   .season-row { grid-template-columns: 1fr auto; }
   .season-row .progress { grid-column: 1 / -1; grid-row: 2; }
   .provider-row { flex-direction: column; align-items: flex-start; gap: 8px; }

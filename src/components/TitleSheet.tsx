@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
 import { enrich, findExisting } from "../lib/editor";
 import {
@@ -11,7 +11,8 @@ import { cinemaKey, fetchDetails, upscale, type Provider, type TitleDetails } fr
 import type { Candidate, Movie } from "../lib/types";
 import { Icon } from "./Icon";
 import { Poster } from "./Poster";
-import { ReminderChoices } from "./ReminderMenu";
+import { Popover, ReminderChoices } from "./ReminderMenu";
+import { providerLink } from "../lib/providers";
 
 /** Writes looked-up details back onto the saved title, the way the extension and the Android app do. */
 function writeBack(movie: Movie, details: TitleDetails) {
@@ -31,18 +32,78 @@ function writeBack(movie: Movie, details: TitleDetails) {
   if (next) commit(next);
 }
 
-function ProviderRow({ label, providers, tone, link }: { label: string; providers: Provider[]; tone: "included" | "paid"; link: string }) {
+function ProviderRow({ label, providers, tone, title }: { label: string; providers: Provider[]; tone: "included" | "paid"; title: string }) {
   if (!providers.length) return null;
   return (
     <div className="provider-row">
       <span className="eyebrow">{label}</span>
       <div className="provider-logos">
         {providers.map((provider) => (
-          <a key={provider.name} className={`provider provider-${tone}`} href={link || undefined} target="_blank" rel="noreferrer" title={`${provider.name} · ${tone === "included" ? "included with subscription" : "rent or buy"}`}>
+          <a key={provider.name} className={`provider provider-${tone}`} href={providerLink(provider.name, title)} target="_blank" rel="noreferrer" title={`${provider.name} · ${tone === "included" ? "included with subscription" : "rent or buy"}`}>
             {provider.logo ? <img src={provider.logo} alt={provider.name} /> : <span>{provider.name.slice(0, 2)}</span>}
           </a>
         ))}
       </div>
+    </div>
+  );
+}
+
+const ProviderLogo = ({ provider }: { provider: Provider }) =>
+  provider.logo ? <img src={provider.logo} alt="" /> : <b>{provider.name.slice(0, 2)}</b>;
+
+/**
+ * The banner's "Watch on" pill. One service links straight to it; more open
+ * a list of every service, included ones first, each opening that service.
+ */
+function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Provider[]; rentOrBuy: Provider[] }) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  const included = streaming.length > 0;
+  // One logo and a count keep the pill beside the trailer button on a phone.
+  const shown = (included ? streaming : rentOrBuy).slice(0, 1);
+  const all = [...streaming.map((provider) => ({ provider, tone: "Included" })), ...rentOrBuy.map((provider) => ({ provider, tone: "Rent or buy" }))];
+  const label = included ? "Watch on" : "Rent or buy";
+
+  if (all.length === 1) {
+    const only = all[0].provider;
+    return (
+      <a className="watch-on" href={providerLink(only.name, title)} target="_blank" rel="noreferrer" aria-label={`${label} ${only.name}`}>
+        <span>{label}</span>
+        <ProviderLogo provider={only} />
+      </a>
+    );
+  }
+  return (
+    <div className="watch-on-wrap">
+      <button
+        ref={trigger}
+        type="button"
+        className="watch-on"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={`${label} ${all.map((item) => item.provider.name).join(", ")}`}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span>{label}</span>
+        {shown.map((provider) => <ProviderLogo key={provider.name} provider={provider} />)}
+        {all.length > shown.length && <em>+{all.length - shown.length}</em>}
+        <Icon name="chevron" size={14} />
+      </button>
+      <Popover open={open} onClose={close} label="Where to watch" anchor={trigger}>
+        <ul className="watch-list">
+          {all.map(({ provider, tone }, index) => (
+            <li key={provider.name + tone}>
+              {(index === 0 || all[index - 1].tone !== tone) && <p className="watch-list-label">{tone}</p>}
+              <a href={providerLink(provider.name, title)} target="_blank" rel="noreferrer" onClick={close}>
+                <ProviderLogo provider={provider} />
+                <span>{provider.name}</span>
+                <Icon name="external" size={14} />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </Popover>
     </div>
   );
 }
@@ -117,9 +178,6 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   const progress = seasonProgress(movie);
   const imdbRating = Number(movie.imdbRating) || 0;
   const imdbId = details?.imdbId || (movie.imdbId as string | undefined);
-  // Up to three services on the banner: included ones if any, else rent or buy.
-  const included = Boolean(details?.streaming.length);
-  const watchOn = (included ? details!.streaming : details?.rentOrBuy ?? []).slice(0, 3);
 
   return (
     <dialog
@@ -146,15 +204,8 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             </button>
           ) : null}
           <div className="sheet-hero-top">
-            {watchOn.length > 0 ? (
-              <a className="watch-on" href={details?.watchLink || undefined} target="_blank" rel="noreferrer" aria-label={`${included ? "Watch on" : "Rent or buy on"} ${watchOn.map((provider) => provider.name).join(", ")}`}>
-                <span>{included ? "Watch on" : "Rent or buy"}</span>
-                {watchOn.map((provider) => (
-                  provider.logo
-                    ? <img key={provider.name} src={provider.logo} alt="" title={provider.name} />
-                    : <b key={provider.name}>{provider.name.slice(0, 2)}</b>
-                ))}
-              </a>
+            {details && (details.streaming.length > 0 || details.rentOrBuy.length > 0) ? (
+              <WatchOn title={movie.title} streaming={details.streaming} rentOrBuy={details.rentOrBuy} />
             ) : showing && !movie.watched ? (
               <button type="button" className="watch-on" onClick={() => showtimesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
                 <Icon name="movie" size={15} /> <span>In cinemas</span>
@@ -282,8 +333,8 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           {details && (details.streaming.length > 0 || details.rentOrBuy.length > 0) && (
             <section className="sheet-section">
               <h3 className="section-label">Where to watch · {settings.region}</h3>
-              <ProviderRow label="Included" providers={details.streaming} tone="included" link={details.watchLink} />
-              <ProviderRow label="Rent or buy" providers={details.rentOrBuy} tone="paid" link={details.watchLink} />
+              <ProviderRow label="Included" providers={details.streaming} tone="included" title={movie.title} />
+              <ProviderRow label="Rent or buy" providers={details.rentOrBuy} tone="paid" title={movie.title} />
             </section>
           )}
           {details && !showing && !details.streaming.length && !details.rentOrBuy.length && (
