@@ -4,6 +4,7 @@
 // it runs out. After the first consent that is a popup that closes by itself.
 
 import { EXTENSION_IDS, GOOGLE_CLIENT_ID, GOOGLE_SCOPE } from "./config";
+import { letterboxdHandle } from "./letterboxd";
 import type { Account } from "./drive";
 
 interface TokenResponse {
@@ -151,6 +152,8 @@ export async function revokeToken(token: string) {
 export interface ExtensionSession {
   token: StoredToken;
   account: Account;
+  /** The extension's own ("You") Letterboxd profile, "" when it has none. */
+  letterboxd: string;
 }
 
 /** Whether this browser has a FlickCue extension that could lend its session. */
@@ -185,7 +188,7 @@ export async function requestExtensionSession(): Promise<ExtensionSession | null
   if (!canAskExtension()) return null;
   for (const id of EXTENSION_IDS) {
     const reply = await askOneExtension(id) as {
-      signedIn?: boolean; accessToken?: unknown; expiresAt?: unknown; account?: Partial<Account>;
+      signedIn?: boolean; accessToken?: unknown; expiresAt?: unknown; account?: Partial<Account>; letterboxd?: { username?: unknown } | null;
     } | null;
     if (!reply?.signedIn || typeof reply.accessToken !== "string" || !reply.accessToken) continue;
     const expiresAt = Number(reply.expiresAt);
@@ -196,7 +199,8 @@ export async function requestExtensionSession(): Promise<ExtensionSession | null
         email: String(reply.account?.email ?? ""),
         name: String(reply.account?.name ?? ""),
         photo: /^https:\/\//.test(String(reply.account?.photo ?? "")) ? String(reply.account?.photo) : ""
-      }
+      },
+      letterboxd: letterboxdHandle(reply.letterboxd?.username)
     };
   }
   return null;

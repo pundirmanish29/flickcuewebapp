@@ -36,6 +36,8 @@ export interface Settings {
   notifications: boolean;
   /** This device's link to a Letterboxd profile, never synced, as in the other clients. */
   letterboxd: string;
+  /** Unlinked here on purpose, so the extension's profile isn't linked again at the next sign-in. */
+  letterboxdUnlinked: boolean;
 }
 
 export interface AppState {
@@ -86,7 +88,7 @@ function willAskExtension(): boolean {
 function initialState(onLoad = true): AppState {
   const library = read<LibraryDocument>(LIBRARY_KEY, { movies: [], deleted: [] });
   const stored = read<Partial<SyncState>>(SYNC_KEY, {});
-  const settings = read<Settings>(SETTINGS_KEY, { region: "IN", notifications: false, letterboxd: "" });
+  const settings = read<Settings>(SETTINGS_KEY, { region: "IN", notifications: false, letterboxd: "", letterboxdUnlinked: false });
   return {
     library: {
       movies: Array.isArray(library.movies) ? library.movies : [],
@@ -196,6 +198,11 @@ async function adoptExtensionSession(): Promise<boolean> {
   const offered = session.account.email.toLowerCase();
   if (state.sync.connected && current && offered && current !== offered) return false;
   storeToken(session.token);
+  // The extension's Letterboxd profile links here too, unless one is already
+  // linked or was unlinked on this device.
+  if (session.letterboxd && !state.settings.letterboxd && !state.settings.letterboxdUnlinked) {
+    updateSettings({ letterboxd: session.letterboxd });
+  }
   patchSync({
     connected: true,
     account: session.account.email ? session.account : state.sync.account,

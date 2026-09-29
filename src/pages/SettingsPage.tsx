@@ -132,7 +132,8 @@ export function SettingsPage() {
           <article className="card" id="letterboxd">
             <h2>Letterboxd</h2>
             <p className="muted">
-              Link your public Letterboxd profile to see it in your account menu. The link stays on this device, like in the extension.
+              Link your public Letterboxd profile to see it in your account menu. The link stays on this device; in Chrome and Edge it's
+              picked up from the FlickCue extension when that signs you in.
               {lbStats.linked > 0 && ` ${lbStats.linked} titles in your list already carry Letterboxd ratings, likes or reviews, synced from the extension.`}
             </p>
             <form
@@ -142,7 +143,7 @@ export function SettingsPage() {
                 const handle = letterboxdHandle(letterboxd);
                 if (letterboxd.trim() && !handle) return toast("That doesn't look like a Letterboxd username.");
                 setLetterboxd(handle);
-                updateSettings({ letterboxd: handle });
+                updateSettings({ letterboxd: handle, letterboxdUnlinked: !handle });
                 toast(handle ? `Linked letterboxd.com/${handle}` : "Letterboxd unlinked");
               }}
             >
@@ -167,7 +168,7 @@ export function SettingsPage() {
                       className="button button-quiet"
                       onClick={() => {
                         setLetterboxd("");
-                        updateSettings({ letterboxd: "" });
+                        updateSettings({ letterboxd: "", letterboxdUnlinked: true });
                         toast("Letterboxd unlinked");
                       }}
                     >
