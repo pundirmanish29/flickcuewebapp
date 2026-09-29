@@ -2,6 +2,7 @@
 // the shared key), the same way the extension and the Android app call it.
 
 import { PROXY_BASE_URL } from "./config";
+import { dedupeProviders } from "./providers";
 import { bestKnownWork, blendRecommendations, matchPerson, rankSearchResults, splitYear, type Seed } from "./discover";
 import { isUnreleased } from "./rules";
 import type { Candidate, Movie, Season } from "./types";
@@ -282,7 +283,7 @@ export function pickCertification(data: any, type: "movie" | "tv", region: strin
 const detailsCache = new Map<string, Promise<TitleDetails>>();
 
 function providers(list: any[] | undefined): Provider[] {
-  return (list ?? []).slice(0, 8).map((provider) => ({ name: provider.provider_name, logo: posterUrl(provider.logo_path, "w92") }));
+  return dedupeProviders((list ?? []).map((provider) => ({ name: String(provider.provider_name ?? ""), logo: posterUrl(provider.logo_path, "w92") }))).slice(0, 8);
 }
 
 export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: string): Promise<TitleDetails> {

@@ -26,3 +26,23 @@ export function providerLink(provider: string, title: string): string {
   if (search) return search[1](encodeURIComponent(name));
   return `https://www.google.com/search?q=${encodeURIComponent(`watch "${name}" on ${provider}`)}`;
 }
+
+// "Lionsgate Play Amazon Channel", "Amazon Prime Video with Ads": the same
+// service reached another way.
+const VARIANT = /\s+(amazon channels?|apple tv channels?|roku premium channel|standard with ads|with ads)$/i;
+
+/** Drops a service's channel and ad-tier variants when the service itself is listed. */
+export function dedupeProviders<T extends { name: string }>(list: T[]): T[] {
+  const names = new Set(list.map((provider) => provider.name.toLowerCase()));
+  return list.filter((provider) => {
+    const base = provider.name.replace(VARIANT, "");
+    return base === provider.name || !names.has(base.toLowerCase());
+  });
+}
+
+/** "Lionsgate+ Amazon Channels" as the service and the way in: ["Lionsgate+", "via Prime Video"]. */
+export function splitChannel(name: string): [string, string] {
+  const match = name.match(/^(.+?)\s+(amazon|apple tv) channels?$/i);
+  if (!match) return [name, ""];
+  return [match[1], match[2].toLowerCase() === "amazon" ? "via Prime Video" : "via Apple TV"];
+}

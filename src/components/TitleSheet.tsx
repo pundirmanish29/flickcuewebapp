@@ -13,7 +13,7 @@ import { CandidateCard } from "./CandidateCard";
 import { Icon } from "./Icon";
 import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
-import { providerLink } from "../lib/providers";
+import { providerLink, splitChannel } from "../lib/providers";
 
 /** Writes looked-up details back onto the saved title, the way the extension and the Android app do. */
 function writeBack(movie: Movie, details: TitleDetails) {
@@ -33,24 +33,18 @@ function writeBack(movie: Movie, details: TitleDetails) {
   if (next) commit(next);
 }
 
-function ProviderRow({ label, providers, tone, title }: { label: string; providers: Provider[]; tone: "included" | "paid"; title: string }) {
-  if (!providers.length) return null;
-  return (
-    <div className="provider-row">
-      <span className="eyebrow">{label}</span>
-      <div className="provider-logos">
-        {providers.map((provider) => (
-          <a key={provider.name} className={`provider provider-${tone}`} href={providerLink(provider.name, title)} target="_blank" rel="noreferrer" title={`${provider.name} · ${tone === "included" ? "included with subscription" : "rent or buy"}`}>
-            {provider.logo ? <img src={provider.logo} alt={provider.name} /> : <span>{provider.name.slice(0, 2)}</span>}
-          </a>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const ProviderLogo = ({ provider }: { provider: Provider }) =>
   provider.logo ? <img src={provider.logo} alt="" /> : <b>{provider.name.slice(0, 2)}</b>;
+
+function WatchName({ name }: { name: string }) {
+  const [service, via] = splitChannel(name);
+  return (
+    <span className="watch-name">
+      {service}
+      {via && <small>{via}</small>}
+    </span>
+  );
+}
 
 /**
  * The banner's "Watch on" pill. One service links straight to it; more open
@@ -65,6 +59,10 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
   const shown = (included ? streaming : rentOrBuy).slice(0, 1);
   const all = [...streaming.map((provider) => ({ provider, tone: "Included" })), ...rentOrBuy.map((provider) => ({ provider, tone: "Rent or buy" }))];
   const label = included ? "Watch on" : "Rent or buy";
+  const groups = [
+    { tone: "included", label: "With subscription", providers: streaming },
+    { tone: "paid", label: "Rent or buy", providers: rentOrBuy }
+  ].filter((group) => group.providers.length);
 
   if (all.length === 1) {
     const only = all[0].provider;
@@ -92,18 +90,22 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
         <Icon name="chevron" size={14} />
       </button>
       <Popover open={open} onClose={close} label="Where to watch" anchor={trigger}>
-        <ul className="watch-list">
-          {all.map(({ provider, tone }, index) => (
-            <li key={provider.name + tone}>
-              {(index === 0 || all[index - 1].tone !== tone) && <p className="watch-list-label">{tone}</p>}
-              <a href={providerLink(provider.name, title)} target="_blank" rel="noreferrer" onClick={close}>
-                <ProviderLogo provider={provider} />
-                <span>{provider.name}</span>
-                <Icon name="external" size={14} />
-              </a>
-            </li>
-          ))}
-        </ul>
+        {groups.map((group) => (
+          <section key={group.tone} className={`watch-group watch-${group.tone}`} aria-label={group.label}>
+            <p className="watch-list-label">{group.label}</p>
+            <ul className="watch-list">
+              {group.providers.map((provider) => (
+                <li key={provider.name}>
+                  <a href={providerLink(provider.name, title)} target="_blank" rel="noreferrer" onClick={close}>
+                    <ProviderLogo provider={provider} />
+                    <WatchName name={provider.name} />
+                    <Icon name="external" size={14} />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </Popover>
     </div>
   );
@@ -453,13 +455,6 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             </section>
           )}
 
-          {details && (details.streaming.length > 0 || details.rentOrBuy.length > 0) && (
-            <section className="sheet-section">
-              <h3 className="section-label">Where to watch · {settings.region}</h3>
-              <ProviderRow label="Included" providers={details.streaming} tone="included" title={movie.title} />
-              <ProviderRow label="Rent or buy" providers={details.rentOrBuy} tone="paid" title={movie.title} />
-            </section>
-          )}
           {details && !showing && !unreleased && !details.streaming.length && !details.rentOrBuy.length && (
             <p className="muted small-print">Not streaming in {settings.region} right now. Change the region in Settings.</p>
           )}

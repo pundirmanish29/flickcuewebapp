@@ -719,17 +719,31 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .watch-on > svg:last-child { margin-right: 8px; opacity: 0.8; }
 .watch-on-wrap { position: relative; }
 .watch-on-wrap { display: inline-block; }
-.watch-on-wrap .popover { left: 0; width: min(280px, calc(100vw - 32px)); padding: 8px; color: var(--ink); z-index: 30; }
+.watch-on-wrap .popover {
+  left: 0; width: min(300px, calc(100vw - 32px)); max-height: min(440px, 62vh); overflow-y: auto; overscroll-behavior: contain;
+  padding: 6px; border-radius: 18px; color: var(--ink); z-index: 30;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45); animation: watch-in 160ms ease-out; transform-origin: top left;
+}
+@keyframes watch-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+.watch-group + .watch-group { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--rule); }
+/* A dot in the colour the service costs: green comes with a subscription, orange is paid per title. */
+.watch-list-label {
+  display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px 6px;
+  color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+}
+.watch-list-label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.watch-paid .watch-list-label::before { background: var(--orange); }
 .watch-list { list-style: none; margin: 0; padding: 0; }
-.watch-list-label { margin: 8px 10px 4px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
-.watch-list li:first-child .watch-list-label { margin-top: 4px; }
 .watch-list a {
-  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 10px; border-radius: 10px;
+  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 12px 6px 8px; border-radius: 12px;
   color: var(--ink); font-weight: 600; font-size: 15px; text-decoration: none; transition: background-color 160ms ease;
 }
-.watch-list a:hover { background: var(--paper-deep); }
-.watch-list a span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.watch-list a > svg { color: var(--muted); flex-shrink: 0; }
+.watch-list a:hover, .watch-list a:focus-visible { background: var(--paper-deep); }
+.watch-list a img, .watch-list a b { width: 34px; height: 34px; border-radius: 9px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.watch-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.watch-name small { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.watch-list a > svg { color: var(--muted); flex-shrink: 0; transition: color 160ms ease, transform 160ms ease; }
+.watch-list a:hover > svg { color: var(--ink); transform: translate(1px, -1px); }
 /* The trailer plays in the banner itself. */
 .sheet-play {
   position: absolute; left: 50%; top: 42%; z-index: 1; transform: translate(-50%, -50%);
@@ -819,13 +833,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
 .tag { padding: 3px 10px; border-radius: 999px; background: var(--paper-deep); font-size: 13px; font-weight: 600; }
 
-.provider-row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
-.provider-row .eyebrow { margin: 0; width: 96px; flex-shrink: 0; }
-.provider-logos { display: flex; flex-wrap: wrap; gap: 8px; }
-.provider { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; overflow: hidden; border: 2px solid; background: var(--night); color: #fff; font-weight: 700; font-size: 12px; text-decoration: none; }
-.provider img { width: 100%; height: 100%; object-fit: cover; }
-.provider-included { border-color: var(--green); }
-.provider-paid { border-color: var(--orange); }
 
 .season-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .season-row { display: grid; grid-template-columns: minmax(140px, 1fr) 2fr auto; gap: 14px; align-items: center; }
@@ -954,7 +961,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .sheet-head .watch-on img, .sheet-head .watch-on b { width: 28px; height: 28px; }
   .season-row { grid-template-columns: 1fr auto; }
   .season-row .progress { grid-column: 1 / -1; grid-row: 2; }
-  .provider-row { flex-direction: column; align-items: flex-start; gap: 8px; }
   .footer-inner { flex-direction: column; align-items: flex-start; }
 }
 

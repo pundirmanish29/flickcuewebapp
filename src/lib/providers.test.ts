@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { providerLink } from "./providers";
+import { dedupeProviders, providerLink, splitChannel } from "./providers";
 
 describe("streaming links", () => {
   it("opens the service's own search for the title, not a listings site", () => {
@@ -12,5 +12,21 @@ describe("streaming links", () => {
 
   it("falls back to a Google search for a service it has no address for", () => {
     expect(providerLink("Disney Plus", "Heat")).toBe("https://www.google.com/search?q=watch%20%22Heat%22%20on%20Disney%20Plus");
+  });
+});
+
+describe("service list", () => {
+  it("drops channel and ad-tier variants of a service that is already listed", () => {
+    const names = ["Amazon Prime Video", "Lionsgate Play", "Lionsgate Play Apple TV Channel", "Lionsgate Play Amazon Channel", "Amazon Prime Video with Ads", "Lionsgate+ Amazon Channel"];
+    expect(dedupeProviders(names.map((name) => ({ name }))).map((provider) => provider.name))
+      .toEqual(["Amazon Prime Video", "Lionsgate Play", "Lionsgate+ Amazon Channel"]);
+  });
+});
+
+describe("channel names", () => {
+  it("names the service and how it's reached", () => {
+    expect(splitChannel("Lionsgate+ Amazon Channels")).toEqual(["Lionsgate+", "via Prime Video"]);
+    expect(splitChannel("MUBI Apple TV Channel")).toEqual(["MUBI", "via Apple TV"]);
+    expect(splitChannel("Netflix")).toEqual(["Netflix", ""]);
   });
 });
