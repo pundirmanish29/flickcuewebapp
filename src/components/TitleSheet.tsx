@@ -16,6 +16,7 @@ import { Popover, ReminderChoices } from "./ReminderMenu";
 import { providerLink, splitChannel } from "../lib/providers";
 import { regionName } from "../lib/cinemas";
 import { writeBack } from "../lib/showSync";
+import { useSwipeToClose } from "../lib/useSwipeToClose";
 
 
 const ProviderLogo = ({ provider }: { provider: Provider }) =>
@@ -148,9 +149,11 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   const { place } = useWhere();
   const showing = Boolean(movie && inCinemas?.has(cinemaKey(movie)));
 
+  const inner = useRef<HTMLDivElement>(null);
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
+  useSwipeToClose(dialog, inner);
 
   const tmdbKey = movie?.tmdbId ? `${movie.tmdbType}:${movie.tmdbId}` : "";
   useEffect(() => {
@@ -256,7 +259,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
       onClick={(event) => event.target === dialog.current && dialog.current?.close()}
       aria-labelledby="sheet-title"
     >
-      <div className="sheet-inner">
+      <div className="sheet-inner" ref={inner}>
         <div className={`sheet-hero ${playing ? "playing" : ""}`} style={backdrop ? { backgroundImage: `url(${backdrop})` } : undefined}>
           {playing && details?.trailerKey ? (
             <iframe

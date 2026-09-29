@@ -1058,7 +1058,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   /* Paper runs on below the sheet, under Safari's floating toolbar, so the page behind never shows through there. */
   .sheet { border-radius: 22px 22px 0 0; margin-bottom: 0; max-height: 94dvh; box-shadow: 0 240px 0 0 var(--paper); }
   .sheet-body { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
-  .sheet-inner { max-height: 94dvh; }
+  /* No rubber-band at the ends: pulled down at the top, the sheet itself follows the finger and closes (useSwipeToClose). */
+  .sheet-inner { max-height: 94dvh; overscroll-behavior-y: none; }
   .sheet-hero { height: 180px; }
   /* The banner is short on phones: the trailer button becomes a pill in its top-left corner. */
   .sheet-play {
