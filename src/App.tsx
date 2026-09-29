@@ -285,8 +285,9 @@ export default function App() {
         </nav>
       )}
 
-      {titleId && !connecting && <TitleSheet key={titleId} id={titleId} onClose={closeTitle} />}
-      {preview && !titleId && <TitleSheet key={preview.key} candidate={preview} onClose={closePreview} />}
+      {/* A title opened from "More like this" sits over the saved one; closing it goes back. */}
+      {titleId && !connecting && !preview && <TitleSheet key={titleId} id={titleId} onClose={closeTitle} />}
+      {preview && <TitleSheet key={preview.key} candidate={preview} onClose={closePreview} />}
       <ToastHost />
     </>
   );

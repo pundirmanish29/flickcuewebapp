@@ -748,6 +748,21 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .trailer-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; margin-left: auto; color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; }
 .trailer-close { background: rgba(255, 255, 255, 0.08); border-color: transparent; color: #fff; }
 .sheet-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.sheet-credit { margin: 6px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.35; }
+.sheet-facts { margin: 4px 0 0; color: var(--ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
+.sheet-status.tone-green, .sheet-status.tone-amber { font-weight: 700; }
+.take { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 15px; }
+.take-stars, .take-liked { display: inline-flex; align-items: center; gap: 6px; }
+.take-stars svg { color: var(--green); fill: currentColor; }
+.take-stars b { font-size: 20px; font-weight: 800; }
+.take-liked svg { color: var(--orange); fill: currentColor; }
+.take-source { color: var(--muted); font-size: 13px; }
+.take-review { margin: 12px 0 0; padding: 0; color: var(--ink); font-family: var(--font-display); font-size: 20px; line-height: 1.35; font-style: italic; }
+.saved-line { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+.more-row { grid-auto-columns: clamp(132px, 30vw, 160px); }
+.more-row .candidate-overview, .more-row .candidate-reason { display: none; }
+.more-row .candidate-save .button { height: 36px; font-size: 14px; }
+.more-row .title-card-text h3 { font-size: 14px; }
 .certification {
   display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; box-shadow: inset 0 0 0 1px currentColor;
   color: var(--ink); font-size: 11px; font-weight: 700; letter-spacing: 0.02em; text-transform: none;

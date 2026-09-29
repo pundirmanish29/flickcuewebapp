@@ -225,6 +225,33 @@ export interface TitleDetails {
   trailerKey: string;
   /** The age rating in the reader's region ("U/A 16+", "PG-13", "TV-MA"), or the US one, or "". */
   certification: string;
+  /** Shows: a typical episode's length, from the latest episode when the show lists none. */
+  episodeMinutes: number;
+  seasonCount: number;
+  episodeCount: number;
+  /** Shows: the channel or service it's made for ("Apple TV+"). */
+  network: string;
+  nextEpisode: { season: number; episode: number; name: string; date: string } | null;
+  /** The original language's name ("Korean"), or "" for English. */
+  language: string;
+  /** Films: the theatrical release date in the reader's region, if it has its own. */
+  regionalRelease: string;
+  recommendations: Candidate[];
+}
+
+function languageName(code: string): string {
+  if (!code || code === "en") return "";
+  try {
+    return new Intl.DisplayNames(["en"], { type: "language" }).of(code) || "";
+  } catch {
+    return "";
+  }
+}
+
+function regionalReleaseDate(data: any, region: string): string {
+  const dates: any[] = (data?.release_dates?.results ?? []).find((entry: any) => entry.iso_3166_1 === region.toUpperCase())?.release_dates ?? [];
+  const theatrical = dates.filter((entry) => entry.type === 3 || entry.type === 2).map((entry) => String(entry.release_date || "").slice(0, 10)).filter(Boolean).sort();
+  return theatrical[0] ?? "";
 }
 
 /**
@@ -265,7 +292,7 @@ export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: 
   if (cached) return cached;
 
   const extra = type === "tv" ? "content_ratings" : "release_dates";
-  const request = tmdbGet(`${type}/${movie.tmdbId}`, { append_to_response: `credits,watch/providers,external_ids,videos,${extra}` })
+  const request = tmdbGet(`${type}/${movie.tmdbId}`, { append_to_response: `credits,watch/providers,external_ids,videos,recommendations,${extra}` })
     .then((data): TitleDetails => {
       const where = data["watch/providers"]?.results?.[region.toUpperCase()] ?? {};
       const rentOrBuy = providers([...(where.rent ?? []), ...(where.buy ?? [])]);
@@ -307,7 +334,20 @@ export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: 
         watchLink: where.link || "",
         trailer: trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : "",
         trailerKey: trailer ? String(trailer.key) : "",
-        certification: pickCertification(data, type, region)
+        certification: pickCertification(data, type, region),
+        episodeMinutes: type === "tv" ? Number(data.episode_run_time?.[0] || data.last_episode_to_air?.runtime || 0) : 0,
+        seasonCount: Number(data.number_of_seasons) || 0,
+        episodeCount: Number(data.number_of_episodes) || 0,
+        network: type === "tv" ? String(data.networks?.[0]?.name || "") : "",
+        nextEpisode: data.next_episode_to_air?.air_date
+          ? { season: Number(data.next_episode_to_air.season_number), episode: Number(data.next_episode_to_air.episode_number), name: String(data.next_episode_to_air.name || ""), date: String(data.next_episode_to_air.air_date) }
+          : null,
+        language: languageName(String(data.original_language || "")),
+        regionalRelease: type === "movie" ? regionalReleaseDate(data, region) : "",
+        recommendations: dedupe((data.recommendations?.results ?? [])
+          .filter((item: any) => item.poster_path)
+          .map((item: any) => toCandidate(item, type)))
+          .slice(0, 12)
       };
     });
 

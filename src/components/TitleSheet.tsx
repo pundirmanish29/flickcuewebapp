@@ -9,6 +9,7 @@ import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { FilmShowtimes } from "./Showtimes";
 import { cinemaKey, fetchDetails, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
 import type { Candidate, Movie } from "../lib/types";
+import { CandidateCard } from "./CandidateCard";
 import { Icon } from "./Icon";
 import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
@@ -108,6 +109,23 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
   );
 }
 
+/** "30 Sep 2026" from an ISO date. */
+function formatDay(iso: string): string {
+  const date = new Date(`${iso.slice(0, 10)}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
+}
+
+/** "today", "tomorrow", "in 5 days", "yesterday" for an ISO date. */
+function dayLabel(iso: string, now = Date.now()): string {
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const days = Math.round((new Date(`${iso.slice(0, 10)}T00:00:00`).getTime() - start.getTime()) / 86400000);
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  if (days === -1) return "yesterday";
+  return days > 1 ? `in ${days} days` : `${-days} days ago`;
+}
+
 /** A Discover or search result as a title, for showing it before it's saved. */
 function candidateAsMovie(candidate: Candidate): Movie {
   return {
@@ -178,6 +196,58 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   const progress = seasonProgress(movie);
   const imdbRating = Number(movie.imdbRating) || 0;
   const imdbId = details?.imdbId || (movie.imdbId as string | undefined);
+  const show = isShow(movie);
+
+  // Beside the title: who made it, in what language, and for which channel.
+  const credit = [
+    details?.director ? `${show ? "Created by" : "Directed by"} ${details.director}` : "",
+    details?.language || "",
+    details?.network || ""
+  ].filter(Boolean).join(" · ");
+
+  // The one line that says what's next: the next episode by name, or when a film comes out.
+  const headline = (() => {
+    if (movie.watched) return null;
+    const next = details?.nextEpisode;
+    if (show && next) {
+      return { tone: "green", text: `Next: S${next.season} E${next.episode}${next.name && !/^episode \d+$/i.test(next.name) ? ` “${next.name}”` : ""} · ${dayLabel(next.date)}` };
+    }
+    if (!show && unreleased) {
+      const date = details?.regionalRelease || movie.releaseDate || "";
+      if (date) return { tone: "amber", text: `In cinemas ${formatDay(date)} · ${dayLabel(date)}` };
+    }
+    return null;
+  })();
+
+  const episodesSeen = progress.reduce((sum, season) => sum + season.seen, 0);
+  const facts = show && details?.seasonCount
+    ? [
+      `${details.seasonCount} season${details.seasonCount === 1 ? "" : "s"}`,
+      details.episodeCount ? `${details.episodeCount} episodes` : "",
+      isSaved && episodesSeen ? `${episodesSeen} watched` : ""
+    ].filter(Boolean).join(" · ")
+    : "";
+
+  // Your own rating beats Letterboxd's, as in the other clients (SHARED.md, "Your take").
+  const letterboxd = (movie.letterboxd ?? {}) as { rating?: number; liked?: boolean; review?: string };
+  const personalRating = Number(movie.personal?.rating) || 0;
+  const takeRating = personalRating || Number(letterboxd.rating) || 0;
+  const takeLiked = Boolean(movie.personal?.liked ?? letterboxd.liked);
+  const takeReview = String(movie.personal?.review || letterboxd.review || "").trim();
+  const take = takeRating || takeLiked || takeReview
+    ? { rating: takeRating, liked: takeLiked, review: takeReview, source: !personalRating && !movie.personal?.review && (letterboxd.rating || letterboxd.review) ? "Letterboxd" : "" }
+    : null;
+
+  const sourceHost = (() => {
+    try {
+      return typeof movie.sourceUrl === "string" && /^https?:\/\//.test(movie.sourceUrl) ? new URL(movie.sourceUrl).hostname.replace(/^www\./, "") : "";
+    } catch {
+      return "";
+    }
+  })();
+  const savedLine = movie.createdAt
+    ? `Saved ${formatDay(new Date(Number(movie.createdAt)).toISOString().slice(0, 10))}${sourceHost ? ` from ${sourceHost}` : movie.origin === "letterboxd" ? " from Letterboxd" : ""}`
+    : "";
 
   return (
     <dialog
@@ -234,18 +304,22 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             <div className="sheet-heading">
               <p className="eyebrow sheet-meta">
                 {details?.certification && <span className="certification" title="Age rating">{details.certification}</span>}
-                <span>{[movie.mediaType, movie.year, formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes)].filter(Boolean).join(" · ")}</span>
+                <span>{[movie.mediaType, movie.year, details?.episodeMinutes ? `${formatRuntime(details.episodeMinutes)} ep` : formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes)].filter(Boolean).join(" · ")}</span>
               </p>
               <h2 id="sheet-title">{title}</h2>
+              {credit && <p className="sheet-credit">{credit}</p>}
               <div className="score-row">
                 {formatRating(movie.rating || details?.rating) && <span className="score"><b>{formatRating(movie.rating || details?.rating)}</b> Rating</span>}
                 {imdbRating > 0 && <span className="score"><b>{imdbRating.toFixed(1)}</b> IMDb</span>}
                 {Number(movie.criticScore) >= 0 && movie.criticScore != null && <span className="score"><b>{movie.criticScore}%</b> Critics</span>}
                 {Number(movie.audienceScore) >= 0 && movie.audienceScore != null && <span className="score"><b>{movie.audienceScore}%</b> Audience</span>}
               </div>
-              {(status || isSaved || unreleased) && (
+              {headline ? (
+                <p className={`sheet-status tone-${headline.tone}`}>{headline.text}</p>
+              ) : (status || isSaved || unreleased) && (
                 <p className={`sheet-status ${status ? `tone-${status.tone}` : ""}`}>{status ? status.text : reminderText(movie)}</p>
               )}
+              {facts && <p className="sheet-facts">{facts}</p>}
               {/* Where to watch sits with the title, in the space beside the poster. */}
               {details && (details.streaming.length > 0 || details.rentOrBuy.length > 0) ? (
                 <WatchOn title={movie.title} streaming={details.streaming} rentOrBuy={details.rentOrBuy} />
@@ -339,7 +413,6 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             {(details?.genres.length || movie.genres?.length) ? (
               <div className="tag-row">{(details?.genres || movie.genres || []).map((genre) => <span key={genre} className="tag">{genre}</span>)}</div>
             ) : null}
-            {details?.director && <p className="muted small-print">{movie.tmdbType === "tv" ? "Created by" : "Directed by"} {details.director}</p>}
           </section>
 
           {showing && !movie.watched && (
@@ -356,7 +429,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
               <ProviderRow label="Rent or buy" providers={details.rentOrBuy} tone="paid" title={movie.title} />
             </section>
           )}
-          {details && !showing && !details.streaming.length && !details.rentOrBuy.length && (
+          {details && !showing && !unreleased && !details.streaming.length && !details.rentOrBuy.length && (
             <p className="muted small-print">Not streaming in {settings.region} right now. Change the region in Settings.</p>
           )}
 
@@ -412,6 +485,18 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             </section>
           )}
 
+          {isSaved && take && (
+            <section className="sheet-section">
+              <h3 className="section-label">Your take</h3>
+              <div className="take">
+                {take.rating > 0 && <span className="take-stars" aria-label={`${take.rating} out of 5`}><Icon name="star" size={16} /> <b>{take.rating}</b>/5</span>}
+                {take.liked && <span className="take-liked"><Icon name="heart" size={16} /> Liked</span>}
+                {take.source && <span className="take-source">from {take.source}</span>}
+              </div>
+              {take.review && <blockquote className="take-review">{take.review}</blockquote>}
+            </section>
+          )}
+
           {isSaved && <section className="sheet-section">
             <h3 className="section-label"><label htmlFor="note">Why I saved this</label></h3>
             <textarea
@@ -424,7 +509,19 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
               onChange={(event) => setNote(event.target.value)}
               onBlur={() => actions.setNote(movie.id, note)}
             />
+            {savedLine && <p className="saved-line">{savedLine}</p>}
           </section>}
+
+          {details && details.recommendations.length > 0 && (
+            <section className="sheet-section">
+              <h3 className="section-label">More like this</h3>
+              <div className="cinema-row more-row">
+                {details.recommendations.map((item) => (
+                  <CandidateCard key={item.key} candidate={item} onOpenSaved={(savedId) => { location.hash = `#/title/${encodeURIComponent(savedId)}`; }} />
+                ))}
+              </div>
+            </section>
+          )}
 
           <div className="sheet-links">
             {details?.trailer && <a className="link-chip" href={details.trailer} target="_blank" rel="noreferrer"><Icon name="play" size={14} /> Trailer</a>}
