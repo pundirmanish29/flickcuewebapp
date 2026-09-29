@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
 import { TitleCard } from "../components/TitleCard";
@@ -58,66 +58,71 @@ const SORT_LABELS: Record<SortMode, string> = {
 // Empty until the Android app has a public listing; the homepage then says "coming soon".
 const ANDROID_URL = "";
 
-const DEMOS = [
+/** A phone or tablet, where the Chrome extension can't be installed. */
+const onPhone = () => typeof navigator !== "undefined" && /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
+
+/** A screenshot of the web app: the phone-shaped one on narrow screens. */
+function Shot({ name, alt, eager = false }: { name: string; alt: string; eager?: boolean }) {
+  return (
+    <picture>
+      <source media="(max-width: 700px)" srcSet={`./home-${name}-phone.webp`} width={780} height={1688} />
+      <img
+        src={`./home-${name}-desktop.webp`}
+        alt={alt}
+        width={1600}
+        height={1000}
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        {...(eager ? { fetchPriority: "high" as const } : {})}
+      />
+    </picture>
+  );
+}
+
+const FEATURES = [
   {
-    image: "./flickcue-extension-04.webp",
-    alt: "The FlickCue save card on a film page, with a Want to watch button",
-    title: "Save it from any page",
-    text: "On a review, trailer or streaming page, one click adds the film or show to your list."
+    shot: "title",
+    alt: "FlickCue title details for Slow Horses: next episode tomorrow, where to watch, and episode progress",
+    title: "Know what's next",
+    text: "Mark a show as Watching and FlickCue keeps up with it: the next episode and when it airs, the ones you've seen, and where to stream it in your country."
   },
   {
-    image: "./flickcue-extension-01.webp",
-    alt: "The FlickCue extension popup showing the queue with reminders",
+    shot: "discover",
+    alt: "FlickCue Discover: this week's top 10 shows and what's in cinemas",
+    title: "Find something good",
+    text: "This week's top 10, what's in cinemas near you, and picks based on what you've saved. Search a film, a show or a director."
+  },
+  {
+    shot: "alerts",
+    alt: "FlickCue notifications: reminders due and new seasons out",
     title: "Get a nudge on time",
-    text: "Set a reminder for tonight, the weekend or release day. Your queue is one click away."
-  },
-  {
-    image: "./flickcue-extension-05.webp",
-    alt: "FlickCue title details with ratings, reminders and streaming options",
-    title: "Know where to press play",
-    text: "Ratings, notes and streaming options for every title, in one place."
+    text: "Set a reminder for tonight, the weekend or release day, and hear when a new season or episode of something you watch is out."
   }
 ] as const;
 
-function Demo() {
-  const [active, setActive] = useState(0);
-  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
-  const demo = DEMOS[active];
+function PrivacyLine() {
+  return <p className="home-privacy">Your list lives in your own Google Drive. FlickCue can't see anything else in it, and there's no account with us.</p>;
+}
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    const step = event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1 : 0;
-    if (!step) return;
-    event.preventDefault();
-    const next = (active + step + DEMOS.length) % DEMOS.length;
-    setActive(next);
-    tabs.current[next]?.focus();
-  };
-
+function HomeActions({ large = true }: { large?: boolean }) {
+  const phone = onPhone();
+  const size = large ? " large" : "";
   return (
-    <div className="demo">
-      <div className="demo-tabs" role="tablist" aria-label="How FlickCue works" onKeyDown={onKeyDown}>
-        {DEMOS.map((item, index) => (
-          <button
-            key={item.image}
-            ref={(node) => { tabs.current[index] = node; }}
-            type="button"
-            role="tab"
-            id={`demo-tab-${index}`}
-            aria-selected={active === index}
-            aria-controls="demo-panel"
-            tabIndex={active === index ? 0 : -1}
-            onClick={() => setActive(index)}
-          >
-            <span className="demo-step">0{index + 1}</span>
-            <span><b>{item.title}</b><small>{item.text}</small></span>
-          </button>
-        ))}
+    <>
+      <div className="button-row">
+        <button type="button" className={`button button-ink${size}`} onClick={() => void connect()}>Sign in with Google</button>
+        {!phone && (
+          <a className={`button button-quiet${size}`} href={EXTENSION_URL} target="_blank" rel="noreferrer">
+            <Icon name="plus" size={17} /> Add to Chrome
+          </a>
+        )}
       </div>
-      <figure className="demo-frame demo-stage" role="tabpanel" id="demo-panel" aria-labelledby={`demo-tab-${active}`}>
-        <img key={demo.image} src={demo.image} alt={demo.alt} width={1280} height={800} />
-        <figcaption>{demo.text}</figcaption>
-      </figure>
-    </div>
+      {phone && (
+        <p className="home-extension-note">
+          On your computer? <a href={EXTENSION_URL} target="_blank" rel="noreferrer">Add FlickCue to Chrome</a> to save from any page.
+        </p>
+      )}
+    </>
   );
 }
 
@@ -126,41 +131,59 @@ function MarketingHome() {
     <div className="home">
       <section className="home-hero">
         <div className="wrap">
-          <p className="eyebrow">Free Chrome extension · Web app</p>
+          <p className="eyebrow">Web app · Chrome extension · Android soon</p>
           <h1 className="display">One watchlist.<em>Everywhere.</em></h1>
-          <p className="lede">Save films and shows wherever you find them, and get a nudge when it's time to watch.</p>
-          <div className="button-row">
-            <a className="button button-ink large" href={EXTENSION_URL} target="_blank" rel="noreferrer">
-              <Icon name="plus" size={17} /> Add to Chrome
-            </a>
-            <button type="button" className="button button-quiet large" onClick={() => void connect()}>Sign in to the web app</button>
-          </div>
+          <p className="lede">Save films and shows, see what's next for the ones you're watching, and get a nudge when it's time to watch.</p>
+          <HomeActions />
+          <PrivacyLine />
           <figure className="demo-frame hero-shot">
-            <img src="./flickcue-extension-03.webp" alt="The FlickCue library: saved films and shows with ratings and reminders" width={1280} height={800} fetchPriority="high" />
+            <Shot name="queue" alt="The FlickCue queue: tonight's pick, what's due and the shows you're watching" eager />
           </figure>
         </div>
       </section>
 
-      <section className="home-section" aria-labelledby="demo-title">
+      <section className="home-section" aria-labelledby="features-title">
         <div className="wrap">
-          <p className="eyebrow">How it works</p>
-          <h2 id="demo-title" className="home-h2">From “that looks good” to movie night.</h2>
-          <Demo />
+          <p className="eyebrow">What you get</p>
+          <h2 id="features-title" className="home-h2">From “that looks good” to movie night.</h2>
+          <div className="features">
+            {FEATURES.map((feature) => (
+              <article key={feature.shot} className="feature">
+                <div className="feature-text">
+                  <h3>{feature.title}</h3>
+                  <p>{feature.text}</p>
+                </div>
+                <figure className="demo-frame feature-shot"><Shot name={feature.shot} alt={feature.alt} /></figure>
+              </article>
+            ))}
+            <article className="feature">
+              <div className="feature-text">
+                <h3>Save it from any page</h3>
+                <p>With the FlickCue Chrome extension, one click on a review, trailer or streaming page adds the film or show to your list.</p>
+                <p><a href={EXTENSION_URL} target="_blank" rel="noreferrer">Add to Chrome</a></p>
+              </div>
+              <figure className="demo-frame feature-shot">
+                <img src="./flickcue-extension-04.webp" alt="The FlickCue save card on a film page, with a Want to watch button" width={1280} height={800} loading="lazy" decoding="async" />
+              </figure>
+            </article>
+          </div>
+          <ul className="home-extras">
+            <li>Where to stream it, for your country</li>
+            <li>Your ratings, with Letterboxd's</li>
+            <li>Tick off episodes as you go</li>
+            <li>One list on every device</li>
+          </ul>
         </div>
       </section>
 
       <section className="home-section home-cta" aria-labelledby="cta-title">
         <div className="wrap home-cta-inner">
           <h2 id="cta-title" className="home-h2">Your next great watch deserves better than a screenshot.</h2>
-          <div className="button-row">
-            <a className="button button-ink large" href={EXTENSION_URL} target="_blank" rel="noreferrer">
-              <Icon name="plus" size={17} /> Add to Chrome
-            </a>
-            <button type="button" className="button button-quiet large" onClick={() => void connect()}>Sign in to the web app</button>
-          </div>
+          <HomeActions />
+          <PrivacyLine />
           <p className="home-note">
             {ANDROID_URL ? <a href={ANDROID_URL} target="_blank" rel="noreferrer">Get the Android app</a> : "Android app coming soon"}
-            {" · "}Your list syncs through your own Google Drive · <a href="./privacy.html">Privacy</a>
+            {" · "}<a href="./privacy.html">Privacy</a>
           </p>
         </div>
       </section>

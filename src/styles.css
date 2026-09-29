@@ -312,35 +312,27 @@ a { color: inherit; }
   letter-spacing: -0.04em;
 }
 
-.demo {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr);
-  gap: clamp(24px, 4vw, 56px);
-  align-items: start;
-  margin-top: clamp(36px, 5vw, 56px);
+.home-privacy { max-width: 46ch; margin: 14px 0 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.home-extension-note { margin: 14px 0 0; color: var(--ink-soft); font-size: 15px; }
+.home-extension-note a { color: var(--ink); font-weight: 700; }
+
+/* What you get: text beside a screenshot, sides alternating. */
+.features { display: grid; gap: clamp(56px, 8vw, 104px); margin-top: clamp(40px, 6vw, 72px); }
+.feature { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: clamp(28px, 5vw, 72px); align-items: center; }
+.feature:nth-child(even) { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+.feature:nth-child(even) .feature-text { order: 2; }
+.feature-text h3 { margin: 0 0 12px; font-size: clamp(24px, 2.6vw, 32px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+.feature-text p { margin: 0 0 12px; color: var(--ink-soft); font-size: 17px; line-height: 1.55; max-width: 42ch; }
+.feature-text a { color: var(--ink); font-weight: 700; }
+.home-extras { list-style: none; display: flex; flex-wrap: wrap; gap: 10px; margin: clamp(48px, 7vw, 80px) 0 0; padding: 0; }
+.home-extras li { padding: 8px 14px; border-radius: 999px; background: var(--paper-deep); font-size: 14px; font-weight: 600; }
+@media (max-width: 700px) {
+  .feature, .feature:nth-child(even) { grid-template-columns: 1fr; gap: 20px; }
+  .feature:nth-child(even) .feature-text { order: 0; }
+  /* The phone screenshots sit in a phone-shaped frame, not stretched across the page. */
+  .hero-shot, .feature-shot:has(source) { width: min(300px, 82%); margin-left: auto; margin-right: auto; border-radius: 28px; border-width: 6px; border-color: var(--night); }
+  .hero-shot { margin-top: 40px; }
 }
-.demo-tabs { display: flex; flex-direction: column; gap: 4px; }
-.demo-tabs button {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 14px;
-  padding: 18px 18px 18px 16px;
-  border: 0;
-  border-radius: 14px;
-  background: none;
-  color: var(--ink-soft);
-  text-align: left;
-  transition: background-color 160ms ease, border-color 160ms ease;
-}
-.demo-tabs button:hover { background: var(--paper-deep); }
-.demo-tabs button[aria-selected="true"] { background: var(--paper-surface); box-shadow: 0 0 0 1px var(--rule), 0 8px 24px rgba(22, 24, 27, 0.06); }
-.demo-tabs button[aria-selected="true"] .demo-step { color: var(--ink); }
-.demo-step { padding-top: 3px; color: var(--muted); font-family: var(--font-mono); font-size: 13px; }
-.demo-tabs b { display: block; color: var(--ink); font-size: 17px; }
-.demo-tabs small { display: block; margin-top: 4px; font-size: 15px; line-height: 1.45; }
-.demo-stage img { animation: demo-in 260ms ease both; }
-.demo-stage figcaption { display: none; }
-@keyframes demo-in { from { opacity: 0; transform: scale(0.985); } }
 
 .home-cta-inner { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .home-cta .home-h2 { max-width: 20ch; }
@@ -1100,13 +1092,6 @@ button.tag-link:hover { box-shadow: inset 0 0 0 1px var(--ink); }
   .icon-button { width: 44px; height: 44px; }
   .segmented button, .chip-button, .category, .select select, .link-chip, .episode, .toast-action { min-height: 44px; height: 44px; }
   .switch { min-height: 44px; }
-  .demo { grid-template-columns: 1fr; gap: 20px; }
-  .demo-tabs { flex-direction: row; gap: 8px; overflow-x: auto; scrollbar-width: none; }
-  .demo-tabs button { flex: 0 0 auto; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid var(--rule); border-radius: 999px; }
-  .demo-tabs button[aria-selected="true"] { border-color: var(--ink); box-shadow: none; }
-  .demo-tabs b { font-size: 15px; }
-  .demo-tabs small { display: none; }
-  .demo-stage figcaption { display: block; padding: 14px 16px; border-top: 1px solid var(--rule); color: var(--ink-soft); font-size: 15px; }
   .tonight-grid { grid-template-columns: 1fr; }
   .manual-form { grid-template-columns: 1fr 1fr; }
   .manual-form label:first-child, .manual-submit { grid-column: 1 / -1; }
