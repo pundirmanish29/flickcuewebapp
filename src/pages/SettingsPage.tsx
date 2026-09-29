@@ -5,7 +5,24 @@ import { toast } from "../components/Toast";
 import { connect, disconnect, importLibrary, sync, updateSettings, useAppState } from "../lib/store";
 import { INDIAN_CITIES } from "../lib/cinemas";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
+import { setThemeChoice, useTheme, type ThemeChoice } from "../lib/theme";
 import type { LibraryDocument } from "../lib/types";
+
+function Appearance() {
+  const { choice } = useTheme();
+  const options: [ThemeChoice, string][] = [["system", "Match device"], ["light", "Light"], ["dark", "Dark"]];
+  return (
+    <article className="card">
+      <h2>Appearance</h2>
+      <div className="segmented" role="group" aria-label="Theme">
+        {options.map(([value, label]) => (
+          <button key={value} type="button" aria-pressed={choice === value} onClick={() => setThemeChoice(value)}>{label}</button>
+        ))}
+      </div>
+      <p className="muted small-print">The sun and moon in the top bar switch it too. Kept on this device only.</p>
+    </article>
+  );
+}
 
 const REGIONS = [
   ["AR", "Argentina"], ["AU", "Australia"], ["AT", "Austria"], ["BE", "Belgium"],
@@ -205,6 +222,8 @@ export function SettingsPage() {
               </div>
             </form>
           </article>
+
+          <Appearance />
 
           <article className="card">
             <h2>Reminders</h2>
