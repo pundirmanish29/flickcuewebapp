@@ -514,18 +514,14 @@ a { color: inherit; }
 .badge-due { background: var(--lime); color: var(--on-accent); }
 .badge-amber { background: var(--orange); color: var(--on-accent); }
 .badge-green { background: var(--green); color: var(--on-accent); }
-.title-card-rating {
-  position: absolute; bottom: 8px; left: 8px; display: inline-flex; align-items: center; gap: 3px;
-  padding: 2px 7px; border-radius: 999px; background: rgba(11, 13, 15, 0.78); color: #fff;
-  font-family: var(--font-mono); font-size: 11px;
-}
 
 .title-card-actions {
   position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 6px;
   opacity: 0; transform: translateX(4px); transition: opacity 140ms ease, transform 140ms ease;
 }
 .title-card:hover .title-card-actions, .title-card:focus-within .title-card-actions { opacity: 1; transform: none; }
-@media (hover: none) { .title-card-actions { opacity: 1; transform: none; } }
+/* On touch the poster opens the details, which hold every action; buttons on each poster only invite mis-taps. */
+@media (hover: none) { .title-card-actions { display: none; } }
 
 .candidate-overview { margin: 6px 0 0; font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .candidate-art-wrap { position: relative; }
@@ -654,6 +650,18 @@ a { color: inherit; }
 .discover-toolbar { justify-content: flex-start; gap: 10px; margin: 16px 0 20px; }
 .segmented button:disabled { opacity: 0.4; cursor: default; }
 .genre-select.active select { background-color: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+/* ---- Watched ---- */
+.watched-toolbar { margin-bottom: 8px; }
+.watched-month { margin-top: clamp(20px, 3vw, 32px); }
+.watched-month-title { display: flex; align-items: baseline; gap: 8px; margin: 0 0 14px; font-size: clamp(18px, 2.2vw, 22px); font-weight: 800; letter-spacing: -0.02em; }
+.watched-undated-note { margin: -8px 0 14px; }
+.your-take { color: var(--orange-ink); letter-spacing: 0.02em; }
+.your-heart { display: inline-flex; vertical-align: -1px; color: var(--red); }
+.your-heart svg { fill: currentColor; }
+.danger-zone { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.danger-zone p { margin: 0 0 12px; }
+.danger-link { color: var(--red); font-size: 14px; }
+.button.button-danger { background: var(--red); border-color: var(--red); color: var(--paper); }
 .meta-rating { display: inline-flex; align-items: center; gap: 3px; }
 .meta-rating svg { color: var(--green); fill: currentColor; align-self: center; }
 .add-by-hand-hint { margin: 32px 0 0; color: var(--muted); font-size: 14px; text-align: center; }

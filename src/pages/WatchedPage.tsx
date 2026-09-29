@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { TitleCard } from "../components/TitleCard";
-import * as actions from "../lib/actions";
-import { knownWatchedAt, matchesKind, matchesSearch, sortMovies } from "../lib/rules";
+import { knownWatchedAt, matchesKind, matchesSearch, watchedGroups } from "../lib/rules";
 import { PageHeader } from "../components/PageHeader";
 import { useAppState } from "../lib/store";
 import type { KindFilter } from "../lib/types";
+
+const PAGE = 60;
 
 export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; query: string }) {
   const { library } = useAppState();
@@ -24,7 +25,19 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
     };
   }, [watched]);
 
-  const visible = sortMovies(watched.filter((movie) => matchesKind(movie, kind) && matchesSearch(movie, query)), "added", true);
+  const [limit, setLimit] = useState(PAGE);
+  const visible = watched.filter((movie) => matchesKind(movie, kind) && matchesSearch(movie, query));
+  // Month by month, a page at a time: a long history shouldn't all load at once.
+  const groups = useMemo(() => {
+    let left = limit;
+    return watchedGroups(visible)
+      .map((group) => {
+        const movies = group.movies.slice(0, Math.max(0, left));
+        left -= movies.length;
+        return { ...group, total: group.movies.length, movies };
+      })
+      .filter((group) => group.movies.length);
+  }, [visible, limit]);
 
   return (
     <>
@@ -41,25 +54,36 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
 
       <section className="paper titles">
         <div className="wrap">
-          <div className="toolbar">
-            <h2 className="toolbar-label">Newest first <span className="count">{visible.length}</span></h2>
-            <div className="toolbar-controls">
-              <div className="segmented" role="group" aria-label="Show">
-                {(["all", "movie", "tv"] as KindFilter[]).map((value) => (
-                  <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
-                    {value === "all" ? "All" : value === "movie" ? "Films" : "Shows"}
-                  </button>
-                ))}
-              </div>
-              {watched.length > 0 && (
-                <button type="button" className="button button-quiet small" onClick={() => actions.clearWatched()}>Clear watched</button>
-              )}
+          <div className="toolbar watched-toolbar">
+            <div className="segmented" role="group" aria-label="Show">
+              {(["all", "movie", "tv"] as KindFilter[]).map((value) => (
+                <button key={value} type="button" aria-pressed={kind === value} onClick={() => { setKind(value); setLimit(PAGE); }}>
+                  {value === "all" ? "All" : value === "movie" ? "Films" : "Shows"}
+                </button>
+              ))}
             </div>
           </div>
-          {visible.length ? (
-            <div className="grid">
-              {visible.map((movie) => <TitleCard key={movie.id} movie={movie} onOpen={onOpen} />)}
-            </div>
+          {groups.length ? (
+            <>
+              {groups.map((group) => (
+                <section key={group.key} className="watched-month" aria-labelledby={`month-${group.key}`}>
+                  <h2 id={`month-${group.key}`} className="watched-month-title">
+                    {group.label} <span className="count">{group.total}</span>
+                  </h2>
+                  {group.key === "undated" && <p className="muted small-print watched-undated-note">Imported without a watch date, mostly from Letterboxd.</p>}
+                  <div className="grid">
+                    {group.movies.map((movie) => <TitleCard key={movie.id} movie={movie} onOpen={onOpen} />)}
+                  </div>
+                </section>
+              ))}
+              {visible.length > limit && (
+                <div className="load-more">
+                  <button type="button" className="button button-quiet" onClick={() => setLimit(limit + PAGE)}>
+                    Show more · {visible.length - limit} left
+                  </button>
+                </div>
+              )}
+            </>
           ) : (
             <p className="empty">{query ? `Nothing watched matches “${query}”.` : "Titles you mark watched show up here."}</p>
           )}

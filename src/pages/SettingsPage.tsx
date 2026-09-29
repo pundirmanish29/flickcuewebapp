@@ -1,12 +1,36 @@
 import { useRef, useState } from "react";
 import { timeAgo } from "../components/AccountMenu";
 import { PageHeader } from "../components/PageHeader";
+import * as actions from "../lib/actions";
 import { toast } from "../components/Toast";
 import { connect, disconnect, importLibrary, sync, updateSettings, useAppState } from "../lib/store";
 import { INDIAN_CITIES } from "../lib/cinemas";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import { setThemeChoice, useTheme, type ThemeChoice } from "../lib/theme";
 import type { LibraryDocument } from "../lib/types";
+
+/** Removing every watched title, which syncs to every device: asked twice, with the number spelled out. */
+function ClearWatched() {
+  const { library } = useAppState();
+  const [asking, setAsking] = useState(false);
+  const count = library.movies.filter((movie) => movie.watched).length;
+  if (!count) return null;
+  return (
+    <div className="danger-zone">
+      {asking ? (
+        <>
+          <p><b>Remove all {count} watched titles?</b> They'll be removed from your list on every device. Export a backup first if you might want them back.</p>
+          <div className="button-row">
+            <button type="button" className="button button-danger" onClick={() => { actions.clearWatched(); setAsking(false); }}>Remove {count} titles</button>
+            <button type="button" className="button button-quiet" onClick={() => setAsking(false)}>Cancel</button>
+          </div>
+        </>
+      ) : (
+        <button type="button" className="link-button danger-link" onClick={() => setAsking(true)}>Clear watched history…</button>
+      )}
+    </div>
+  );
+}
 
 function Appearance() {
   const { choice } = useTheme();
@@ -256,6 +280,7 @@ export function SettingsPage() {
                 }}
               />
             </div>
+            <ClearWatched />
           </article>
 
           <article className="card about">

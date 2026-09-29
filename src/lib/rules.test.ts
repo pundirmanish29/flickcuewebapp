@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shortDay, showsToRefresh, smartQuotes, watchingShows } from "./rules";
+import { shortDay, showsToRefresh, smartQuotes, watchedGroups, watchingShows, yourTake } from "./rules";
 import type { Movie } from "./types";
 
 describe("short day labels", () => {
@@ -45,5 +45,31 @@ describe("watching", () => {
   it("looks up started shows whose status is unknown or stale", () => {
     const stale = show("stale", { watched: true, productionStatus: "Returning Series", nextEpisode: { season: 3, episode: 2, airDate: "2026-09-01" } });
     expect(showsToRefresh([...movies, stale], now).map((movie) => movie.id)).toEqual(["unknown", "stale"]);
+  });
+});
+
+describe("watched page", () => {
+  const now = new Date(2026, 8, 29, 12, 0).getTime();
+  const at = (y: number, m: number, d: number) => new Date(y, m, d, 20).getTime();
+  const seen = (id: string, fields: Partial<Movie>): Movie => ({ id, title: id, watched: true, createdAt: 1, ...fields });
+
+  it("groups by month, newest first, with undated imports last", () => {
+    const groups = watchedGroups([
+      seen("a", { watchedAt: at(2026, 8, 3) }),
+      seen("b", { watchedAt: at(2026, 8, 20) }),
+      seen("c", { watchedAt: at(2025, 11, 25) }),
+      seen("lb", { origin: "letterboxd", createdAt: at(2026, 8, 1), watchedAt: at(2026, 8, 1) + 1500 })
+    ], now);
+    expect(groups.map((group) => [group.key, group.movies.map((movie) => movie.id)])).toEqual([
+      ["2026-8", ["b", "a"]], ["2025-11", ["c"]], ["undated", ["lb"]]
+    ]);
+    expect(groups[1].label).toMatch(/2025/);
+    expect(groups[0].label).not.toMatch(/2026/);
+  });
+
+  it("takes your own stars and heart over Letterboxd's", () => {
+    expect(yourTake(seen("x", { letterboxd: { rating: 3.5, liked: true } }))).toEqual({ stars: 3.5, liked: true });
+    expect(yourTake(seen("y", { personal: { rating: 5, liked: false }, letterboxd: { rating: 3, liked: true } }))).toEqual({ stars: 5, liked: false });
+    expect(yourTake(seen("z", {}))).toEqual({ stars: 0, liked: false });
   });
 });

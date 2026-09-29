@@ -438,3 +438,43 @@ export function showsToRefresh(movies: Movie[], now = Date.now()): Movie[] {
     })
     .sort((a, b) => lastActivity(b) - lastActivity(a));
 }
+
+// ---- Watched page ----
+
+/** Your take (SHARED.md): your own stars and heart, else Letterboxd's. Stars are 0–5 in halves. */
+export function yourTake(movie: Movie): { stars: number; liked: boolean } {
+  const letterboxd = (movie.letterboxd ?? {}) as { rating?: unknown; liked?: unknown };
+  const stars = Number(movie.personal?.rating) || Number(letterboxd.rating) || 0;
+  const liked = Boolean(movie.personal?.liked ?? letterboxd.liked);
+  return { stars: Math.max(0, Math.min(5, stars)), liked };
+}
+
+export interface WatchedGroup {
+  key: string;
+  label: string;
+  movies: Movie[];
+}
+
+/**
+ * Watched titles by the month they were watched, newest first, then those
+ * with no real date (a Letterboxd import that didn't carry one) at the end.
+ */
+export function watchedGroups(movies: Movie[], now = Date.now()): WatchedGroup[] {
+  const dated = movies.filter((movie) => knownWatchedAt(movie) > 0).sort((a, b) => knownWatchedAt(b) - knownWatchedAt(a));
+  const undated = movies.filter((movie) => !knownWatchedAt(movie)).sort((a, b) => Number(b.createdAt ?? 0) - Number(a.createdAt ?? 0));
+  const groups: WatchedGroup[] = [];
+  const thisYear = new Date(now).getFullYear();
+  for (const movie of dated) {
+    const date = new Date(knownWatchedAt(movie));
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    let group = groups.at(-1);
+    if (!group || group.key !== key) {
+      const label = date.toLocaleDateString(undefined, { month: "long", ...(date.getFullYear() === thisYear ? {} : { year: "numeric" }) });
+      group = { key, label, movies: [] };
+      groups.push(group);
+    }
+    group.movies.push(movie);
+  }
+  if (undated.length) groups.push({ key: "undated", label: "Date not recorded", movies: undated });
+  return groups;
+}
