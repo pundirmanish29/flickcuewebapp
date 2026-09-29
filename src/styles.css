@@ -1291,3 +1291,22 @@ html[data-transition="title"] .site-header, html[data-transition="title"] .botto
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+/* Between the phone layout and a wide desktop the header carries nav, search and five controls: tighten it so nothing runs off the edge. */
+@media (min-width: 901px) and (max-width: 1279px) {
+  .header-inner { gap: 8px; }
+  .top-nav a { padding: 8px 10px; }
+  .search { width: min(190px, 16vw); }
+  .sync-pill .sync-label { display: none; }
+  .sync-pill { padding: 0 10px 0 8px; }
+}
+@media (min-width: 901px) and (max-width: 1000px) {
+  .site-header .brand-name { display: none; }
+  .search { width: 150px; }
+}
+
+/* On a phone the buttons sit mid-header, so their popovers span the header instead of hanging off one. */
+@media (max-width: 700px) {
+  .header-menu { position: static; }
+  .header-menu .popover { left: 16px; right: 16px; width: auto; top: calc(100% + 8px); }
+}
