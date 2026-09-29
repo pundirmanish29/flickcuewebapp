@@ -6,8 +6,10 @@ import { ReminderChoices } from "../components/ReminderMenu";
 import { toast } from "../components/Toast";
 import * as actions from "../lib/actions";
 import { pickSeeds, savedKeys } from "../lib/discover";
+import { findExisting } from "../lib/editor";
+import { displayTitle } from "../lib/rules";
 import { useAppState } from "../lib/store";
-import { browse, DISCOVER_CATEGORIES, recommendFrom, searchTitles, type PersonMatch } from "../lib/tmdb";
+import { browse, DISCOVER_CATEGORIES, recommendFrom, searchTitles, upscale, type PersonMatch } from "../lib/tmdb";
 import type { Candidate, KindFilter } from "../lib/types";
 
 type Load =
@@ -17,48 +19,121 @@ type Load =
 
 const FOR_YOU = "for-you";
 
-function AddByHand({ onDone }: { onDone: () => void }) {
+/**
+ * Adding a title by hand. As the title is typed, matching titles from the
+ * title service are offered, so a known film or show is saved with its poster
+ * and details rather than as bare text; typing on still saves it by hand.
+ */
+function AddByHand({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string) => void }) {
+  const { library } = useAppState();
   const [title, setTitle] = useState("");
   const [year, setYear] = useState("");
   const [mediaType, setMediaType] = useState("Movie");
   const [step, setStep] = useState<"form" | "remind">("form");
+  const [picked, setPicked] = useState<Candidate | null>(null);
+  const [matches, setMatches] = useState<Candidate[]>([]);
+  const [looking, setLooking] = useState(false);
+
+  const wanted = [title.trim(), year].filter(Boolean).join(" ");
+  useEffect(() => {
+    if (step !== "form" || title.trim().length < 2) {
+      setMatches([]);
+      setLooking(false);
+      return;
+    }
+    let live = true;
+    setLooking(true);
+    const timer = setTimeout(() => {
+      searchTitles(wanted)
+        .then((result) => live && setMatches(result.titles.slice(0, 5)))
+        .catch(() => live && setMatches([]))
+        .finally(() => live && setLooking(false));
+    }, 350);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [wanted, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = (remind: number | null) => {
-    if (actions.addManual(title, year, mediaType, remind)) onDone();
+    const saved = picked ? actions.addCandidate(picked, remind) : actions.addManual(title, year, mediaType, remind);
+    if (saved) onDone();
   };
 
   return (
     <div className="manual">
       {step === "form" ? (
-        <form
-          className="manual-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (title.trim()) setStep("remind");
-          }}
-        >
-          <label>
-            <span className="eyebrow">Title</span>
-            <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={200} required autoFocus />
-          </label>
-          <label className="manual-year">
-            <span className="eyebrow">Year</span>
-            <input value={year} onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="Optional" />
-          </label>
-          <label>
-            <span className="eyebrow">Type</span>
-            <select value={mediaType} onChange={(event) => setMediaType(event.target.value)}>
-              <option>Movie</option>
-              <option>Show</option>
-              <option>Documentary</option>
-            </select>
-          </label>
-          <button type="submit" className="button button-ink">Next</button>
-        </form>
+        <>
+          <form
+            className="manual-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!title.trim()) return;
+              setPicked(null);
+              setStep("remind");
+            }}
+          >
+            <label className="manual-title">
+              <span className="eyebrow">Title</span>
+              <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={200} required autoFocus autoComplete="off" />
+            </label>
+            <label className="manual-year">
+              <span className="eyebrow">Year</span>
+              <input value={year} onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="Optional" />
+            </label>
+            <label>
+              <span className="eyebrow">Type</span>
+              <select value={mediaType} onChange={(event) => setMediaType(event.target.value)}>
+                <option>Movie</option>
+                <option>Show</option>
+                <option>Documentary</option>
+              </select>
+            </label>
+            <button type="submit" className="button button-ink">Add by hand</button>
+          </form>
+
+          {title.trim().length >= 2 && (
+            <div className="manual-matches" aria-live="polite">
+              <p className="manual-matches-label">
+                {looking && !matches.length ? "Looking for matches…" : matches.length ? "Is it one of these?" : "No matches. Add it by hand."}
+              </p>
+              {matches.length > 0 && (
+                <ul>
+                  {matches.map((match) => {
+                    const saved = findExisting(library, match);
+                    return (
+                      <li key={match.key}>
+                        <button
+                          type="button"
+                          className="manual-match"
+                          onClick={() => {
+                            if (saved) return onOpen(saved.id);
+                            setPicked(match);
+                            setStep("remind");
+                          }}
+                        >
+                          <Poster src={upscale(match.poster, "w185")} title={match.title} className="manual-match-poster" />
+                          <span className="manual-match-text">
+                            <b>{displayTitle(match)}</b>
+                            <span>{[match.mediaType, match.year].filter(Boolean).join(" · ")}</span>
+                          </span>
+                          <span className={`manual-match-action ${saved ? "saved" : ""}`}>
+                            {saved ? <><Icon name="check" size={14} /> {saved.watched ? "Watched" : "In your queue"}</> : <><Icon name="plus" size={14} /> Save</>}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+        </>
       ) : (
         <div>
-          <p className="popover-label">Remind me about {title.trim()}…</p>
-          <ReminderChoices onPick={save} onNone={() => save(null)} noneLabel="Just save it" />
+          <p className="popover-label">Remind me about {picked ? displayTitle(picked) : title.trim()}…</p>
+          <ReminderChoices releaseDate={picked?.releaseDate} onPick={save} onNone={() => save(null)} noneLabel="Just save it" />
+          <button type="button" className="manual-back" onClick={() => setStep("form")}>Back</button>
         </div>
       )}
     </div>
@@ -191,7 +266,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
               </button>
             </div>
           </div>
-          {manual && <AddByHand onDone={() => setManual(false)} />}
+          {manual && <AddByHand onDone={() => setManual(false)} onOpen={onOpen} />}
 
           {load.state === "loading" && (
             <div className="grid" aria-busy="true">

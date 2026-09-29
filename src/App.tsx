@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { AccountMenu } from "./components/AccountMenu";
 import { Icon, Logo, type IconName } from "./components/Icon";
 import { TitleSheet } from "./components/TitleSheet";
@@ -6,13 +7,16 @@ import { ToastHost } from "./components/Toast";
 import { displayTitle } from "./lib/rules";
 import { connect, getState, startBackgroundSync, useAppState } from "./lib/store";
 import { DiscoverPage } from "./pages/DiscoverPage";
+import { NotificationBell, NotificationsPage } from "./pages/NotificationsPage";
 import { QueuePage } from "./pages/QueuePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { WatchedPage } from "./pages/WatchedPage";
 
-type Route = "queue" | "discover" | "watched" | "settings";
+type Route = "queue" | "discover" | "watched" | "settings" | "notifications";
 
-const AUTHENTICATED_ROUTES = new Set<Route>(["discover", "watched", "settings"]);
+const AUTHENTICATED_ROUTES = new Set<Route>(["discover", "watched", "settings", "notifications"]);
+// Pages whose lists the header search filters (Discover searches everything).
+const SEARCHABLE = new Set<Route>(["queue", "discover", "watched"]);
 // A #/title/<id> link followed while signed out (the extension's "Notes &
 // progress" link, say), kept for this tab and opened once signing in has
 // brought the list. Opened straight away, it would find nothing and close.
@@ -29,7 +33,7 @@ const NAV: { route: Route; label: string; icon: IconName }[] = [
 function parseHash(): { route: Route; titleId: string } {
   const [, first = "", second = ""] = location.hash.replace(/^#/, "").split("/");
   if (first === "title") return { route: (sessionStorage.getItem("flickcue.lastRoute") as Route) || "queue", titleId: decodeURIComponent(second) };
-  const route = NAV.some((item) => item.route === first) ? (first as Route) : "queue";
+  const route = NAV.some((item) => item.route === first) || first === "notifications" ? (first as Route) : "queue";
   return { route, titleId: "" };
 }
 
@@ -97,6 +101,9 @@ export default function App() {
   const { library, sync } = useAppState();
   const [query, setQuery] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
+  // On phones search is an icon until tapped; with text in it, it stays open.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searching = searchOpen || query !== "";
   // While the extension is asked for its session, and then until the list
   // first arrives from Drive, the requested page (or title) is kept rather
   // than swapped for the signed-out homepage or an empty queue. A title opened
@@ -145,6 +152,7 @@ export default function App() {
   useEffect(() => {
     sessionStorage.setItem("flickcue.lastRoute", route);
     setQuery("");
+    setSearchOpen(false);
     window.scrollTo({ top: 0 });
   }, [route]);
 
@@ -163,7 +171,7 @@ export default function App() {
     <>
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="site-header">
-        <div className="wrap header-inner">
+        <div className={`wrap header-inner ${searching ? "is-searching" : ""}`}>
           <a className="brand" href="#/" aria-label="FlickCue home">
             <Logo />
             <span className="brand-name">FLICKCUE</span>
@@ -178,7 +186,20 @@ export default function App() {
               ))}
             </nav>
           )}
-          {route !== "settings" && sync.connected && (
+          {SEARCHABLE.has(route) && sync.connected && (
+            <button
+              type="button"
+              className="header-icon search-back"
+              aria-label="Close search"
+              onClick={() => {
+                setQuery("");
+                setSearchOpen(false);
+              }}
+            >
+              <Icon name="back" size={21} />
+            </button>
+          )}
+          {SEARCHABLE.has(route) && sync.connected && (
             <label className="search">
               <Icon name="search" size={16} />
               <span className="visually-hidden">Search</span>
@@ -187,6 +208,11 @@ export default function App() {
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Escape") return;
+                  setQuery("");
+                  setSearchOpen(false);
+                }}
                 placeholder={route === "discover" ? "Search films and shows" : "Search your titles"}
               />
               {query && (
@@ -204,6 +230,21 @@ export default function App() {
               )}
             </label>
           )}
+          {SEARCHABLE.has(route) && sync.connected && (
+            <button
+              type="button"
+              className="header-icon search-toggle"
+              aria-label={route === "discover" ? "Search films and shows" : "Search your titles"}
+              onClick={() => {
+                // Opened and focused in the same tap, so phones raise the keyboard.
+                flushSync(() => setSearchOpen(true));
+                searchInput.current?.focus();
+              }}
+            >
+              <Icon name="search" size={21} />
+            </button>
+          )}
+          {sync.connected && <NotificationBell current={route === "notifications"} />}
           <SyncIndicator />
         </div>
       </header>
@@ -219,6 +260,7 @@ export default function App() {
         {route === "discover" && <DiscoverPage onOpen={openTitle} query={query} />}
         {route === "watched" && <WatchedPage onOpen={openTitle} query={query} />}
         {route === "settings" && <SettingsPage />}
+        {route === "notifications" && <NotificationsPage onOpen={openTitle} />}
       </main>
 
       <footer className={`site-footer ${sync.connected ? "with-bottom-nav" : ""}`}>
