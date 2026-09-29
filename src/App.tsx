@@ -11,6 +11,7 @@ import { connect, getState, startBackgroundSync, useAppState } from "./lib/store
 import { DiscoverPage } from "./pages/DiscoverPage";
 import { NotificationBell, NotificationsPage } from "./pages/NotificationsPage";
 import { buildNotifications } from "./lib/notifications";
+import { hasIntent, onIntent, takeIntent } from "./lib/discoverIntent";
 import { QueuePage } from "./pages/QueuePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { WatchedPage } from "./pages/WatchedPage";
@@ -190,6 +191,17 @@ export default function App() {
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     }
   }, [requestedRoute.route, sync.connected, connecting]);
+
+  // A cast member tapped in a title's details: Discover opens searching for them.
+  // A genre tapped there opens Discover's genre, so any search is cleared.
+  useEffect(() => onIntent(() => {
+    const search = takeIntent("search");
+    if (search) setQuery(search);
+    else if (hasIntent("genre")) {
+      setQuery("");
+      setSearchOpen(false);
+    }
+  }), []);
 
   useEffect(() => {
     sessionStorage.setItem("flickcue.lastRoute", route);

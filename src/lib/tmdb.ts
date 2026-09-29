@@ -209,6 +209,13 @@ export async function browseGenre(genreId: string, kind: "all" | "movie" | "tv",
   return { items: dedupe(items), more: pages.some((result) => result.more) };
 }
 
+/** Discover's genre for a genre name from a title's details ("Science Fiction", "Action & Adventure"), or "". */
+export function genreIdFor(name: string): string {
+  const key = name.toLowerCase().replace(/&.*$/, "").trim();
+  const alias: Record<string, string> = { "science fiction": "scifi", "sci-fi": "scifi", action: "action" };
+  return alias[key] ?? GENRES_LIST.find((genre) => genre.label.toLowerCase() === key)?.id ?? "";
+}
+
 /** Whether a genre has shows at all (Thriller, Horror and Romance are film-only on TMDB). */
 export const genreHasShows = (genreId: string) => Boolean(GENRES_LIST.find((item) => item.id === genreId)?.tv);
 

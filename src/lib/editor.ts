@@ -94,6 +94,25 @@ export function setInterested(document: LibraryDocument, id: string, interested:
   });
 }
 
+/**
+ * Your own stars (0–5 in halves, 0 to clear) and heart, in personal (SHARED.md
+ * "Your take"), where they beat Letterboxd's in every client.
+ */
+export function setTake(document: LibraryDocument, id: string, take: { rating?: number; liked?: boolean }, now = Date.now()): EditResult {
+  return edit(document, id, now, (movie) => {
+    const personal = { ...(movie.personal ?? {}) };
+    if (take.rating !== undefined) {
+      const rating = Math.round(Math.max(0, Math.min(5, take.rating)) * 2) / 2;
+      if (rating) personal.rating = rating;
+      else delete personal.rating;
+    }
+    if (take.liked !== undefined) personal.liked = take.liked;
+    if (JSON.stringify(personal) === JSON.stringify(movie.personal ?? {})) return "Unchanged.";
+    movie.personal = personal;
+    return null;
+  });
+}
+
 export function setNote(document: LibraryDocument, id: string, note: string, now = Date.now()): EditResult {
   return edit(document, id, now, (movie) => {
     const trimmed = note.slice(0, 2000);

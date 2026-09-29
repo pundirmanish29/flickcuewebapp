@@ -120,3 +120,13 @@ describe("start and stop watching a show", () => {
     expect(editor.setWatching(doc({ mediaType: "Movie", tmdbType: "movie" }), "s", true, NOW).ok).toBe(false);
   });
 });
+
+describe("your take", () => {
+  it("sets stars in halves and a heart, and clears stars at 0", () => {
+    const base: LibraryDocument = { movies: [{ id: "m", title: "Heat", personal: { note: "keep" } } as Movie], deleted: [] };
+    const rated = editor.setTake(base, "m", { rating: 3.7, liked: true }, NOW);
+    expect(rated.ok && rated.movie.personal).toEqual({ note: "keep", rating: 3.5, liked: true });
+    const cleared = rated.ok ? editor.setTake(rated.document, "m", { rating: 0 }, NOW) : rated;
+    expect(cleared.ok && cleared.movie.personal).toEqual({ note: "keep", liked: true });
+  });
+});

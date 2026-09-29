@@ -8,6 +8,7 @@ import { toast } from "../components/Toast";
 import * as actions from "../lib/actions";
 import { pickSeeds, savedKeys } from "../lib/discover";
 import { regionName } from "../lib/cinemas";
+import { onIntent, takeIntent } from "../lib/discoverIntent";
 import { findExisting } from "../lib/editor";
 import { displayTitle } from "../lib/rules";
 import { useAppState } from "../lib/store";
@@ -244,6 +245,12 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const [loadingMore, setLoadingMore] = useState(false);
   const [manual, setManual] = useState(false);
   const bar = useRef<HTMLDivElement>(null);
+
+  // A genre tapped in a title's details opens here on that genre.
+  useEffect(() => onIntent(() => {
+    const wanted = takeIntent("genre");
+    if (wanted) setCategory(GENRE_PREFIX + wanted);
+  }), []);
 
   const searching = query.trim().length >= 2;
   const forYou = !searching && category === FOR_YOU && hasSeeds;

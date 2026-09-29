@@ -7,7 +7,7 @@ import {
 import { useAppState } from "../lib/store";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { FilmShowtimes } from "./Showtimes";
-import { cinemaKey, fetchDetails, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
+import { cinemaKey, fetchDetails, genreIdFor, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
 import type { Candidate, Movie } from "../lib/types";
 import { CandidateCard } from "./CandidateCard";
 import { Icon } from "./Icon";
@@ -16,6 +16,7 @@ import { Popover, ReminderChoices } from "./ReminderMenu";
 import { providerLink, splitChannel } from "../lib/providers";
 import { regionName } from "../lib/cinemas";
 import { writeBack } from "../lib/showSync";
+import { goDiscover } from "../lib/discoverIntent";
 import { useSwipeToClose } from "../lib/useSwipeToClose";
 
 
@@ -144,7 +145,10 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   const [detailsError, setDetailsError] = useState("");
   const [choosingReminder, setChoosingReminder] = useState(false);
   const [note, setNote] = useState(movie?.personal?.note ?? "");
+  // null: the season you're on opens by itself; 0: all closed.
   const [openSeason, setOpenSeason] = useState<number | null>(null);
+  const [allSeasons, setAllSeasons] = useState(false);
+  const [writingNote, setWritingNote] = useState(false);
   const inCinemas = useInCinemas();
   const { place } = useWhere();
   const showing = Boolean(movie && inCinemas?.has(cinemaKey(movie)));
@@ -152,6 +156,8 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   const inner = useRef<HTMLDivElement>(null);
   useEffect(() => {
     dialog.current?.showModal();
+    // The sheet itself takes focus, not its close button, so a tap doesn't light a focus ring on ✕.
+    dialog.current?.focus();
   }, []);
   useSwipeToClose(dialog, inner);
 
@@ -210,7 +216,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
     // A show you've caught up on still has news: its next episode.
     if (movie.watched && !(show && next)) return null;
     if (show && next) {
-      return { tone: "green", text: `Next: S${next.season} E${next.episode}${next.name && !/^episode \d+$/i.test(next.name) ? ` “${next.name}”` : ""} · ${dayLabel(next.date)}` };
+      return { tone: "green", text: `S${next.season} E${next.episode} · ${dayLabel(next.date)}`, sub: next.name && !/^episode \d+$/i.test(next.name) ? `“${next.name}”` : "" };
     }
     if (!show && unreleased) {
       const date = details?.regionalRelease || movie.releaseDate || "";
@@ -220,6 +226,15 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   })();
 
   const episodesSeen = progress.reduce((sum, season) => sum + season.seen, 0);
+  // The season you're on: the last one you've started, else the first not finished.
+  const current = [...progress].reverse().find((season) => season.seen > 0 && season.seen < season.total)
+    ?? progress.find((season) => season.seen < season.total);
+  const seasonOpen = openSeason ?? (watchingNow || episodesSeen ? current?.number ?? 0 : 0);
+  // Seasons you've touched and the one you're on; the rest wait behind "All seasons".
+  const shownSeasons = allSeasons || progress.length <= 3
+    ? progress
+    : progress.filter((season) => season.seen > 0 || season.number === current?.number);
+  const hiddenSeasons = progress.length - shownSeasons.length;
   // The status line may already name the seasons ("Canceled · 2 seasons"); don't say it twice.
   const statusNamesSeasons = /\bseasons?\b/i.test(headline?.text || status?.text || "");
   const facts = show && details?.seasonCount
@@ -233,7 +248,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   // Your own rating beats Letterboxd's, as in the other clients (SHARED.md, "Your take").
   const letterboxd = (movie.letterboxd ?? {}) as { rating?: number; liked?: boolean; review?: string };
   const personalRating = Number(movie.personal?.rating) || 0;
-  const takeRating = personalRating || Number(letterboxd.rating) || 0;
+  const takeRating = Math.round((personalRating || Number(letterboxd.rating) || 0) * 2) / 2;
   const takeLiked = Boolean(movie.personal?.liked ?? letterboxd.liked);
   const takeReview = String(movie.personal?.review || letterboxd.review || "").trim();
   const take = takeRating || takeLiked || takeReview
@@ -255,6 +270,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
     <dialog
       ref={dialog}
       className="sheet"
+      tabIndex={-1}
       onClose={onClose}
       onClick={(event) => event.target === dialog.current && dialog.current?.close()}
       aria-labelledby="sheet-title"
@@ -335,7 +351,10 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
                 )}
               </div>
               {headline ? (
-                <p className={`sheet-status tone-${headline.tone}`}>{headline.text}</p>
+                <p className={`sheet-status tone-${headline.tone}`}>
+                  {headline.text}
+                  {"sub" in headline && headline.sub && <span className="sheet-status-sub"> {headline.sub}</span>}
+                </p>
               ) : (status || reminderActive || unreleased || movie.watched) && (
                 <p className={`sheet-status ${status ? `tone-${status.tone}` : ""}`}>{status ? status.text : reminderText(movie)}</p>
               )}
@@ -343,10 +362,6 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
               {/* Where to watch sits with the title, in the space beside the poster. */}
               {details && (details.streaming.length > 0 || details.rentOrBuy.length > 0) ? (
                 <WatchOn title={movie.title} streaming={details.streaming} rentOrBuy={details.rentOrBuy} />
-              ) : showing && !movie.watched ? (
-                <button type="button" className="watch-on" onClick={() => showtimesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-                  <Icon name="movie" size={15} /> <span>In cinemas · showtimes</span>
-                </button>
               ) : null}
             </div>
           </div>
@@ -423,10 +438,24 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           </>
           ) : (
             <>
-              <div className="sheet-actions">
-                <button type="button" className="button button-ink" aria-expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>
-                  <Icon name="plus" size={16} /> Save
+              {/* Not in the list yet: each action saves it as it goes. */}
+              <div className="sheet-actions action-row">
+                <button type="button" className="action primary" aria-expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>
+                  <span className="action-icon"><Icon name="plus" size={20} /></span>
+                  <span>Save</span>
                 </button>
+                {candidate && !unreleased && (
+                  <button type="button" className="action" onClick={() => actions.saveWatched(candidate)}>
+                    <span className="action-icon"><Icon name="eye" size={20} /></span>
+                    <span>Watched it</span>
+                  </button>
+                )}
+                {candidate && show && !unreleased && (
+                  <button type="button" className="action" onClick={() => actions.saveWatching(candidate)}>
+                    <span className="action-icon"><Icon name="play" size={19} /></span>
+                    <span>Watching</span>
+                  </button>
+                )}
               </div>
               {choosingReminder && candidate && (
                 <div className="sheet-panel">
@@ -454,13 +483,20 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             {!details && movie.tmdbId && !detailsError && <p className="muted loading-text">Loading details…</p>}
             {detailsError && <p className="muted">{detailsError}</p>}
             {(details?.genres.length || movie.genres?.length) ? (
-              <div className="tag-row">{(details?.genres || movie.genres || []).map((genre) => <span key={genre} className="tag">{genre}</span>)}</div>
+              <div className="tag-row">
+                {(details?.genres || movie.genres || []).map((genre) => {
+                  const id = genreIdFor(genre);
+                  return id
+                    ? <button key={genre} type="button" className="tag tag-link" onClick={() => goDiscover({ genre: id })}>{genre}</button>
+                    : <span key={genre} className="tag">{genre}</span>;
+                })}
+              </div>
             ) : null}
           </section>
 
           {showing && !movie.watched && (
             <section className="sheet-section" ref={showtimesRef}>
-              <h3 className="section-label">In cinemas · showtimes in {place}</h3>
+              <h3 className="section-label">Showtimes in {place}</h3>
               <FilmShowtimes title={movie.title} year={movie.year} imdb={imdbId} />
             </section>
           )}
@@ -473,12 +509,13 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             <section className="sheet-section">
               <h3 className="section-label">Episode progress</h3>
               <ul className="season-list">
-                {progress.map((season) => (
+                {shownSeasons.map((season) => (
                   <li key={season.number}>
                     <div className="season-row">
-                      <button type="button" className="season-toggle" aria-expanded={openSeason === season.number} onClick={() => setOpenSeason(openSeason === season.number ? null : season.number)}>
+                      <button type="button" className="season-toggle" aria-expanded={seasonOpen === season.number} onClick={() => setOpenSeason(seasonOpen === season.number ? 0 : season.number)}>
                         <span>{season.name || `Season ${season.number}`}</span>
                         <span className="muted">{season.seen}/{season.total}</span>
+                        <Icon name="chevron" size={16} />
                       </button>
                       <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={season.total} aria-valuenow={season.seen} aria-label={`Season ${season.number} progress`}>
                         <span style={{ width: `${Math.round((season.seen / season.total) * 100)}%` }} />
@@ -487,13 +524,13 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
                         {season.seen === season.total ? "Unmark" : "All seen"}
                       </button>
                     </div>
-                    {openSeason === season.number && (
-                      <div className="episode-grid">
+                    {seasonOpen === season.number && (
+                      <div className="episode-grid" aria-label={`Episodes of season ${season.number}: tap to tick`}>
                         {Array.from({ length: season.total }, (_, index) => {
                           const episode = index + 1;
                           const seen = movie.personal?.episodes?.includes(`${season.number}:${episode}`);
                           return (
-                            <button key={episode} type="button" className={`episode ${seen ? "seen" : ""}`} aria-pressed={seen} onClick={() => actions.toggleEpisode(movie.id, season.number, episode)}>
+                            <button key={episode} type="button" className={`episode ${seen ? "seen" : ""}`} aria-pressed={seen} aria-label={`Episode ${episode}`} onClick={() => actions.toggleEpisode(movie.id, season.number, episode)}>
                               {episode}
                             </button>
                           );
@@ -503,6 +540,9 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
                   </li>
                 ))}
               </ul>
+              {hiddenSeasons > 0 && (
+                <button type="button" className="inline-link seasons-more" onClick={() => setAllSeasons(true)}>All {progress.length} seasons</button>
+              )}
             </section>
           )}
 
@@ -512,39 +552,65 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
               <ul className="cast-row">
                 {details.cast.map((person) => (
                   <li key={person.name + person.character}>
-                    <Poster src={person.photo} title={person.name} className="cast-photo" />
-                    <span className="cast-name">{person.name}</span>
-                    <span className="muted cast-role">{person.character}</span>
+                    <button type="button" className="cast-link" onClick={() => goDiscover({ search: person.name })} aria-label={`${person.name}: more with them`}>
+                      <Poster src={person.photo} title={person.name} className="cast-photo" />
+                      <span className="cast-name">{person.name}</span>
+                      <span className="muted cast-role">{person.character}</span>
+                    </button>
                   </li>
                 ))}
               </ul>
             </section>
           )}
 
-          {isSaved && take && (
+          {isSaved && (movie.watched || take) && (
             <section className="sheet-section">
               <h3 className="section-label">Your take</h3>
               <div className="take">
-                {take.rating > 0 && <span className="take-stars" aria-label={`${take.rating} out of 5`}><Icon name="star" size={16} /> <b>{take.rating}</b>/5</span>}
-                {take.liked && <span className="take-liked"><Icon name="heart" size={16} /> Liked</span>}
-                {take.source && <span className="take-source">from {take.source}</span>}
+                <span className="take-stars-edit" role="group" aria-label="Your rating">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const fill = takeRating >= star ? "full" : takeRating >= star - 0.5 ? "half" : "";
+                    // Tapping a star sets it; tapping it again takes off half, then clears.
+                    const next = takeRating === star ? star - 0.5 : takeRating === star - 0.5 ? 0 : star;
+                    return (
+                      <button key={star} type="button" className={`star ${fill}`} aria-label={`${star} star${star === 1 ? "" : "s"}`} aria-pressed={takeRating >= star - 0.5} onClick={() => actions.setTake(movie.id, { rating: next })}>
+                        <Icon name="star" size={22} />
+                        {fill === "half" && <span className="star-half" aria-hidden="true"><Icon name="star" size={22} /></span>}
+                      </button>
+                    );
+                  })}
+                </span>
+                {takeRating > 0 && <b className="take-number">{takeRating}</b>}
+                <button type="button" className={`take-heart ${takeLiked ? "on" : ""}`} aria-pressed={takeLiked} aria-label="Liked" onClick={() => actions.setTake(movie.id, { liked: !takeLiked })}>
+                  <Icon name="heart" size={20} />
+                </button>
+                {take?.source && <span className="take-source">from {take.source}</span>}
               </div>
-              {take.review && <blockquote className="take-review">{take.review}</blockquote>}
+              {take?.review && <blockquote className="take-review">{take.review}</blockquote>}
             </section>
           )}
 
           {isSaved && <section className="sheet-section">
-            <h3 className="section-label"><label htmlFor="note">Why I saved this</label></h3>
-            <textarea
-              id="note"
-              className="note"
-              rows={3}
-              maxLength={2000}
-              placeholder="A friend's pick, a review you read, the mood it's for…"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              onBlur={() => actions.setNote(movie.id, note)}
-            />
+            {note || writingNote ? (
+              <>
+                <h3 className="section-label"><label htmlFor="note">{movie.watched ? "Notes" : "Why I saved this"}</label></h3>
+                <textarea
+                  id="note"
+                  className="note"
+                  rows={3}
+                  maxLength={2000}
+                  autoFocus={writingNote && !note}
+                  placeholder={movie.watched ? "What you thought, who you watched it with…" : "A friend's pick, a review you read, the mood it's for…"}
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  onBlur={() => { actions.setNote(movie.id, note); if (!note.trim()) setWritingNote(false); }}
+                />
+              </>
+            ) : (
+              <button type="button" className="add-note" onClick={() => setWritingNote(true)}>
+                <Icon name="plus" size={15} /> {movie.watched ? "Add a note" : "Add why you saved it"}
+              </button>
+            )}
             {savedLine && <p className="saved-line">{savedLine}</p>}
           </section>}
 
@@ -560,7 +626,6 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           )}
 
           <div className="sheet-links">
-            {details?.trailer && <a className="link-chip" href={details.trailer} target="_blank" rel="noreferrer"><Icon name="play" size={14} /> Trailer</a>}
             {imdbId && <a className="link-chip" href={`https://www.imdb.com/title/${imdbId}/`} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> IMDb</a>}
             {typeof movie.sourceUrl === "string" && /^https?:\/\//.test(movie.sourceUrl) && (
               <a className="link-chip" href={movie.sourceUrl} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> Where you found it</a>

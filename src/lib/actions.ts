@@ -55,6 +55,29 @@ export function setInterested(id: string, interested: boolean) {
     interested ? `Keeping an eye on ${title}` : `Stopped watching for ${title}`);
 }
 
+export function setTake(id: string, take: { rating?: number; liked?: boolean }) {
+  apply(editor.setTake(getState().library, id, take));
+}
+
+/** Saves a title and marks it watched in one go, from a title not yet in the list. */
+export function saveWatched(candidate: Candidate) {
+  const added = editor.addFromCandidate(getState().library, candidate, null);
+  if (!added.ok) return toast(added.reason);
+  const watched = editor.setWatched(added.document, added.movie.id, true);
+  if (!watched.ok) return toast(watched.reason);
+  commit(watched.document);
+  toast(`Marked ${displayTitle(watched.movie)} watched`);
+}
+
+/** Saves a show as one you're watching. */
+export function saveWatching(candidate: Candidate) {
+  const added = editor.addFromCandidate(getState().library, candidate, null);
+  if (!added.ok) return toast(added.reason);
+  const watching = editor.setWatching(added.document, added.movie.id, true);
+  commit(watching.ok ? watching.document : added.document);
+  toast(`Watching ${displayTitle(added.movie)}`);
+}
+
 export function setNote(id: string, note: string) {
   apply(editor.setNote(getState().library, id, note));
 }
