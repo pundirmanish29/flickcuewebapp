@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
 import { enrich } from "../lib/editor";
 import {
-  displayTitle, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, reminderText, seasonProgress
+  displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, reminderText, seasonProgress
 } from "../lib/rules";
 import { commit, getState, useAppState } from "../lib/store";
 import { fetchDetails, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
@@ -92,7 +92,6 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
   const backdrop = details?.backdrop || upscale(movie.backdrop, "w1280");
   const progress = seasonProgress(movie);
   const imdbRating = Number(movie.imdbRating) || 0;
-  const tmdbUrl = movie.tmdbId ? `https://www.themoviedb.org/${movie.tmdbType === "tv" ? "tv" : "movie"}/${movie.tmdbId}` : "";
   const imdbId = details?.imdbId || (movie.imdbId as string | undefined);
 
   return (
@@ -117,7 +116,7 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
               <p className="eyebrow">{[movie.mediaType, movie.year, formatRuntime(movie.runtimeMinutes)].filter(Boolean).join(" · ")}</p>
               <h2 id="sheet-title">{title}</h2>
               <div className="score-row">
-                {movie.rating && Number(movie.rating) > 0 && <span className="score"><b>{movie.rating}</b> TMDB</span>}
+                {formatRating(movie.rating) && <span className="score"><b>{formatRating(movie.rating)}</b> Rating</span>}
                 {imdbRating > 0 && <span className="score"><b>{imdbRating.toFixed(1)}</b> IMDb</span>}
                 {Number(movie.criticScore) >= 0 && movie.criticScore != null && <span className="score"><b>{movie.criticScore}%</b> Critics</span>}
                 {Number(movie.audienceScore) >= 0 && movie.audienceScore != null && <span className="score"><b>{movie.audienceScore}%</b> Audience</span>}
@@ -261,7 +260,6 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
 
           <div className="sheet-links">
             {details?.trailer && <a className="link-chip" href={details.trailer} target="_blank" rel="noreferrer"><Icon name="play" size={14} /> Trailer</a>}
-            {tmdbUrl && <a className="link-chip" href={tmdbUrl} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> TMDB</a>}
             {imdbId && <a className="link-chip" href={`https://www.imdb.com/title/${imdbId}/`} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> IMDb</a>}
             {typeof movie.sourceUrl === "string" && /^https?:\/\//.test(movie.sourceUrl) && (
               <a className="link-chip" href={movie.sourceUrl} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> Where you found it</a>

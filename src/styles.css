@@ -138,11 +138,13 @@ a { color: inherit; }
 .header-inner { display: flex; align-items: center; gap: 24px; height: 100%; }
 
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+/* The header's brand pushes everything after it to the right, whichever of nav, search and account are shown. */
+.site-header .brand { min-height: 44px; margin-right: auto; }
 .brand-name { font-weight: 800; letter-spacing: 0.08em; font-size: 14px; }
 .logo-dots { display: inline-flex; gap: calc(var(--dot) * 0.35); }
 .logo-dots i { width: var(--dot); height: var(--dot); border-radius: 50%; display: block; }
 
-.top-nav { display: flex; gap: 4px; margin-left: auto; }
+.top-nav { display: flex; gap: 4px; }
 .top-nav a {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 12px; border-radius: 999px; text-decoration: none;
@@ -185,10 +187,11 @@ a { color: inherit; }
 .sync-pill:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.24); }
 .sync-pill:active { transform: scale(0.97); }
 .sync-pill img { width: 26px; height: 26px; border-radius: 50%; }
+/* Icon wrappers are boxes, not text, so the icon centres on the pill instead of sitting on a text baseline. */
+.sync-pill > span:not(.sync-label), .account-item > span, .header-sign-in > span { display: inline-flex; }
 .sync-pill .dot { margin-left: 6px; }
 .sync-pill.warn { border-color: var(--orange); }
-/* Signed out there is no nav or search to push it over. */
-.header-sign-in { margin-left: auto; height: 40px; padding: 0 20px; font-size: 14px; flex-shrink: 0; }
+.header-sign-in { height: 40px; padding: 0 20px; font-size: 14px; flex-shrink: 0; }
 .header-sign-in.signing { display: inline-flex; align-items: center; gap: 8px; padding: 0 4px; color: var(--dark-muted); font-weight: 500; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot-on { background: var(--green); }
@@ -272,15 +275,15 @@ a { color: inherit; }
   gap: 14px;
   padding: 18px 18px 18px 16px;
   border: 0;
-  border-left: 2px solid var(--rule);
-  border-radius: 0 14px 14px 0;
+  border-radius: 14px;
   background: none;
   color: var(--ink-soft);
   text-align: left;
   transition: background-color 160ms ease, border-color 160ms ease;
 }
 .demo-tabs button:hover { background: var(--paper-deep); }
-.demo-tabs button[aria-selected="true"] { border-color: var(--ink); background: var(--paper-surface); }
+.demo-tabs button[aria-selected="true"] { background: var(--paper-surface); box-shadow: 0 0 0 1px var(--rule), 0 8px 24px rgba(22, 24, 27, 0.06); }
+.demo-tabs button[aria-selected="true"] .demo-step { color: var(--ink); }
 .demo-step { padding-top: 3px; color: var(--muted); font-family: var(--font-mono); font-size: 13px; }
 .demo-tabs b { display: block; color: var(--ink); font-size: 17px; }
 .demo-tabs small { display: block; margin-top: 4px; font-size: 15px; line-height: 1.45; }
@@ -352,6 +355,11 @@ a { color: inherit; }
   position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden;
   background: var(--card) center / cover no-repeat; border: 1px solid var(--card-line);
   display: flex; align-items: flex-end; padding: 18px;
+}
+/* A title with no backdrop gets a blurred copy of its poster instead of an empty panel. */
+.tonight-art.poster-only::before {
+  content: ""; position: absolute; inset: -24px; background: var(--art) center / cover no-repeat;
+  filter: blur(28px) saturate(1.15); opacity: 0.75;
 }
 .tonight-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(11, 13, 15, 0.7), transparent 60%); }
 .tonight-poster { position: relative; z-index: 1; width: 22%; min-width: 72px; border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); }
@@ -513,7 +521,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 /* ---- Watched stats ---- */
 
 .stats-band { padding: 28px 0; }
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.stats { display: grid; grid-template-columns: repeat(var(--stat-count, 4), 1fr); gap: 16px; }
 .stats div { display: flex; flex-direction: column; border-left: 1px solid var(--dark-line); padding-left: 16px; }
 .stats b { font-size: clamp(32px, 4vw, 48px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
 .stats span { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dark-muted); }
@@ -532,7 +540,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .hint { margin-top: 6px; font-size: 13px; color: var(--muted); }
 .switch { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; cursor: pointer; }
 .switch input { width: 20px; height: 20px; accent-color: var(--ink); }
-.tmdb-logo { display: block; margin: 8px 0 8px; }
 
 /* ---- Title sheet ---- */
 
@@ -622,7 +629,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .top-nav { display: none; }
   .search { min-width: 0; }
   .header-inner { gap: 12px; }
-  .search { flex: 1; width: auto; margin-left: auto; }
+  .search { flex: 1; width: auto; }
   .sync-label { display: none; }
   .sync-pill { height: 44px; padding: 0 10px 0 8px; }
   .search, .header-sign-in { height: 44px; }
@@ -633,7 +640,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .demo { grid-template-columns: 1fr; gap: 20px; }
   .demo-tabs { flex-direction: row; gap: 8px; overflow-x: auto; scrollbar-width: none; }
   .demo-tabs button { flex: 0 0 auto; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid var(--rule); border-radius: 999px; }
-  .demo-tabs button[aria-selected="true"] { border-color: var(--ink); }
+  .demo-tabs button[aria-selected="true"] { border-color: var(--ink); box-shadow: none; }
   .demo-tabs b { font-size: 15px; }
   .demo-tabs small { display: none; }
   .demo-stage figcaption { display: block; padding: 14px 16px; border-top: 1px solid var(--rule); color: var(--ink-soft); font-size: 15px; }
@@ -658,7 +665,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 }
 
 @media (max-width: 600px) {
-  .brand-name { display: none; }
+  /* Room for the search box when signed in; signed out the name has space. */
+  .header-inner:has(.search) .brand-name { display: none; }
   .home .button-row { flex-direction: column; align-items: stretch; }
   .home .button-row .button { width: 100%; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

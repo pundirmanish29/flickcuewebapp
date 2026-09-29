@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getStoredToken } from "../lib/auth";
 import { connect, disconnect, sync, useAppState } from "../lib/store";
 import { Icon } from "./Icon";
@@ -17,6 +17,14 @@ export function AccountMenu() {
   const { sync: state, library } = useAppState();
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  // Moving to another page closes it, whichever way the page changed.
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener("hashchange", close);
+    return () => window.removeEventListener("hashchange", close);
+  }, [open, close]);
 
   const expired = state.status === "needs-auth";
   const failed = state.status === "error";
@@ -31,6 +39,7 @@ export function AccountMenu() {
   return (
     <div className="account-menu">
       <button
+        ref={trigger}
         type="button"
         className={`sync-pill ${expired || failed ? "warn" : ""}`}
         aria-haspopup="dialog"
@@ -45,7 +54,7 @@ export function AccountMenu() {
         <span className="sync-label">{label}</span>
       </button>
 
-      <Popover open={open} onClose={close} label="Account">
+      <Popover open={open} onClose={close} label="Account" anchor={trigger}>
         <div className="account">
           {state.account?.photo && <img src={state.account.photo} alt="" referrerPolicy="no-referrer" />}
           <div>

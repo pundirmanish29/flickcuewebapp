@@ -52,14 +52,26 @@ export function ReminderChoices({
   );
 }
 
-/** A small popover holding ReminderChoices, anchored under its trigger. */
-export function Popover({ open, onClose, children, label }: { open: boolean; onClose: () => void; children: React.ReactNode; label: string }) {
+/**
+ * A small popover holding ReminderChoices, anchored under its trigger. Pass the
+ * trigger as `anchor` when it toggles the popover, so pressing it counts as the
+ * toggle rather than as a press outside that closes and then reopens it.
+ */
+export function Popover({ open, onClose, children, label, anchor }: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+  label: string;
+  anchor?: React.RefObject<HTMLElement | null>;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (event: PointerEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) onClose();
+      const target = event.target as Node;
+      if (anchor?.current?.contains(target)) return;
+      if (ref.current && !ref.current.contains(target)) onClose();
     };
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
     const timer = setTimeout(() => document.addEventListener("pointerdown", onDown));
@@ -69,7 +81,7 @@ export function Popover({ open, onClose, children, label }: { open: boolean; onC
       document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, onClose]);
+  }, [open, onClose, anchor]);
 
   if (!open) return null;
   return (

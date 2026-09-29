@@ -225,7 +225,6 @@ export default function App() {
         <div className="wrap footer-inner">
           <span className="brand"><Logo size={8} /> <span className="brand-name">FLICKCUE</span></span>
           <span className="muted">Works with the FlickCue Chrome extension.</span>
-          <span className="muted">Title data from TMDB.</span>
           <a className="muted footer-link" href="./privacy.html">Privacy</a>
         </div>
       </footer>

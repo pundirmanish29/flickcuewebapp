@@ -37,11 +37,12 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
       </section>
 
       <section className="band stats-band">
-        <div className="wrap stats">
+        {/* Hours only count titles with a known runtime, so the tile waits until there are some. */}
+        <div className="wrap stats" style={{ ["--stat-count" as string]: stats.hours > 0 ? 4 : 3 }}>
           <div><b>{watched.length}</b><span>watched in all</span></div>
           <div><b>{stats.month}</b><span>this month</span></div>
           <div><b>{stats.year}</b><span>this year</span></div>
-          <div><b>{stats.hours}</b><span>hours of films and episodes with a known runtime</span></div>
+          {stats.hours > 0 && <div><b>{stats.hours}</b><span>hours watched</span></div>}
         </div>
       </section>
 

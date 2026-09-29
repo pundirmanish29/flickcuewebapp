@@ -23,8 +23,8 @@ Vite + React + TypeScript, no backend. It builds to static files.
   extension's on-page card does. Titles can also be added by hand.
 - **Watched**: history, newest first, with counts for this month and year and total
   hours watched.
-- **Settings**: Google sign-in and sync, streaming region (default `IN`), an
-  optional personal TMDB key, browser notifications for reminders while the tab is
+- **Settings**: Google sign-in and sync, streaming region (default `IN`),
+  browser notifications for reminders while the tab is
   open, and JSON backup export/import (import merges, it doesn't overwrite).
 
 Signed out, the site is just the homepage; the Queue, Discover, Watched and Settings
@@ -88,11 +88,10 @@ itself.
 ### 2. The proxy has to accept this site's origin
 
 Title search, Discover and details go through the FlickCue Cloudflare Worker
-(`flickcue/proxy`), which holds the shared TMDB key. Right now it refuses every web
-page origin (`isRefusedOrigin` only allows `chrome-extension://` and
-`moz-extension://`), so those requests from the site get a `403`. Until the proxy is
-changed, the site shows a message asking for a personal TMDB key in Settings, which
-then calls TMDB directly.
+(`flickcue/proxy`), which holds the shared TMDB key; the site never calls TMDB
+directly and shows no TMDB branding. The proxy refuses page origins it doesn't list
+(`isRefusedOrigin`), and those requests get a `403`, which the site reports as the
+title service not being available yet.
 
 To let the site use the proxy, allow its origin in `proxy/src/index.js`:
 

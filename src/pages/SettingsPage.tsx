@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { timeAgo } from "../components/AccountMenu";
 import { toast } from "../components/Toast";
-import { TMDB_ATTRIBUTION } from "../lib/config";
 import { connect, disconnect, importLibrary, sync, updateSettings, useAppState } from "../lib/store";
 import type { LibraryDocument } from "../lib/types";
 
@@ -20,7 +19,6 @@ const REGIONS = [
 
 export function SettingsPage() {
   const { sync: syncState, settings, library } = useAppState();
-  const [tmdbKey, setTmdbKey] = useState(settings.tmdbKey);
   const [region, setRegion] = useState(settings.region);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -113,7 +111,7 @@ export function SettingsPage() {
               className="field-stack"
               onSubmit={(event) => {
                 event.preventDefault();
-                updateSettings({ tmdbKey: tmdbKey.trim(), region });
+                updateSettings({ region });
                 toast("Saved");
               }}
             >
@@ -123,13 +121,6 @@ export function SettingsPage() {
                   {REGIONS.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
                 </select>
                 <span className="hint">Where-to-watch availability is shown for this country or region.</span>
-              </label>
-              <label>
-                <span className="eyebrow">Your TMDB key (optional)</span>
-                <input value={tmdbKey} onChange={(event) => setTmdbKey(event.target.value)} type="password" autoComplete="off" placeholder="v3 API key or v4 read token" />
-                <span className="hint">
-                  Leave it empty to use FlickCue's own title service. With a key, lookups go straight to TMDB. It's stored only in this browser and never synced.
-                </span>
               </label>
               <button type="submit" className="button button-ink">Save</button>
             </form>
@@ -174,8 +165,6 @@ export function SettingsPage() {
               FlickCue for the web works with the <b>FlickCue browser extension</b> and the <b>FlickCue Android app</b>. All three share one list.
               There are no ads, no analytics and no account with the developer.
             </p>
-            <img className="tmdb-logo" src="./tmdb-logo.svg" alt="TMDB" width={104} />
-            <p className="muted small-print">{TMDB_ATTRIBUTION}</p>
           </article>
         </div>
       </section>

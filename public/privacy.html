@@ -41,7 +41,7 @@
       </ul>
 
       <h2>What is stored in your browser</h2>
-      <p>The web app keeps your watchlist, settings (such as reminder notifications and an optional TMDB API key you add yourself), sort preference and sync status in your browser's local storage, so it works before you sign in and offline. If you sign in, a short-lived Google access token (about one hour) is stored there too. Clearing your site data removes all of it.</p>
+      <p>The web app keeps your watchlist, settings (such as your streaming region and reminder notifications), sort preference and sync status in your browser's local storage, so it works before you sign in and offline. If you sign in, a short-lived Google access token (about one hour) is stored there too. Clearing your site data removes all of it.</p>
 
       <h2>Google sign-in and Google Drive</h2>
       <p>Signing in with Google is optional and is used only to sync your watchlist between the web app, the extension and the Android app. FlickCue requests one permission, <code>drive.appdata</code>, which lets it read and write a single hidden file, <code>flickcue-watchlist.json</code>, in the app-data area of your own Drive. FlickCue cannot see any other files in your Drive.</p>
@@ -49,7 +49,7 @@
       <p>FlickCue's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. You can remove FlickCue's access at any time from your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.</p>
 
       <h2>Film and show information</h2>
-      <p>Titles, posters and ratings come from <a href="https://www.themoviedb.org/">TMDB</a>. When you browse or search, the search terms and title requests go to TMDB through FlickCue's title service (a Cloudflare Worker that adds FlickCue's TMDB key), or directly to TMDB if you've added your own key. These requests don't include your watchlist or your Google account. Posters load from TMDB's image servers, and trailers open on YouTube.</p>
+      <p>Titles, posters and ratings come from <a href="https://www.themoviedb.org/">TMDB</a>. When you browse or search, the search terms and title requests go to TMDB through FlickCue's title service (a Cloudflare Worker that adds FlickCue's TMDB key). These requests don't include your watchlist or your Google account. Posters load from TMDB's image servers, and trailers open on YouTube.</p>
 
       <h2>Notifications</h2>
       <p>If you turn on reminders, your browser shows notifications for titles you scheduled. They are created locally in your browser; no push service is involved.</p>

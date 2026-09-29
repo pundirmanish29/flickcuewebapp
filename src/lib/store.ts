@@ -7,7 +7,6 @@ import { useSyncExternalStore } from "react";
 import { canAskExtension, getStoredToken, forgetToken, requestExtensionSession, requestToken, revokeToken, storeToken } from "./auth";
 import { DriveError, fetchAccount, findRemoteFileId, readRemote, writeRemote, type Account } from "./drive";
 import { mergeWatchlists } from "./merge";
-import { setTmdbKey } from "./tmdb";
 import type { LibraryDocument } from "./types";
 
 const LIBRARY_KEY = "flickcue.library";
@@ -33,7 +32,6 @@ export interface SyncState {
 }
 
 export interface Settings {
-  tmdbKey: string;
   region: string;
   notifications: boolean;
 }
@@ -86,8 +84,7 @@ function willAskExtension(): boolean {
 function initialState(onLoad = true): AppState {
   const library = read<LibraryDocument>(LIBRARY_KEY, { movies: [], deleted: [] });
   const stored = read<Partial<SyncState>>(SYNC_KEY, {});
-  const settings = read<Settings>(SETTINGS_KEY, { tmdbKey: "", region: "IN", notifications: false });
-  setTmdbKey(settings.tmdbKey);
+  const settings = read<Settings>(SETTINGS_KEY, { region: "IN", notifications: false });
   return {
     library: {
       movies: Array.isArray(library.movies) ? library.movies : [],
@@ -161,7 +158,6 @@ export function commit(library: LibraryDocument) {
 export function updateSettings(patch: Partial<Settings>) {
   const settings = { ...state.settings, ...patch };
   write(SETTINGS_KEY, settings);
-  setTmdbKey(settings.tmdbKey);
   setState({ settings });
 }
 

@@ -1,5 +1,5 @@
 import * as actions from "../lib/actions";
-import { displayTitle, getShowStatus, gridBadge, isUnreleased, reminderText } from "../lib/rules";
+import { displayTitle, formatRating, getShowStatus, gridBadge, isUnreleased, reminderText } from "../lib/rules";
 import { upscale } from "../lib/tmdb";
 import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
@@ -18,8 +18,8 @@ export function TitleCard({ movie, onOpen }: { movie: Movie; onOpen: (id: string
         <div className="title-card-art">
           <Poster src={upscale(movie.poster, "w342")} title={movie.title} />
           {badge && <span className={`badge badge-${badge.tone}`}>{badge.text}</span>}
-          {movie.rating && Number(movie.rating) > 0 && (
-            <span className="title-card-rating"><Icon name="star" size={11} /> {movie.rating}</span>
+          {formatRating(movie.rating) && (
+            <span className="title-card-rating"><Icon name="star" size={11} /> {formatRating(movie.rating)}</span>
           )}
         </div>
         <div className="title-card-text">

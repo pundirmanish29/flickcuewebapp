@@ -4,7 +4,7 @@ import { Poster } from "../components/Poster";
 import { TitleCard } from "../components/TitleCard";
 import * as actions from "../lib/actions";
 import {
-  displayTitle, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
+  displayTitle, formatRating, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
 } from "../lib/rules";
 import { connect, useAppState } from "../lib/store";
 import { upscale } from "../lib/tmdb";
@@ -197,7 +197,12 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
       {sync.connected && tonight && (
         <section className="band tonight">
           <div className="wrap tonight-grid">
-            <div className="tonight-art" style={tonight.backdrop ? { backgroundImage: `url(${upscale(tonight.backdrop, "w1280")})` } : undefined}>
+            <div
+              className={`tonight-art ${!tonight.backdrop && tonight.poster ? "poster-only" : ""}`}
+              style={tonight.backdrop
+                ? { backgroundImage: `url(${upscale(tonight.backdrop, "w1280")})` }
+                : tonight.poster ? { ["--art" as string]: `url(${upscale(tonight.poster, "w342")})` } : undefined}
+            >
               <Poster src={upscale(tonight.poster, "w342")} title={tonight.title} className="tonight-poster" />
             </div>
             <div className="tonight-text">
@@ -206,7 +211,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
               </p>
               <h2>{displayTitle(tonight)}</h2>
               <p className="on-dark-muted">
-                {[tonight.mediaType, tonight.year, formatRuntime(tonight.runtimeMinutes), tonight.rating ? `★ ${tonight.rating}` : ""].filter(Boolean).join(" · ")}
+                {[tonight.mediaType, tonight.year, formatRuntime(tonight.runtimeMinutes), formatRating(tonight.rating) ? `★ ${formatRating(tonight.rating)}` : ""].filter(Boolean).join(" · ")}
               </p>
               {tonight.tagline && <p className="tonight-tagline">{tonight.tagline}</p>}
               <div className="button-row">

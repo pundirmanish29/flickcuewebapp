@@ -1,49 +1,25 @@
-// TMDB lookups. With the reader's own key they go straight to TMDB (which
-// allows cross-origin calls); otherwise through FlickCue's proxy, which holds
-// the shared key, the same way the extension and the Android app call it.
+// Title lookups, all through FlickCue's title service (the proxy that holds
+// the shared key), the same way the extension and the Android app call it.
 
 import { PROXY_BASE_URL } from "./config";
 import { bestKnownWork, blendRecommendations, matchPerson, rankSearchResults, splitYear, type Seed } from "./discover";
 import { isUnreleased } from "./rules";
 import type { Candidate, Movie, Season } from "./types";
 
-const TMDB_BASE = "https://api.themoviedb.org/3";
 const IMAGE_BASE = "https://image.tmdb.org/t/p";
-const V3_KEY = /^[a-f0-9]{32}$/i;
-
-let userKey = "";
-
-export function setTmdbKey(key: string) {
-  userKey = key.trim();
-}
-
 export class TmdbError extends Error {}
 
 async function tmdbGet<T = any>(path: string, params: Record<string, string> = {}): Promise<T> {
   const search = new URLSearchParams({ language: "en-US", ...params });
-  let url: string;
-  const headers: Record<string, string> = { Accept: "application/json" };
-
-  if (userKey) {
-    if (V3_KEY.test(userKey)) search.set("api_key", userKey);
-    else headers.Authorization = `Bearer ${userKey}`;
-    url = `${TMDB_BASE}/${path}?${search}`;
-  } else {
-    url = `${PROXY_BASE_URL}/tmdb/${path}?${search}`;
-  }
-
   let response: Response;
   try {
-    response = await fetch(url, { headers });
+    response = await fetch(`${PROXY_BASE_URL}/tmdb/${path}?${search}`, { headers: { Accept: "application/json" } });
   } catch {
-    throw new TmdbError(userKey
-      ? "Couldn't reach TMDB. Check your connection."
-      : "Couldn't reach FlickCue's title service. Add your own TMDB key in Settings, or check your connection.");
+    throw new TmdbError("Couldn't reach FlickCue's title service. Check your connection.");
   }
-  if (response.status === 401) throw new TmdbError("TMDB refused the key. Check it in Settings.");
-  if (response.status === 403) throw new TmdbError("FlickCue's title service doesn't accept requests from this site yet. Add your own TMDB key in Settings.");
+  if (response.status === 403) throw new TmdbError("FlickCue's title service isn't available on this site yet.");
   if (response.status === 429) throw new TmdbError("Too many lookups at once. Try again in a moment.");
-  if (!response.ok) throw new TmdbError(`TMDB lookup failed (${response.status}).`);
+  if (!response.ok) throw new TmdbError(`Title lookup failed (${response.status}). Try again in a moment.`);
   return response.json();
 }
 

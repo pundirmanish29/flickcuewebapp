@@ -1,7 +1,7 @@
 import { useState } from "react";
 import * as actions from "../lib/actions";
 import { findExisting } from "../lib/editor";
-import { displayTitle, isUnreleased } from "../lib/rules";
+import { displayTitle, formatRating, isUnreleased } from "../lib/rules";
 import { useAppState } from "../lib/store";
 import { upscale } from "../lib/tmdb";
 import type { Candidate } from "../lib/types";
@@ -29,8 +29,8 @@ export function CandidateCard({ candidate, onOpenSaved }: { candidate: Candidate
       <div className="title-card-art">
         <Poster src={upscale(candidate.poster, "w342")} title={candidate.title} />
         {isUnreleased(candidate) && <span className="badge badge-amber">SOON</span>}
-        {candidate.rating && (
-          <span className="title-card-rating"><Icon name="star" size={11} /> {candidate.rating}</span>
+        {formatRating(candidate.rating) && (
+          <span className="title-card-rating"><Icon name="star" size={11} /> {formatRating(candidate.rating)}</span>
         )}
       </div>
       <div className="title-card-text">

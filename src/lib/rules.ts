@@ -172,7 +172,14 @@ export function reminderText(movie: Movie, now = Date.now()): string {
     return release ? `Releasing ${release}` : "Not yet released";
   }
   if (!movie.remindAt) return "No reminder";
-  return `Remind ${formatReminder(movie.remindAt, now)}`;
+  if (movie.remindAt <= now) return "Due now";
+  return `Reminder ${formatReminder(movie.remindAt, now)}`;
+}
+
+/** A score out of 10 with one decimal ("7.0", "8.4"), or "" when there isn't one. */
+export function formatRating(value: unknown): string {
+  const score = Number(value);
+  return score > 0 ? score.toFixed(1) : "";
 }
 
 export function formatRuntime(minutes?: number): string {
