@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
 import { findExisting } from "../lib/editor";
 import {
-  displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, reminderText, seasonProgress, smartQuotes
+  displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, readerDate, reminderText, seasonProgress, smartQuotes
 } from "../lib/rules";
 import { useAppState } from "../lib/store";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
@@ -229,14 +229,14 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   // "New episode every Wednesday": the last and next episodes a week apart.
   const weekly = show && details?.nextEpisode && details.lastEpisode
     && Math.round((new Date(`${details.nextEpisode.date}T00:00:00`).getTime() - new Date(`${details.lastEpisode.date}T00:00:00`).getTime()) / 86400000) === 7
-    ? new Date(`${details.nextEpisode.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long" })
+    ? new Date(`${readerDate(details.nextEpisode.date)}T00:00:00`).toLocaleDateString(undefined, { weekday: "long" })
     : "";
   const headline = (() => {
     const next = details?.nextEpisode;
     // A show you've caught up on still has news: its next episode.
     if (movie.watched && !(show && next)) return null;
     if (show && next) {
-      return { tone: "green", text: `S${next.season} E${next.episode} · ${dayLabel(next.date)}`, sub: next.name && !/^episode \d+$/i.test(next.name) ? `“${next.name}”` : "" };
+      return { tone: "green", text: `S${next.season} E${next.episode} · ${dayLabel(readerDate(next.date))}`, sub: next.name && !/^episode \d+$/i.test(next.name) ? `“${next.name}”` : "" };
     }
     if (!show && unreleased) {
       const date = details?.regionalRelease || movie.releaseDate || "";

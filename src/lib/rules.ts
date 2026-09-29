@@ -322,6 +322,11 @@ export function setScheduleShift(days: number) {
   scheduleShift = days;
 }
 
+/** An air date as it falls on the reader's calendar. */
+export function readerDate(value: string): string {
+  return shiftIsoDate(value, scheduleShift);
+}
+
 function shiftIsoDate(value: string, days: number): string {
   if (!days || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = new Date(`${value}T12:00:00Z`);
