@@ -81,13 +81,13 @@ export function SettingsPage() {
                 </div>
                 <p className="muted">
                   {syncState.status === "needs-auth"
-                    ? "Google access expired. Reconnect to keep syncing."
+                    ? "Sync paused. Your changes are saved on this device and sync when you resume."
                     : `Last synced ${timeAgo(syncState.lastSyncAt)}.`}
                 </p>
                 {syncState.error && <p className="error">{syncState.error}</p>}
                 <div className="button-row">
                   {syncState.status === "needs-auth" ? (
-                    <button type="button" className="button button-ink" onClick={() => void connect()}>Reconnect</button>
+                    <button type="button" className="button button-ink" onClick={() => void connect()}>Resume sync</button>
                   ) : (
                     <button type="button" className="button button-ink" disabled={syncState.status === "syncing"} onClick={() => void sync()}>
                       {syncState.status === "syncing" ? "Syncing…" : "Sync now"}

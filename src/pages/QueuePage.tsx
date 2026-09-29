@@ -4,7 +4,7 @@ import { Poster } from "../components/Poster";
 import { TitleCard } from "../components/TitleCard";
 import * as actions from "../lib/actions";
 import {
-  displayTitle, formatRating, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
+  displayTitle, formatRating, shortDay, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
 } from "../lib/rules";
 import { connect, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
@@ -224,27 +224,30 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
               <Poster src={upscale(tonight.poster, "w342")} title={tonight.title} className="tonight-poster" />
             </div>
             <div className="tonight-text">
-              <p className="eyebrow on-dark">
-                {!isDueNow(tonight) ? "Tonight's pick" : Number(tonight.remindAt) <= Date.now() ? "Due now" : `Due ${formatReminder(Number(tonight.remindAt))}`}
-              </p>
-              <h2>{displayTitle(tonight)}</h2>
-              <p className="on-dark-muted">
-                {[tonight.mediaType, tonight.year, formatRuntime(tonight.runtimeMinutes), formatRating(tonight.rating) ? `★ ${formatRating(tonight.rating)}` : ""].filter(Boolean).join(" · ")}
-              </p>
+              {/* On a phone this sits over the backdrop, so the pick takes one screen, not two. */}
+              <button type="button" className="tonight-heading" onClick={() => onOpen(tonight.id)} aria-label={`${displayTitle(tonight)}, details`}>
+                <span className={`tonight-when ${isDueNow(tonight) ? "due" : ""}`}>
+                  {!isDueNow(tonight) ? "Tonight's pick" : Number(tonight.remindAt) <= Date.now() ? "Due now" : `Due ${formatReminder(Number(tonight.remindAt))}`}
+                </span>
+                <h2>{displayTitle(tonight)}</h2>
+                <span className="tonight-meta">
+                  {[tonight.mediaType, tonight.year, formatRuntime(tonight.runtimeMinutes), formatRating(tonight.rating) ? `★ ${formatRating(tonight.rating)}` : ""].filter(Boolean).join(" · ")}
+                </span>
+              </button>
               {tonight.tagline && <p className="tonight-tagline">{tonight.tagline}</p>}
-              <div className="button-row">
+              <div className="button-row tonight-actions">
                 <button type="button" className="button button-lime" onClick={() => actions.toggleWatched(tonight.id)}>
                   <Icon name="eye" size={16} /> Watched it
                 </button>
                 <button type="button" className="button button-outline-light" onClick={() => onOpen(tonight.id)}>Details</button>
                 {isDueNow(tonight) && (
-                  <button type="button" className="button button-outline-light" onClick={() => actions.snooze(tonight.id)}>
-                    <Icon name="clock" size={16} /> Snooze a day
+                  <button type="button" className="button button-outline-light icon-when-small" aria-label="Snooze a day" title="Snooze a day" onClick={() => actions.snooze(tonight.id)}>
+                    <Icon name="clock" size={16} /> <span>Snooze a day</span>
                   </button>
                 )}
                 {queue.length > 1 && (
-                  <button type="button" className="button button-outline-light" onClick={() => setSkip((value) => value + 1)}>
-                    <Icon name="shuffle" size={16} /> Another
+                  <button type="button" className="button button-outline-light icon-when-small" aria-label="Another pick" title="Another pick" onClick={() => setSkip((value) => value + 1)}>
+                    <Icon name="shuffle" size={16} /> <span>Another</span>
                   </button>
                 )}
               </div>
@@ -263,7 +266,11 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                   <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
                     <Poster src={movie.poster} title={movie.title} className="radar-poster" />
                     <span className="radar-text">
-                      <span className="radar-when">{hasActiveReminder(movie) ? formatReminder(at) : `Out ${new Date(at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`}</span>
+                      <span className="radar-when">
+                        {hasActiveReminder(movie)
+                          ? <><Icon name="clock" size={11} /> {shortDay(at)}</>
+                          : `Out ${shortDay(at, Date.now(), false).replace(/^(Today|Tomorrow)$/, (day) => day.toLowerCase())}`}
+                      </span>
                       <span className="radar-title">{displayTitle(movie)}</span>
                     </span>
                   </button>
@@ -274,25 +281,23 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
         </section>
       )}
 
-      {sync.connected && <section className="paper titles" id="titles">
+      {sync.connected && <section className="paper titles queue-titles" id="titles">
         <div className="wrap">
           <div className="toolbar">
             <h2 className="section-title">Queue <span className="count">{visible.length}</span></h2>
-            <div className="toolbar-controls">
-              <div className="segmented" role="group" aria-label="Show">
-                {(["all", "movie", "tv"] as KindFilter[]).map((value) => (
-                  <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
-                    {value === "all" ? "All" : value === "movie" ? "Films" : "Shows"}
-                  </button>
-                ))}
-              </div>
-              <label className="select">
-                <span className="visually-hidden">Sort</span>
-                <select value={sort} onChange={(event) => changeSort(event.target.value as SortMode)}>
-                  {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => <option key={mode} value={mode}>{SORT_LABELS[mode]}</option>)}
-                </select>
-              </label>
+            <div className="segmented" role="group" aria-label="Show">
+              {(["all", "movie", "tv"] as KindFilter[]).map((value) => (
+                <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
+                  {value === "all" ? "All" : value === "movie" ? "Films" : "Shows"}
+                </button>
+              ))}
             </div>
+            <label className="select">
+              <span className="visually-hidden">Sort</span>
+              <select value={sort} onChange={(event) => changeSort(event.target.value as SortMode)}>
+                {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => <option key={mode} value={mode}>{SORT_LABELS[mode]}</option>)}
+              </select>
+            </label>
           </div>
 
           {visible.length ? (

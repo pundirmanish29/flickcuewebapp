@@ -30,9 +30,9 @@ export function AccountMenu() {
   const expired = state.status === "needs-auth";
   const failed = state.status === "error";
   const syncing = state.status === "syncing";
-  const label = expired ? "Reconnect" : syncing ? "Syncing" : failed ? "Sync failed" : "Synced";
+  const label = expired ? "Resume sync" : syncing ? "Syncing" : failed ? "Sync failed" : "Synced";
   const status = expired
-    ? "Google access expired. Reconnect to keep syncing."
+    ? "Sync paused. Your changes are saved on this device."
     : syncing ? "Syncing…" : failed ? state.error || "Sync failed." : `Synced ${timeAgo(state.lastSyncAt)}`;
   const viaExtension = getStoredToken()?.source === "extension";
   const titles = library.movies.length;
@@ -50,10 +50,11 @@ export function AccountMenu() {
         ref={trigger}
         type="button"
         className={`sync-pill ${expired || failed ? "warn" : ""}`}
-        aria-haspopup="dialog"
-        aria-expanded={open}
+        aria-haspopup={expired ? undefined : "dialog"}
+        aria-expanded={expired ? undefined : open}
         aria-label={`Account. ${label}`}
-        onClick={() => setOpen((value) => !value)}
+        // Paused, the pill resumes sync in one tap; Google's sign-in needs the tap anyway.
+        onClick={() => (expired ? void connect() : setOpen((value) => !value))}
       >
         {state.account?.photo
           ? <img src={state.account.photo} alt="" referrerPolicy="no-referrer" />
@@ -101,7 +102,7 @@ export function AccountMenu() {
         <div className="account-actions">
           {expired ? (
             <button type="button" className="account-item" onClick={() => connect()}>
-              <Icon name="sync" size={16} /> Reconnect
+              <Icon name="sync" size={16} /> Resume sync
             </button>
           ) : (
             <button type="button" className="account-item" disabled={syncing} onClick={() => void sync()}>

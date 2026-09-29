@@ -163,6 +163,15 @@ export function formatReminder(value: number, now = Date.now()): string {
   return `${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${time}`;
 }
 
+/** A short day for a small label: "9:00 PM" (or "Today") today, "Tomorrow", "Fri", else "Oct 13". */
+export function shortDay(value: number, now = Date.now(), withTime = true): string {
+  const date = new Date(value);
+  if (isSameDay(date, new Date(now))) return withTime ? date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "Today";
+  if (isSameDay(date, new Date(now + DAY))) return "Tomorrow";
+  if (value > now && value - now < 6 * DAY) return date.toLocaleDateString(undefined, { weekday: "short" });
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export function reminderText(movie: Movie, now = Date.now()): string {
   if (movie.watched) {
     const at = knownWatchedAt(movie);

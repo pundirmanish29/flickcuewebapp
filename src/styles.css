@@ -53,6 +53,7 @@
     --red: #ff7b6b;
     color-scheme: dark;
   }
+  :root .select select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23f4f1e8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
 }
 
 @media (prefers-contrast: more) {
@@ -387,33 +388,44 @@ a { color: inherit; }
 }
 .tonight-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(11, 13, 15, 0.7), transparent 60%); }
 .tonight-poster { position: relative; z-index: 1; width: 22%; min-width: 72px; border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); }
+.tonight-heading { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tonight-when { display: block; margin-bottom: 12px; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lime); }
+.tonight-meta { display: block; margin-bottom: 16px; color: var(--dark-muted); }
 .tonight-text h2 { margin: 0 0 8px; font-size: clamp(32px, 4.4vw, 56px); line-height: 1; letter-spacing: -0.035em; font-weight: 800; }
 .on-dark-muted { color: var(--dark-muted); margin: 0 0 16px; }
 .tonight-tagline { color: #d9dde1; margin: 0 0 24px; max-width: 52ch; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* ---- Radar ---- */
 
-.radar { padding: clamp(32px, 5vw, 56px) 0 8px; }
+.radar { padding: clamp(28px, 4vw, 48px) 0 0; }
+/* A rail of posters, each with its date on it, like a streaming app's "coming soon" row. */
 .radar-list {
-  list-style: none; margin: 20px 0 0; padding: 0 0 8px; display: flex; gap: 12px; overflow-x: auto;
-  scroll-snap-type: x mandatory;
+  list-style: none; margin: 16px calc(-1 * var(--gutter)) 0; padding: 0 var(--gutter) 8px; display: flex; gap: 12px; overflow-x: auto;
+  scroll-snap-type: x mandatory; scroll-padding: 0 var(--gutter); scrollbar-width: none;
 }
+.radar-list::-webkit-scrollbar { display: none; }
 .radar-list li { scroll-snap-align: start; flex-shrink: 0; }
 .radar-item {
-  display: flex; align-items: center; gap: 12px; width: 260px; padding: 10px; border-radius: 14px;
-  border: 1px solid var(--rule); background: var(--paper-surface); text-align: left;
+  position: relative; display: flex; flex-direction: column; gap: 8px; width: 128px; padding: 0; border: 0;
+  background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
 }
-.radar-item:hover { border-color: var(--ink); }
-.radar-poster { width: 44px; flex-shrink: 0; border-radius: 6px; }
+.radar-poster { width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--rule); transition: transform 180ms ease; }
+.radar-item:hover .radar-poster { transform: translateY(-2px); }
 .radar-text { display: flex; flex-direction: column; min-width: 0; }
-.radar-when { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--orange-ink); }
-.radar-title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.radar-when {
+  position: absolute; top: 6px; left: 6px; max-width: calc(100% - 12px); padding: 3px 7px; border-radius: 6px;
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(11, 13, 15, 0.78); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  color: var(--orange); font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.radar-title { font-size: 14px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* ---- Titles grid ---- */
 
 .titles { padding: clamp(32px, 5vw, 56px) 0 96px; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .toolbar-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.queue-titles .toolbar { display: grid; grid-template-columns: 1fr auto auto; gap: 10px 12px; }
 
 .segmented { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--paper-deep); }
 .segmented button { height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: none; font-weight: 600; font-size: 14px; color: var(--ink-soft); }
@@ -720,28 +732,28 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .watch-on-wrap { position: relative; }
 .watch-on-wrap { display: inline-block; }
 .watch-on-wrap .popover {
-  left: 0; width: min(300px, calc(100vw - 32px)); max-height: min(440px, 62vh); overflow-y: auto; overscroll-behavior: contain;
+  left: 0; width: min(280px, calc(100vw - 32px)); max-height: min(400px, 60vh); overflow-y: auto; overscroll-behavior: contain;
   padding: 6px; border-radius: 18px; color: var(--ink); z-index: 30;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45); animation: watch-in 160ms ease-out; transform-origin: top left;
 }
 @keyframes watch-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
-.watch-group + .watch-group { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--rule); }
+.watch-group + .watch-group { margin-top: 2px; padding-top: 2px; border-top: 1px solid var(--rule); }
 /* A dot in the colour the service costs: green comes with a subscription, orange is paid per title. */
 .watch-list-label {
-  display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px 6px;
-  color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+  display: flex; align-items: center; gap: 7px; margin: 0; padding: 8px 10px 4px;
+  color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.01em;
 }
 .watch-list-label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
 .watch-paid .watch-list-label::before { background: var(--orange); }
 .watch-list { list-style: none; margin: 0; padding: 0; }
 .watch-list a {
-  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 12px 6px 8px; border-radius: 12px;
-  color: var(--ink); font-weight: 600; font-size: 15px; text-decoration: none; transition: background-color 160ms ease;
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 5px 10px 5px 6px; border-radius: 10px;
+  color: var(--ink); font-weight: 600; font-size: 14px; text-decoration: none; transition: background-color 160ms ease;
 }
 .watch-list a:hover, .watch-list a:focus-visible { background: var(--paper-deep); }
-.watch-list a img, .watch-list a b { width: 34px; height: 34px; border-radius: 9px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.watch-list a img, .watch-list a b { width: 28px; height: 28px; border-radius: 7px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
 .watch-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.watch-name small { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.watch-name small { display: block; color: var(--muted); font-size: 11px; font-weight: 500; }
 .watch-list a > svg { color: var(--muted); flex-shrink: 0; transition: color 160ms ease, transform 160ms ease; }
 .watch-list a:hover > svg { color: var(--ink); transform: translate(1px, -1px); }
 /* The trailer plays in the banner itself. */
@@ -935,6 +947,30 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .home .button-row { flex-direction: column; align-items: stretch; }
   .home .button-row .button { width: 100%; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Tonight's pick in one screen: title over the backdrop, actions in one row. */
+  .tonight { padding: 16px 0 4px; }
+  .tonight-grid { gap: 12px; }
+  .tonight-text { display: contents; }
+  .tonight-art { grid-area: 1 / 1; aspect-ratio: 16 / 10; padding: 0; }
+  .tonight-art::after { background: linear-gradient(to top, rgba(11, 13, 15, 0.94), rgba(11, 13, 15, 0.35) 55%, transparent 80%); }
+  .tonight-poster { display: none; }
+  .tonight-heading { grid-area: 1 / 1; align-self: end; position: relative; z-index: 2; padding: 16px; border-radius: 0 0 var(--radius) var(--radius); }
+  .tonight-when { margin-bottom: 6px; font-size: 11px; }
+  .tonight-heading h2 { margin: 0 0 4px; font-size: 26px; overflow-wrap: anywhere; }
+  .tonight-meta { margin: 0; font-size: 13px; color: #d9dde1; }
+  .tonight-tagline { display: none; }
+  .tonight-actions { grid-row: 2; flex-wrap: nowrap; gap: 8px; }
+  .tonight-actions .button { height: 44px; padding: 0 16px; font-size: 15px; }
+  .tonight-actions .button-lime { flex: 1; }
+  .tonight-actions .icon-when-small { width: 44px; padding: 0; flex-shrink: 0; }
+  .tonight-actions .icon-when-small span { display: none; }
+  .radar-item { width: 108px; }
+  .section-title { font-size: 22px; }
+  .queue-titles { padding-top: 28px; }
+  .queue-titles .toolbar { grid-template-columns: 1fr auto; margin-bottom: 16px; }
+  .queue-titles .segmented { grid-column: 1 / -1; grid-row: 2; display: flex; }
+  .queue-titles .segmented button { flex: 1; min-height: 36px; height: 36px; font-size: 14px; }
+  .queue-titles .select select { min-height: 36px; height: 36px; padding: 0 30px 0 12px; font-size: 13px; background-position: right 12px center; }
   .sheet { border-radius: 22px 22px 0 0; margin-bottom: 0; max-height: 94dvh; }
   .sheet-inner { max-height: 94dvh; }
   .sheet-hero { height: 180px; }
@@ -951,7 +987,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .sheet-head { flex-direction: row; align-items: flex-start; gap: 14px; }
   .sheet-poster { width: 104px; }
   /* The pill sits beside the poster; its list lines up with the sheet's edge instead of running off it. */
-  .watch-on-wrap .popover { left: -118px; width: calc(100vw - 40px); max-width: 360px; }
+  .watch-on-wrap .popover { left: -118px; width: min(280px, calc(100vw - 40px)); }
   .sheet-heading h2 { font-size: clamp(22px, 6.2vw, 27px); line-height: 1.08; overflow-wrap: anywhere; }
   .sheet-meta { gap: 6px 8px; font-size: 10px; }
   .score-row { gap: 4px 11px; margin-top: 8px; font-size: 13px; }
