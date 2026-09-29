@@ -36,38 +36,41 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false }: {
 
   return (
     <article className="title-card candidate-card">
-      {/* The poster and name open its full details, saved or not. */}
-      <button
-        type="button"
-        className="title-card-open"
-        onClick={() => (saved ? onOpenSaved(saved.id) : openPreview(candidate))}
-        aria-label={`Details for ${title}`}
-      >
-      <div className="title-card-art">
-        <Poster src={upscale(candidate.poster, "w342")} title={candidate.title} />
-        {isUnreleased(candidate) && <span className="badge badge-amber">SOON</span>}
-        {formatRating(candidate.rating) && (
-          <span className="title-card-rating"><Icon name="star" size={11} /> {formatRating(candidate.rating)}</span>
+      <div className="candidate-art-wrap">
+        {/* The poster and name open its full details, saved or not. */}
+        <button
+          type="button"
+          className="title-card-open"
+          onClick={() => (saved ? onOpenSaved(saved.id) : openPreview(candidate))}
+          aria-label={`Details for ${title}`}
+        >
+          <div className="title-card-art">
+            <Poster src={upscale(candidate.poster, "w342")} title={candidate.title} />
+            {isUnreleased(candidate) && <span className="badge badge-amber">SOON</span>}
+            {formatRating(candidate.rating) && (
+              <span className="title-card-rating"><Icon name="star" size={11} /> {formatRating(candidate.rating)}</span>
+            )}
+          </div>
+        </button>
+        {/* Saving sits on the poster, so a row of results isn't a row of buttons. */}
+        {saved ? (
+          <button type="button" className="candidate-quick saved" onClick={() => onOpenSaved(saved.id)} aria-label={`${title}: ${saved.watched ? "watched" : "in your queue"}`} title={saved.watched ? "Watched" : "In your queue"}>
+            <Icon name="check" size={17} />
+          </button>
+        ) : (
+          <button type="button" className="candidate-quick" onClick={() => setAsking(true)} aria-expanded={asking} aria-label={`Save ${title}`} title="Save">
+            <Icon name="plus" size={18} />
+          </button>
         )}
       </div>
-      <div className="title-card-text">
+      <button type="button" className="title-card-open title-card-text" onClick={() => (saved ? onOpenSaved(saved.id) : openPreview(candidate))} tabIndex={-1} aria-hidden="true">
         <h3>{title}</h3>
         <p className="meta">{[candidate.mediaType, candidate.year].filter(Boolean).join(" · ")}</p>
         {candidate.reason
           ? <p className="candidate-reason">{candidate.reason}</p>
           : candidate.overview && <p className="candidate-overview">{candidate.overview}</p>}
-      </div>
       </button>
       <div className="candidate-save">
-        {saved ? (
-          <button type="button" className="button button-quiet small" onClick={() => onOpenSaved(saved.id)}>
-            <Icon name="check" size={15} /> {saved.watched ? "Watched" : "In your queue"}
-          </button>
-        ) : (
-          <button type="button" className="button button-ink small" onClick={() => setAsking(true)} aria-expanded={asking}>
-            <Icon name="plus" size={15} /> Save
-          </button>
-        )}
         {showtimes && (
           <button type="button" className="showtimes-button" onClick={() => setShowing((open) => !open)} aria-expanded={showing}>
             <Icon name="clock" size={14} /> Showtimes
@@ -78,7 +81,7 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false }: {
           <ShowtimeLinks title={candidate.title} year={candidate.year} />
         </Popover>
         <Popover open={asking} onClose={() => setAsking(false)} label={`Remind me about ${title}`}>
-          <p className="popover-label">Remind me…</p>
+          <p className="popover-label">Save {title} and remind me…</p>
           <ReminderChoices releaseDate={candidate.releaseDate} onPick={save} onNone={() => save(null)} noneLabel="Just save it" />
         </Popover>
       </div>

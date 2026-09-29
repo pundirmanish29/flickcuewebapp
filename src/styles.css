@@ -153,7 +153,8 @@ a { color: inherit; }
 .site-header {
   position: sticky; top: 0; z-index: 20;
   height: var(--header);
-  background: rgba(11, 13, 15, 0.78);
+  /* Near-solid, so it stays night-dark over the light theme's paper too. */
+  background: rgba(11, 13, 15, 0.94);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   color: #fff;
@@ -518,13 +519,27 @@ a { color: inherit; }
 @media (hover: none) { .title-card-actions { opacity: 1; transform: none; } }
 
 .candidate-overview { margin: 6px 0 0; font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.candidate-save { position: relative; margin-top: 10px; }
-.candidate-save .button { width: 100%; }
+.candidate-art-wrap { position: relative; }
+.candidate-card .title-card-text { width: 100%; cursor: pointer; }
+/* Save, on the poster's corner: ink with a plus, lime with a tick once it's in the list. */
+.candidate-quick {
+  position: absolute; right: 8px; bottom: 8px; z-index: 1; display: grid; place-items: center; width: 40px; height: 40px;
+  /* Light in both themes: it sits on a poster, not on the page. */
+  border: 0; border-radius: 50%; background: #fffdf8; color: #16181b; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(11, 13, 15, 0.35); transition: transform 160ms ease, background-color 160ms ease;
+}
+.candidate-quick:hover { transform: scale(1.06); }
+.candidate-quick:active { transform: scale(0.94); }
+.candidate-quick.saved { background: var(--lime); color: var(--on-accent); }
+.candidate-save { position: relative; }
 .showtimes-button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 36px; margin-top: 6px;
-  border: 0; border-radius: 999px; background: none; color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: 6px 0 0 -8px; padding: 0 8px;
+  border: 0; border-radius: 999px; background: none; color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px;
   transition: background-color 160ms ease;
 }
+/* The shelf's heading already says it's in cinemas. */
+.cinema-row .candidate-reason { display: none; }
 .showtimes-button:hover { background: var(--paper-deep); }
 .showtime-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .showtime-days { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 16px; padding-bottom: 4px; scrollbar-width: none; }
@@ -823,7 +838,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .saved-line { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
 .more-row { grid-auto-columns: clamp(132px, 30vw, 160px); }
 .more-row .candidate-overview, .more-row .candidate-reason { display: none; }
-.more-row .candidate-save .button { height: 36px; font-size: 14px; }
 .more-row .title-card-text h3 { font-size: 14px; }
 .certification {
   display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; box-shadow: inset 0 0 0 1px currentColor;
@@ -995,6 +1009,23 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .queue-titles .segmented { grid-column: 1 / -1; grid-row: 2; display: flex; }
   .queue-titles .segmented button { flex: 1; min-height: 36px; height: 36px; font-size: 14px; }
   .queue-titles .select select { min-height: 36px; height: 36px; padding: 0 30px 0 12px; font-size: 13px; background-position: right 12px center; }
+  /* Discover: smaller shelf posters, lighter chips and filters. */
+  .cinema-row { grid-auto-columns: 128px; gap: 12px; }
+  .cinema-shelf-head { margin-bottom: 10px; }
+  .cinema-shelf-head h2 { font-size: 19px; }
+  .candidate-card .title-card-text { padding-top: 8px; }
+  .candidate-card .title-card-text h3 { font-size: 14px; }
+  .candidate-card .meta, .candidate-reason, .candidate-overview { font-size: 12px; }
+  .candidate-quick { width: 36px; height: 36px; right: 6px; bottom: 6px; }
+  .category-row { gap: 6px; margin: 0 calc(-1 * var(--gutter)) 12px; padding: 0 var(--gutter) 4px; scrollbar-width: none; }
+  .category-row::-webkit-scrollbar { display: none; }
+  .category, .titles .toolbar .segmented button { min-height: 36px; height: 36px; padding: 0 14px; font-size: 14px; }
+  .titles .toolbar .button.small { height: 36px; min-height: 36px; font-size: 14px; }
+  /* A narrow card's popover would run off the screen: it rises from the bottom instead. */
+  .candidate-card .popover {
+    position: fixed; top: auto; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 40;
+    width: min(420px, calc(100vw - 32px)); transform: translateX(-50%); box-shadow: 0 24px 64px rgba(11, 13, 15, 0.35);
+  }
   .sheet { border-radius: 22px 22px 0 0; margin-bottom: 0; max-height: 94dvh; }
   .sheet-inner { max-height: 94dvh; }
   .sheet-hero { height: 180px; }
