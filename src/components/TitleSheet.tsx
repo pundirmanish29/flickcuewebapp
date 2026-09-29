@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
-import { enrich } from "../lib/editor";
+import { enrich, findExisting } from "../lib/editor";
 import {
   displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, reminderText, seasonProgress
 } from "../lib/rules";
@@ -8,7 +8,7 @@ import { commit, getState, useAppState } from "../lib/store";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { FilmShowtimes } from "./Showtimes";
 import { cinemaKey, fetchDetails, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
-import type { Movie } from "../lib/types";
+import type { Candidate, Movie } from "../lib/types";
 import { Icon } from "./Icon";
 import { Poster } from "./Poster";
 import { ReminderChoices } from "./ReminderMenu";
@@ -47,9 +47,28 @@ function ProviderRow({ label, providers, tone, link }: { label: string; provider
   );
 }
 
-export function TitleSheet({ id, onClose }: { id: string; onClose: () => void }) {
+/** A Discover or search result as a title, for showing it before it's saved. */
+function candidateAsMovie(candidate: Candidate): Movie {
+  return {
+    id: candidate.key, title: candidate.title, year: candidate.year, mediaType: candidate.mediaType,
+    tmdbType: candidate.tmdbType, tmdbId: candidate.tmdbId, releaseDate: candidate.releaseDate,
+    upcoming: candidate.upcoming, poster: candidate.poster, backdrop: candidate.backdrop,
+    rating: candidate.rating, tagline: candidate.overview
+  };
+}
+
+/**
+ * A title's full details: a saved one by `id`, or a Discover/search result
+ * (`candidate`) that isn't saved yet, which offers Save instead of the
+ * list actions and turns into the saved view once it's saved.
+ */
+export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?: Candidate; onClose: () => void }) {
   const { library, settings } = useAppState();
-  const movie = library.movies.find((item) => item.id === id);
+  const saved = id ? library.movies.find((item) => item.id === id) : candidate ? findExisting(library, candidate) ?? undefined : undefined;
+  const movie = saved ?? (candidate ? candidateAsMovie(candidate) : undefined);
+  const isSaved = Boolean(saved);
+  const [playing, setPlaying] = useState(false);
+  const showtimesRef = useRef<HTMLElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const [details, setDetails] = useState<TitleDetails | null>(null);
   const [detailsError, setDetailsError] = useState("");
@@ -74,7 +93,7 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
       .then((result) => {
         if (!live) return;
         setDetails(result);
-        writeBack(movie, result);
+        if (isSaved) writeBack(movie, result);
       })
       .catch((error) => live && setDetailsError(error.message));
     return () => {
@@ -86,8 +105,8 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
 
   // The title was removed (here, or by a sync from another device).
   useEffect(() => {
-    if (!movie) onClose();
-  }, [movie, onClose]);
+    if (id && !saved) onClose();
+  }, [id, saved, onClose]);
   if (!movie) return null;
 
   const title = displayTitle(movie);
@@ -98,6 +117,9 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
   const progress = seasonProgress(movie);
   const imdbRating = Number(movie.imdbRating) || 0;
   const imdbId = details?.imdbId || (movie.imdbId as string | undefined);
+  // Up to three services on the banner: included ones if any, else rent or buy.
+  const included = Boolean(details?.streaming.length);
+  const watchOn = (included ? details!.streaming : details?.rentOrBuy ?? []).slice(0, 3);
 
   return (
     <dialog
@@ -108,28 +130,65 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
       aria-labelledby="sheet-title"
     >
       <div className="sheet-inner">
-        <div className="sheet-hero" style={backdrop ? { backgroundImage: `url(${backdrop})` } : undefined}>
-          <button type="button" className="icon-button sheet-close" onClick={() => dialog.current?.close()} aria-label="Close">
-            <Icon name="close" />
-          </button>
+        <div className={`sheet-hero ${playing ? "playing" : ""}`} style={backdrop ? { backgroundImage: `url(${backdrop})` } : undefined}>
+          {playing && details?.trailerKey ? (
+            <iframe
+              className="sheet-trailer"
+              src={`https://www.youtube-nocookie.com/embed/${details.trailerKey}?autoplay=1&playsinline=1&rel=0`}
+              title={`${title} trailer`}
+              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+              allowFullScreen
+            />
+          ) : details?.trailerKey ? (
+            <button type="button" className="sheet-play" onClick={() => setPlaying(true)} aria-label={`Play the trailer for ${title}`}>
+              <span className="sheet-play-icon"><Icon name="play" size={22} /></span>
+              <span>Trailer</span>
+            </button>
+          ) : null}
+          <div className="sheet-hero-top">
+            {watchOn.length > 0 ? (
+              <a className="watch-on" href={details?.watchLink || undefined} target="_blank" rel="noreferrer" aria-label={`${included ? "Watch on" : "Rent or buy on"} ${watchOn.map((provider) => provider.name).join(", ")}`}>
+                <span>{included ? "Watch on" : "Rent or buy"}</span>
+                {watchOn.map((provider) => (
+                  provider.logo
+                    ? <img key={provider.name} src={provider.logo} alt="" title={provider.name} />
+                    : <b key={provider.name}>{provider.name.slice(0, 2)}</b>
+                ))}
+              </a>
+            ) : showing && !movie.watched ? (
+              <button type="button" className="watch-on" onClick={() => showtimesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+                <Icon name="movie" size={15} /> <span>In cinemas</span>
+              </button>
+            ) : null}
+            <button type="button" className="icon-button sheet-close" onClick={() => dialog.current?.close()} aria-label="Close">
+              <Icon name="close" />
+            </button>
+          </div>
         </div>
 
         <div className="sheet-body">
           <div className="sheet-head">
             <Poster src={upscale(movie.poster, "w342")} title={movie.title} className="sheet-poster" />
             <div className="sheet-heading">
-              <p className="eyebrow">{[movie.mediaType, movie.year, formatRuntime(movie.runtimeMinutes)].filter(Boolean).join(" · ")}</p>
+              <p className="eyebrow sheet-meta">
+                {details?.certification && <span className="certification" title="Age rating">{details.certification}</span>}
+                <span>{[movie.mediaType, movie.year, formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes)].filter(Boolean).join(" · ")}</span>
+              </p>
               <h2 id="sheet-title">{title}</h2>
               <div className="score-row">
-                {formatRating(movie.rating) && <span className="score"><b>{formatRating(movie.rating)}</b> Rating</span>}
+                {formatRating(movie.rating || details?.rating) && <span className="score"><b>{formatRating(movie.rating || details?.rating)}</b> Rating</span>}
                 {imdbRating > 0 && <span className="score"><b>{imdbRating.toFixed(1)}</b> IMDb</span>}
                 {Number(movie.criticScore) >= 0 && movie.criticScore != null && <span className="score"><b>{movie.criticScore}%</b> Critics</span>}
                 {Number(movie.audienceScore) >= 0 && movie.audienceScore != null && <span className="score"><b>{movie.audienceScore}%</b> Audience</span>}
               </div>
-              <p className={`sheet-status ${status ? `tone-${status.tone}` : ""}`}>{status ? status.text : reminderText(movie)}</p>
+              {(status || isSaved || unreleased) && (
+                <p className={`sheet-status ${status ? `tone-${status.tone}` : ""}`}>{status ? status.text : reminderText(movie)}</p>
+              )}
             </div>
           </div>
 
+          {isSaved ? (
+          <>
           <div className="sheet-actions">
             <button
               type="button"
@@ -174,6 +233,33 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
               />
             </div>
           )}
+          </>
+          ) : (
+            <>
+              <div className="sheet-actions">
+                <button type="button" className="button button-ink" aria-expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>
+                  <Icon name="plus" size={16} /> Save
+                </button>
+              </div>
+              {choosingReminder && candidate && (
+                <div className="sheet-panel">
+                  <p className="popover-label">Remind me…</p>
+                  <ReminderChoices
+                    releaseDate={movie.releaseDate}
+                    onPick={(at) => {
+                      actions.addCandidate(candidate, at);
+                      setChoosingReminder(false);
+                    }}
+                    onNone={() => {
+                      actions.addCandidate(candidate, null);
+                      setChoosingReminder(false);
+                    }}
+                    noneLabel="Just save it"
+                  />
+                </div>
+              )}
+            </>
+          )}
 
           <section className="sheet-section">
             {details?.tagline && <p className="tagline">“{details.tagline}”</p>}
@@ -187,7 +273,7 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
           </section>
 
           {showing && !movie.watched && (
-            <section className="sheet-section">
+            <section className="sheet-section" ref={showtimesRef}>
               <h3 className="section-label">In cinemas · showtimes in {place}</h3>
               <FilmShowtimes title={movie.title} year={movie.year} imdb={imdbId} />
             </section>
@@ -204,7 +290,7 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
             <p className="muted small-print">Not streaming in {settings.region} right now. Change the region in Settings.</p>
           )}
 
-          {isShow(movie) && progress.length > 0 && (
+          {isSaved && isShow(movie) && progress.length > 0 && (
             <section className="sheet-section">
               <h3 className="section-label">Episode progress</h3>
               <ul className="season-list">
@@ -256,7 +342,7 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
             </section>
           )}
 
-          <section className="sheet-section">
+          {isSaved && <section className="sheet-section">
             <h3 className="section-label"><label htmlFor="note">Why I saved this</label></h3>
             <textarea
               id="note"
@@ -268,7 +354,7 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
               onChange={(event) => setNote(event.target.value)}
               onBlur={() => actions.setNote(movie.id, note)}
             />
-          </section>
+          </section>}
 
           <div className="sheet-links">
             {details?.trailer && <a className="link-chip" href={details.trailer} target="_blank" rel="noreferrer"><Icon name="play" size={14} /> Trailer</a>}

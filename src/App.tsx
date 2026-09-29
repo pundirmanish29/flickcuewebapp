@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { AccountMenu } from "./components/AccountMenu";
 import { Icon, Logo, type IconName } from "./components/Icon";
 import { TitleSheet } from "./components/TitleSheet";
+import { closePreview, usePreview } from "./lib/preview";
 import { ToastHost } from "./components/Toast";
 import { displayTitle } from "./lib/rules";
 import { connect, getState, startBackgroundSync, useAppState } from "./lib/store";
@@ -101,6 +102,7 @@ export default function App() {
   const { library, sync } = useAppState();
   const [query, setQuery] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
+  const preview = usePreview();
   // On phones search is an icon until tapped; with text in it, it stays open.
   const [searchOpen, setSearchOpen] = useState(false);
   const searching = searchOpen || query !== "";
@@ -153,6 +155,7 @@ export default function App() {
     sessionStorage.setItem("flickcue.lastRoute", route);
     setQuery("");
     setSearchOpen(false);
+    closePreview();
     window.scrollTo({ top: 0 });
   }, [route]);
 
@@ -283,6 +286,7 @@ export default function App() {
       )}
 
       {titleId && !connecting && <TitleSheet key={titleId} id={titleId} onClose={closeTitle} />}
+      {preview && !titleId && <TitleSheet key={preview.key} candidate={preview} onClose={closePreview} />}
       <ToastHost />
     </>
   );

@@ -10,6 +10,7 @@ import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
 import { ShowtimeLinks } from "./Showtimes";
 import { useWhere } from "../lib/useCinemas";
+import { openPreview } from "../lib/preview";
 
 /**
  * A search or Discover result. Saving asks when to be reminded first, as the
@@ -35,6 +36,13 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false }: {
 
   return (
     <article className="title-card candidate-card">
+      {/* The poster and name open its full details, saved or not. */}
+      <button
+        type="button"
+        className="title-card-open"
+        onClick={() => (saved ? onOpenSaved(saved.id) : openPreview(candidate))}
+        aria-label={`Details for ${title}`}
+      >
       <div className="title-card-art">
         <Poster src={upscale(candidate.poster, "w342")} title={candidate.title} />
         {isUnreleased(candidate) && <span className="badge badge-amber">SOON</span>}
@@ -49,6 +57,7 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false }: {
           ? <p className="candidate-reason">{candidate.reason}</p>
           : candidate.overview && <p className="candidate-overview">{candidate.overview}</p>}
       </div>
+      </button>
       <div className="candidate-save">
         {saved ? (
           <button type="button" className="button button-quiet small" onClick={() => onOpenSaved(saved.id)}>

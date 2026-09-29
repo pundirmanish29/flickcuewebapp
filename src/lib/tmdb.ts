@@ -221,6 +221,35 @@ export interface TitleDetails {
   rentOrBuy: Provider[];
   watchLink: string;
   trailer: string;
+  /** The YouTube id of the trailer, for playing it in the page. */
+  trailerKey: string;
+  /** The age rating in the reader's region ("U/A 16+", "PG-13", "TV-MA"), or the US one, or "". */
+  certification: string;
+}
+
+/**
+ * The age rating for a region from TMDB's release_dates (films) or
+ * content_ratings (shows): the region's own if it has one, the US one if not.
+ * For films, a theatrical release's rating beats a premiere's blank one.
+ */
+export function pickCertification(data: any, type: "movie" | "tv", region: string): string {
+  const wanted = [region.toUpperCase(), "US"];
+  if (type === "tv") {
+    const ratings: any[] = data?.content_ratings?.results ?? [];
+    for (const code of wanted) {
+      const found = ratings.find((entry) => entry.iso_3166_1 === code && String(entry.rating || "").trim());
+      if (found) return String(found.rating).trim();
+    }
+    return "";
+  }
+  const countries: any[] = data?.release_dates?.results ?? [];
+  for (const code of wanted) {
+    const dates: any[] = countries.find((entry) => entry.iso_3166_1 === code)?.release_dates ?? [];
+    const rated = dates.filter((entry) => String(entry.certification || "").trim());
+    const best = rated.find((entry) => entry.type === 3) ?? rated.find((entry) => entry.type === 2) ?? rated[0];
+    if (best) return String(best.certification).trim();
+  }
+  return "";
 }
 
 const detailsCache = new Map<string, Promise<TitleDetails>>();
@@ -235,11 +264,16 @@ export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: 
   const cached = detailsCache.get(key);
   if (cached) return cached;
 
-  const request = tmdbGet(`${type}/${movie.tmdbId}`, { append_to_response: "credits,watch/providers,external_ids,videos" })
+  const extra = type === "tv" ? "content_ratings" : "release_dates";
+  const request = tmdbGet(`${type}/${movie.tmdbId}`, { append_to_response: `credits,watch/providers,external_ids,videos,${extra}` })
     .then((data): TitleDetails => {
       const where = data["watch/providers"]?.results?.[region.toUpperCase()] ?? {};
       const rentOrBuy = providers([...(where.rent ?? []), ...(where.buy ?? [])]);
-      const trailer = (data.videos?.results ?? []).find((video: any) => video.site === "YouTube" && video.type === "Trailer");
+      const videos: any[] = (data.videos?.results ?? []).filter((video: any) => video.site === "YouTube" && /^[\w-]{6,20}$/.test(String(video.key)));
+      // An official trailer first, then any trailer, then a teaser.
+      const trailer = videos.find((video) => video.type === "Trailer" && video.official)
+        ?? videos.find((video) => video.type === "Trailer")
+        ?? videos.find((video) => video.type === "Teaser");
       const rating = Number(data.vote_average) || 0;
       return {
         overview: data.overview || "",
@@ -271,7 +305,9 @@ export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: 
         streaming: providers(where.flatrate),
         rentOrBuy: rentOrBuy.filter((item, index) => rentOrBuy.findIndex((other) => other.name === item.name) === index),
         watchLink: where.link || "",
-        trailer: trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : ""
+        trailer: trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : "",
+        trailerKey: trailer ? String(trailer.key) : "",
+        certification: pickCertification(data, type, region)
       };
     });
 
