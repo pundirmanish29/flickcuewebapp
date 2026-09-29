@@ -11,8 +11,14 @@ import type { Candidate, Movie, Season } from "./types";
 const IMAGE_BASE = "https://image.tmdb.org/t/p";
 export class TmdbError extends Error {}
 
+/** The language titles, overviews and taglines come back in; set from Settings. */
+let contentLanguage = "en-US";
+export function setContentLanguage(code: string) {
+  contentLanguage = /^[a-z]{2}-[A-Z]{2}$/.test(code) ? code : "en-US";
+}
+
 async function tmdbGet<T = any>(path: string, params: Record<string, string> = {}): Promise<T> {
-  const search = new URLSearchParams({ language: "en-US", ...params });
+  const search = new URLSearchParams({ language: contentLanguage, ...params });
   let response: Response;
   try {
     response = await fetch(`${PROXY_BASE_URL}/tmdb/${path}?${search}`, { headers: { Accept: "application/json" } });
@@ -360,7 +366,7 @@ export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: 
   const type = movie.tmdbType === "tv" ? "tv" : "movie";
   // The id comes from the synced list: only a number goes into the request path.
   if (!safeTmdbId(movie.tmdbId)) return Promise.reject(new TmdbError("This title has no valid TMDB id."));
-  const key = `${type}:${movie.tmdbId}:${region}`;
+  const key = `${type}:${movie.tmdbId}:${region}:${contentLanguage}`;
   const cached = detailsCache.get(key);
   if (cached) return cached;
 

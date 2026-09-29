@@ -253,7 +253,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   }, [tonight?.id, tonight?.tmdbId, tonight?.tmdbType, needsBackdrop, settings.region]);
   const tonightBackdrop = safeImage(tonight?.backdrop) || (fetchedBackdrop.id === tonight?.id ? fetchedBackdrop.url : "");
 
-  const watching = useMemo(() => watchingShows(library.movies), [library.movies]);
+  const watching = useMemo(() => watchingShows(library.movies), [library.movies, settings.region]);
   useShowScheduleRefresh(library.movies, settings.region || "IN", sync.connected);
 
   // The rows above are shortcuts into the queue; the grid doesn't repeat them, unless searching.

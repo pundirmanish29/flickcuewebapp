@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { AccountMenu } from "./components/AccountMenu";
+import { LanguageMenu, LocationMenu } from "./components/HeaderPrefs";
 import { ScrollJump } from "./components/ScrollJump";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Icon, Logo, type IconName } from "./components/Icon";
@@ -309,6 +310,8 @@ export default function App() {
               <Icon name="search" size={21} />
             </button>
           )}
+          {sync.connected && <LocationMenu />}
+          {sync.connected && <LanguageMenu />}
           <ThemeToggle />
           {sync.connected && <NotificationBell current={route === "notifications"} />}
           <SyncIndicator />

@@ -10,6 +10,9 @@ import { DriveError, fetchAccount, fileVersion, findRemoteFileId, findSettingsFi
 import { readSynced, settingsDirection, SYNCED_KEYS, type SyncedSettings } from "./settingsSync";
 import { getThemeChoice, setThemeChoice, type ThemeChoice } from "./theme";
 import { mergeWatchlists } from "./merge";
+import { airDateShiftDays } from "./regions";
+import { setScheduleShift } from "./rules";
+import { setContentLanguage } from "./tmdb";
 import type { LibraryDocument, SortMode } from "./types";
 
 const LIBRARY_KEY = "flickcue.library";
@@ -50,6 +53,8 @@ export interface Settings {
   theme?: ThemeChoice;
   /** The Queue's sort, synced like the rest. */
   sort?: SortMode;
+  /** The language TMDB titles and overviews come in, synced like the rest. */
+  language?: string;
   /** When a synced setting last changed here, or was taken from Drive; 0 for never. */
   settingsUpdatedAt?: number;
 }
@@ -99,6 +104,12 @@ function willAskExtension(): boolean {
   return canAskExtension() && !extensionSignInOff();
 }
 
+/** Hands the settings that shape lookups and calendars to the modules that use them. */
+function applyRegionAndLanguage(settings: Settings) {
+  setScheduleShift(airDateShiftDays(settings.region));
+  setContentLanguage(settings.language ?? "en-US");
+}
+
 function initialState(onLoad = true): AppState {
   const library = read<LibraryDocument>(LIBRARY_KEY, { movies: [], deleted: [] });
   const stored = read<Partial<SyncState>>(SYNC_KEY, {});
@@ -122,6 +133,7 @@ function initialState(onLoad = true): AppState {
 }
 
 let state: AppState = initialState();
+applyRegionAndLanguage(state.settings);
 const listeners = new Set<() => void>();
 let pushTimer: ReturnType<typeof setTimeout> | undefined;
 let activeSync: Promise<void> | null = null;
@@ -182,6 +194,7 @@ export function updateSettings(patch: Partial<Settings>, fromDrive = false) {
   const changesSynced = !fromDrive && SYNCED_KEYS.some((key) => key in patch && patch[key] !== state.settings[key]);
   const settings = { ...state.settings, ...patch, ...(changesSynced ? { settingsUpdatedAt: Date.now() } : {}) };
   write(SETTINGS_KEY, settings);
+  applyRegionAndLanguage(settings);
   setState({ settings });
   if (changesSynced && state.sync.connected) {
     clearTimeout(pushTimer);
@@ -196,8 +209,8 @@ export function chooseTheme(choice: ThemeChoice) {
 }
 
 function syncedSettings(): SyncedSettings {
-  const { region, city, letterboxd, letterboxdUnlinked, sort } = state.settings;
-  return { region, city, letterboxd, letterboxdUnlinked, theme: getThemeChoice(), sort: sort ?? "added" };
+  const { region, city, letterboxd, letterboxdUnlinked, sort, language } = state.settings;
+  return { region, city, letterboxd, letterboxdUnlinked, theme: getThemeChoice(), sort: sort ?? "added", language: language ?? "en-US" };
 }
 
 /** Settings sync: whichever side changed last wins. Its failure never fails the list's sync. */

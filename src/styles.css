@@ -776,6 +776,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 @keyframes popover-in { from { opacity: 0; transform: translateY(-4px) scale(0.97); } }
 .popover-label { margin: 0 0 10px; font-weight: 700; }
 
+.header-menu { position: relative; flex-shrink: 0; }
+.header-menu .popover { left: auto; right: 0; width: min(300px, calc(100vw - 32px)); padding: 16px; color: var(--ink); }
+.header-prefs { gap: 14px; }
+.header-prefs select { width: 100%; }
+.header-prefs .hint { margin: 0; font-size: 13px; }
+
 .account-menu { position: relative; flex-shrink: 0; }
 .account-menu .popover { left: auto; right: 0; width: min(320px, calc(100vw - 32px)); padding: 16px; color: var(--ink); }
 .account-menu .account { margin-bottom: 10px; }

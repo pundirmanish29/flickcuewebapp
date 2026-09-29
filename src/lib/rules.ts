@@ -303,6 +303,10 @@ export function scheduleFromAppFields(movie: Movie): ShowSchedule | null {
  * shared.js getShowSchedule.
  */
 export function getShowSchedule(movie: Movie): ShowSchedule | null {
+  return onReaderCalendar(newerSchedule(movie));
+}
+
+function newerSchedule(movie: Movie): ShowSchedule | null {
   const own = movie.showSchedule || null;
   const app = scheduleFromAppFields(movie);
   if (!app) return own;
@@ -310,6 +314,29 @@ export function getShowSchedule(movie: Movie): ShowSchedule | null {
   const lastAired = (schedule: ShowSchedule) => schedule.last?.date || "";
   if (lastAired(app) !== lastAired(own)) return lastAired(app) > lastAired(own) ? app : own;
   return !own.next && app.next ? app : own;
+}
+
+/** Days the reader's calendar runs past TMDB's air dates (see airDateShiftDays); set from Settings. */
+let scheduleShift = 0;
+export function setScheduleShift(days: number) {
+  scheduleShift = days;
+}
+
+function shiftIsoDate(value: string, days: number): string {
+  if (!days || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(`${value}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** The schedule with its episode dates on the reader's calendar; the stored copy is left as TMDB dated it. */
+function onReaderCalendar(schedule: ShowSchedule | null): ShowSchedule | null {
+  if (!schedule || !scheduleShift) return schedule;
+  return {
+    ...schedule,
+    next: schedule.next ? { ...schedule.next, date: shiftIsoDate(schedule.next.date, scheduleShift) } : schedule.next,
+    last: schedule.last ? { ...schedule.last, date: shiftIsoDate(schedule.last.date, scheduleShift) } : schedule.last
+  };
 }
 
 export function getShowStatus(movie: Movie, now = Date.now()): ShowStatus | null {

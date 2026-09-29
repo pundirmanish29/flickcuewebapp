@@ -16,9 +16,11 @@ export interface SyncedSettings {
   theme: ThemeChoice;
   /** The Queue's sort. */
   sort: SortMode;
+  /** TMDB language for titles and overviews. */
+  language: string;
 }
 
-export const SYNCED_KEYS = ["region", "city", "letterboxd", "letterboxdUnlinked", "theme", "sort"] as const;
+export const SYNCED_KEYS = ["region", "city", "letterboxd", "letterboxdUnlinked", "theme", "sort", "language"] as const;
 
 /** Only well-formed values are taken from Drive; anything else keeps this device's. */
 export function readSynced(raw: Record<string, unknown>, fallback: SyncedSettings): SyncedSettings {
@@ -31,7 +33,8 @@ export function readSynced(raw: Record<string, unknown>, fallback: SyncedSetting
     letterboxd: typeof raw.letterboxd === "string" ? letterboxdHandle(raw.letterboxd) : fallback.letterboxd,
     letterboxdUnlinked: typeof raw.letterboxdUnlinked === "boolean" ? raw.letterboxdUnlinked : fallback.letterboxdUnlinked,
     theme: theme ?? fallback.theme,
-    sort: SORTS.includes(raw.sort as SortMode) ? (raw.sort as SortMode) : fallback.sort
+    sort: SORTS.includes(raw.sort as SortMode) ? (raw.sort as SortMode) : fallback.sort,
+    language: typeof raw.language === "string" && /^[a-z]{2}-[A-Z]{2}$/.test(raw.language) ? raw.language : fallback.language
   };
 }
 

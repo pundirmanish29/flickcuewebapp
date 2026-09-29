@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readSynced, settingsDirection, type SyncedSettings } from "./settingsSync";
 
-const here: SyncedSettings = { region: "IN", city: "delhi", letterboxd: "", letterboxdUnlinked: false, theme: "system", sort: "added" };
+const here: SyncedSettings = { region: "IN", city: "delhi", letterboxd: "", letterboxdUnlinked: false, theme: "system", sort: "added", language: "en-US" };
 
 describe("settings sync", () => {
   it("takes the newer side", () => {
@@ -13,7 +13,7 @@ describe("settings sync", () => {
 
   it("reads only well-formed values from Drive", () => {
     expect(readSynced({ region: "US", city: "Austin", letterboxd: "manish", letterboxdUnlinked: false, theme: "dark", sort: "rating" }, here))
-      .toEqual({ region: "US", city: "Austin", letterboxd: "manish", letterboxdUnlinked: false, theme: "dark", sort: "rating" });
+      .toEqual({ region: "US", city: "Austin", letterboxd: "manish", letterboxdUnlinked: false, theme: "dark", sort: "rating", language: "en-US" });
     expect(readSynced({ region: "usa", theme: "neon", city: 4, sort: "random" }, here)).toEqual(here);
   });
 });

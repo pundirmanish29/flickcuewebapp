@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getShowSchedule, getShowStatus } from "./rules";
+import { getShowSchedule, getShowStatus, setScheduleShift } from "./rules";
 import type { Movie, ShowSchedule } from "./types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -79,5 +79,20 @@ describe("choosing between the extension's schedule and the phone's", () => {
 
   it("keeps the extension's schedule as is when the phone added nothing", () => {
     expect(getShowSchedule({ id: "s", title: "S", showSchedule: extensionSchedule(-1) })?.last?.episode).toBe(3);
+  });
+});
+
+describe("episode dates on the reader's calendar", () => {
+  it("runs a day past TMDB's date in India, without touching the stored one", () => {
+    const movie = phoneShow({ nextEpisode: { season: 2, episode: 6, airDate: isoDate(0), name: "Attila" } });
+    expect(getShowSchedule(movie)?.next?.date).toBe(isoDate(0));
+    setScheduleShift(1);
+    try {
+      expect(getShowSchedule(movie)?.next?.date).toBe(isoDate(1));
+      expect(getShowStatus(movie)?.text).toMatch(/tomorrow/i);
+      expect(movie.nextEpisode?.airDate).toBe(isoDate(0));
+    } finally {
+      setScheduleShift(0);
+    }
   });
 });
