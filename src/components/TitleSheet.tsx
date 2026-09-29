@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
 import { enrich, findExisting } from "../lib/editor";
 import {
-  displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, reminderText, seasonProgress
+  displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, reminderText, seasonProgress, smartQuotes
 } from "../lib/rules";
 import { commit, getState, useAppState } from "../lib/store";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
@@ -14,6 +14,7 @@ import { Icon } from "./Icon";
 import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
 import { providerLink, splitChannel } from "../lib/providers";
+import { regionName } from "../lib/cinemas";
 
 /** Writes looked-up details back onto the saved title, the way the extension and the Android app do. */
 function writeBack(movie: Movie, details: TitleDetails) {
@@ -89,7 +90,10 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
         {all.length > shown.length && <em>+{all.length - shown.length}</em>}
         <Icon name="chevron" size={14} />
       </button>
+      {/* On a phone the list rises from the bottom over a dimmed sheet. */}
+      {open && <div className="watch-scrim" aria-hidden="true" />}
       <Popover open={open} onClose={close} label="Where to watch" anchor={trigger}>
+        <p className="watch-sheet-title">Where to watch <b>{title.replace(/\s*\(\d{4}\)$/, "")}</b></p>
         {groups.map((group) => (
           <section key={group.tone} className={`watch-group watch-${group.tone}`} aria-label={group.label}>
             <p className="watch-list-label">{group.label}</p>
@@ -325,12 +329,12 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
                   </span>
                 )}
                 {Number(movie.criticScore) >= 0 && movie.criticScore != null && (
-                  <span className="score" title="Critics" aria-label={`Critics ${movie.criticScore}%`}>
+                  <span className="score score-critics" title="Critics" aria-label={`Critics ${movie.criticScore}%`}>
                     <Icon name="tomato" size={14} /> {movie.criticScore}%
                   </span>
                 )}
                 {Number(movie.audienceScore) >= 0 && movie.audienceScore != null && (
-                  <span className="score" title="Audience" aria-label={`Audience ${movie.audienceScore}%`}>
+                  <span className="score score-audience" title="Audience" aria-label={`Audience ${movie.audienceScore}%`}>
                     <Icon name="popcorn" size={14} /> {movie.audienceScore}%
                   </span>
                 )}
@@ -439,8 +443,8 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           )}
 
           <section className="sheet-section">
-            {details?.tagline && <p className="tagline">“{details.tagline}”</p>}
-            <p className="overview">{details?.overview || movie.tagline || (movie.tmdbId ? "" : "No synopsis for a title added by hand.")}</p>
+            {details?.tagline && <p className="tagline">“{smartQuotes(details.tagline)}”</p>}
+            <p className="overview">{smartQuotes(details?.overview || movie.tagline || "") || (movie.tmdbId ? "" : "No synopsis for a title added by hand.")}</p>
             {!details && movie.tmdbId && !detailsError && <p className="muted loading-text">Loading details…</p>}
             {detailsError && <p className="muted">{detailsError}</p>}
             {(details?.genres.length || movie.genres?.length) ? (
@@ -456,7 +460,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           )}
 
           {details && !showing && !unreleased && !details.streaming.length && !details.rentOrBuy.length && (
-            <p className="muted small-print">Not streaming in {settings.region} right now. Change the region in Settings.</p>
+            <p className="muted small-print">Not streaming in {regionName(settings.region || "IN")} right now.</p>
           )}
 
           {isSaved && isShow(movie) && progress.length > 0 && (

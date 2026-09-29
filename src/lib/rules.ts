@@ -358,3 +358,13 @@ export function gridBadge(movie: Movie, now = Date.now()): { text: string; tone:
   if (isUnreleased(movie, now)) return { text: "SOON", tone: "amber" };
   return null;
 }
+
+/** Typographer's quotes for text from title data: can't → can’t, "Go" → “Go”. */
+export function smartQuotes(text: string): string {
+  return text
+    .replace(/(\w)'(\w)/g, "$1\u2019$2")
+    .replace(/(^|[\s([{\u2014-])'/g, "$1\u2018")
+    .replace(/'/g, "\u2019")
+    .replace(/(^|[\s([{\u2014-])"/g, "$1\u201c")
+    .replace(/"/g, "\u201d");
+}

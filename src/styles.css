@@ -35,6 +35,8 @@
   --header: 64px;
   --gutter: clamp(16px, 4vw, 40px);
 
+  --poster-shadow: 0 10px 26px rgba(22, 24, 27, 0.16);
+
   color-scheme: light;
 }
 
@@ -52,6 +54,7 @@
     --green-ink: #7ee2a1;
     --orange-ink: #ffac73;
     --red: #ff7b6b;
+    --poster-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
   :root:not([data-theme="light"]) .select select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23f4f1e8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
@@ -68,6 +71,7 @@
   --green-ink: #7ee2a1;
   --orange-ink: #ffac73;
   --red: #ff7b6b;
+  --poster-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
 :root[data-theme="dark"] .select select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23f4f1e8' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
@@ -98,7 +102,8 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-padding-top: calc(var(--header) + 16px); }
+/* Night behind the page, so the phone's status bar and overscroll match the header and tab bar in both themes. */
+html { scroll-padding-top: calc(var(--header) + 16px); background: var(--night); }
 
 body {
   margin: 0;
@@ -775,7 +780,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   padding: 6px; border-radius: 18px; color: var(--ink); z-index: 30;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45); animation: watch-in 160ms ease-out; transform-origin: top left;
 }
+@keyframes watch-up { from { opacity: 0; transform: translateY(24px); } }
+@keyframes fade-in { from { opacity: 0; } }
 @keyframes watch-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+.watch-sheet-title { display: none; }
+.watch-scrim { display: none; }
 .watch-group + .watch-group { margin-top: 2px; padding-top: 2px; border-top: 1px solid var(--rule); }
 /* A dot in the colour the service costs: green comes with a subscription, orange is paid per title. */
 .watch-list-label {
@@ -846,17 +855,21 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .sheet-body { position: relative; padding: 0 clamp(20px, 4vw, 40px) 32px; margin-top: -120px; }
 /* Poster and text start level; a long title block runs on below the poster rather than up into the banner. */
 .sheet-head { display: flex; gap: 24px; align-items: flex-start; }
-.sheet-poster { width: 150px; flex-shrink: 0; border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3); }
+.sheet-poster { width: 150px; flex-shrink: 0; border-radius: 12px; box-shadow: var(--poster-shadow); }
 .sheet-heading { min-width: 0; padding-bottom: 4px; }
 .sheet-heading h2 { margin: 0; font-size: clamp(28px, 4.4vw, 44px); line-height: 1; letter-spacing: -0.035em; font-weight: 800; }
 .score-row { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 14px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
 .score { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .score svg { color: var(--muted); }
 .score:first-child svg { color: var(--green); fill: currentColor; }
+/* Critics: a red tomato; audience: an amber popcorn tub. Colour carries them at this size. */
+.score-critics svg { color: #fa320a; fill: currentColor; }
+.score-audience svg { color: #f5a623; }
 .imdb-mark { padding: 1px 4px; border-radius: 3px; background: #f5c518; color: #000; font-size: 10px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; }
 .sheet-status { margin: 8px 0 0; font-weight: 600; }
 .sheet-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 0; }
-.action-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; max-width: 460px; }
+/* Fixed-width slots from the left, so two actions sit together rather than at opposite edges. */
+.action-row { display: grid; grid-auto-flow: column; grid-auto-columns: 80px; justify-content: start; gap: 8px; }
 .action {
   display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: 4px 2px; border: 0; background: none;
   color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; line-height: 1.2; text-align: center; cursor: pointer;
@@ -1026,7 +1039,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
     position: fixed; top: auto; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 40;
     width: min(420px, calc(100vw - 32px)); transform: translateX(-50%); box-shadow: 0 24px 64px rgba(11, 13, 15, 0.35);
   }
-  .sheet { border-radius: 22px 22px 0 0; margin-bottom: 0; max-height: 94dvh; }
+  /* Paper runs on below the sheet, under Safari's floating toolbar, so the page behind never shows through there. */
+  .sheet { border-radius: 22px 22px 0 0; margin-bottom: 0; max-height: 94dvh; box-shadow: 0 240px 0 0 var(--paper); }
+  .sheet-body { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
   .sheet-inner { max-height: 94dvh; }
   .sheet-hero { height: 180px; }
   /* The banner is short on phones: the trailer button becomes a pill in its top-left corner. */
@@ -1042,7 +1057,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .sheet-head { flex-direction: row; align-items: flex-start; gap: 14px; }
   .sheet-poster { width: 104px; }
   /* The pill sits beside the poster; its list lines up with the sheet's edge instead of running off it. */
-  .watch-on-wrap .popover { left: -118px; width: min(280px, calc(100vw - 40px)); }
+  /* The list rises from the bottom over a dimmed sheet, clear of the text beneath. */
+  .watch-scrim { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(11, 13, 15, 0.55); animation: fade-in 160ms ease; }
+  .watch-on-wrap .popover {
+    position: fixed; top: auto; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); width: auto;
+    max-height: 70dvh; padding: 6px 6px 10px; border-radius: 22px; animation: watch-up 200ms ease-out;
+  }
+  .watch-sheet-title { display: block; margin: 0; padding: 12px 10px 4px; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .watch-sheet-title b { color: var(--ink); font-weight: 700; }
+  .sheet-actions { margin-top: 18px; }
   .sheet-heading h2 { font-size: clamp(22px, 6.2vw, 27px); line-height: 1.08; overflow-wrap: anywhere; }
   .sheet-meta { gap: 6px 8px; font-size: 10px; }
   .score-row { gap: 4px 11px; margin-top: 8px; font-size: 13px; }
