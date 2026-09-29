@@ -10,7 +10,7 @@ import { pickSeeds, savedKeys } from "../lib/discover";
 import { findExisting } from "../lib/editor";
 import { displayTitle } from "../lib/rules";
 import { useAppState } from "../lib/store";
-import { browse, DISCOVER_CATEGORIES, recommendFrom, searchTitles, upscale, type PersonMatch } from "../lib/tmdb";
+import { browse, DISCOVER_CATEGORIES, IN_CINEMAS, recommendFrom, searchTitles, upscale, type PersonMatch } from "../lib/tmdb";
 import type { Candidate, KindFilter } from "../lib/types";
 
 type Load =
@@ -166,8 +166,49 @@ function Results({ items, onOpen }: { items: Candidate[]; onOpen: (id: string) =
   );
 }
 
+/** "India", from a region code, for headings; the code itself when the browser can't name it. */
+function regionName(code: string): string {
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" }).of(code.toUpperCase()) || code;
+  } catch {
+    return code;
+  }
+}
+
+/** What's showing in cinemas in the reader's region, as a row above the lists. */
+function CinemaShelf({ region, onOpen, onSeeAll }: { region: string; onOpen: (id: string) => void; onSeeAll: () => void }) {
+  const [items, setItems] = useState<Candidate[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    setItems(null);
+    browse(IN_CINEMAS, 1, region)
+      .then(({ items: found }) => live && setItems(found.slice(0, 12)))
+      .catch(() => live && setItems([]));
+    return () => {
+      live = false;
+    };
+  }, [region]);
+
+  // A failed or empty lookup leaves the rest of Discover as it was.
+  if (items && !items.length) return null;
+  return (
+    <section className="cinema-shelf" aria-labelledby="cinema-shelf-title">
+      <div className="cinema-shelf-head">
+        <h2 id="cinema-shelf-title">In cinemas in {regionName(region)}</h2>
+        <button type="button" className="link-button" onClick={onSeeAll}>See all</button>
+      </div>
+      <div className="cinema-row" aria-busy={!items}>
+        {items
+          ? items.map((item) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} />)
+          : Array.from({ length: 6 }, (_, index) => <div key={index} className="skeleton-card" />)}
+      </div>
+    </section>
+  );
+}
+
 export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; query: string }) {
-  const { library } = useAppState();
+  const { library, settings } = useAppState();
+  const region = settings.region || "IN";
   const seeds = useMemo(() => pickSeeds(library.movies), [library.movies]);
   const saved = useMemo(() => savedKeys(library.movies), [library.movies]);
   // Recommendations follow the seeds, not every edit to the library.
@@ -194,7 +235,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
         ? searchTitles(query.trim()).then((result) => ({ state: "done", items: result.titles, person: result.person }))
         : forYou
           ? recommendFrom(seeds, saved).then((items) => ({ state: "done", items }))
-          : browse(activeCategory).then(({ items, more }) => ({ state: "done", items, more }));
+          : browse(activeCategory, 1, region).then(({ items, more }) => ({ state: "done", items, more }));
       request
         .then((result) => live && setLoad(result))
         .catch((error) => live && setLoad({ state: "error", message: error.message }));
@@ -203,13 +244,13 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
       live = false;
       clearTimeout(timer);
     };
-  }, [category, query, searching, forYou, seedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [category, query, searching, forYou, seedKey, region]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = async () => {
     if (load.state !== "done") return;
     setLoadingMore(true);
     try {
-      const next = await browse(activeCategory, page + 1);
+      const next = await browse(activeCategory, page + 1, region);
       const known = new Set(load.items.map((item) => item.key));
       setLoad({ ...load, items: [...load.items, ...next.items.filter((item) => !known.has(item.key))], more: next.more });
       setPage(page + 1);
@@ -236,6 +277,10 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
 
       <section className="paper titles">
         <div className="wrap">
+          {!searching && category !== IN_CINEMAS.id && (
+            <CinemaShelf region={region} onOpen={onOpen} onSeeAll={() => setCategory(IN_CINEMAS.id)} />
+          )}
+
           {!searching && (
             <div className="category-row" role="tablist" aria-label="Lists">
               {hasSeeds && (

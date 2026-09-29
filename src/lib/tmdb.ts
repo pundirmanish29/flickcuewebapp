@@ -122,6 +122,8 @@ export interface DiscoverCategory {
   path: string;
   params?: Record<string, string>;
   type?: "movie" | "tv";
+  /** Asked for the reader's region: what's in cinemas in India isn't what's in cinemas in the US. */
+  regional?: boolean;
 }
 
 const FOUR_YEARS_AGO = `${new Date().getFullYear() - 4}-01-01`;
@@ -129,6 +131,8 @@ const FOUR_YEARS_AGO = `${new Date().getFullYear() - 4}-01-01`;
 /** The Android app's Discover lists, plus a few for finding something good. */
 export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
   { id: "trending", label: "Trending", path: "trending/all/week" },
+  { id: "now-playing", label: "In cinemas", path: "movie/now_playing", type: "movie", regional: true },
+  { id: "upcoming", label: "Coming soon", path: "movie/upcoming", type: "movie", regional: true },
   { id: "popular-films", label: "Popular films", path: "movie/popular", type: "movie" },
   { id: "top-films", label: "Top rated films", path: "movie/top_rated", type: "movie" },
   {
@@ -137,8 +141,6 @@ export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
     // concert films or TV movies), from the last few years.
     params: { sort_by: "vote_average.desc", "vote_count.gte": "500", "vote_count.lte": "4000", "vote_average.gte": "7.0", "primary_release_date.gte": FOUR_YEARS_AGO, without_genres: "99,10402,10770" }
   },
-  { id: "now-playing", label: "In cinemas", path: "movie/now_playing", type: "movie" },
-  { id: "upcoming", label: "Coming soon", path: "movie/upcoming", type: "movie" },
   { id: "popular-shows", label: "Popular shows", path: "tv/popular", type: "tv" },
   { id: "top-shows", label: "Top rated shows", path: "tv/top_rated", type: "tv" },
   ...([
@@ -149,11 +151,18 @@ export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
   }))
 ];
 
-export async function browse(category: DiscoverCategory, page = 1): Promise<{ items: Candidate[]; more: boolean }> {
-  const data = await tmdbGet(category.path, { include_adult: "false", page: String(page), ...(category.params ?? {}) });
+export const IN_CINEMAS = DISCOVER_CATEGORIES.find((category) => category.id === "now-playing")!;
+
+export async function browse(category: DiscoverCategory, page = 1, region = ""): Promise<{ items: Candidate[]; more: boolean }> {
+  const params: Record<string, string> = { include_adult: "false", page: String(page), ...(category.params ?? {}) };
+  if (category.regional && /^[A-Z]{2}$/i.test(region)) params.region = region.toUpperCase();
+  const data = await tmdbGet(category.path, params);
   const items = dedupe((data.results ?? [])
     .filter((item: any) => item.poster_path && (category.type || item.media_type === "movie" || item.media_type === "tv"))
-    .map((item: any) => toCandidate(item, category.type)));
+    .map((item: any) => toCandidate(item, category.type)))
+    // The list itself is the news: say so on each card. (Its release_date is
+    // the first release anywhere, not this region's, so no date is claimed.)
+    .map((item) => (category.id === "now-playing" ? { ...item, reason: "In cinemas now" } : item));
   return { items, more: page < Math.min(Number(data.total_pages) || 1, 10) };
 }
 
