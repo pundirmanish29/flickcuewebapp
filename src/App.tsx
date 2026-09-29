@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { AccountMenu } from "./components/AccountMenu";
+import { ScrollJump } from "./components/ScrollJump";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Icon, Logo, type IconName } from "./components/Icon";
 import { TitleSheet } from "./components/TitleSheet";
@@ -350,6 +351,7 @@ export default function App() {
       {/* A title opened from "More like this" sits over the saved one; closing it goes back. */}
       {titleId && !connecting && !preview && <TitleSheet key={titleId} id={titleId} onClose={closeTitle} />}
       {preview && <TitleSheet key={preview.key} candidate={preview} onClose={closePreview} />}
+      <ScrollJump />
       <ToastHost />
     </>
   );
