@@ -749,6 +749,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .trailer-close { background: rgba(255, 255, 255, 0.08); border-color: transparent; color: #fff; }
 .sheet-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .sheet-credit { margin: 6px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.35; }
+/* The title block can start over a busy banner; a glow in the page colour keeps it legible in either theme. */
+.sheet-meta, .sheet-heading h2, .sheet-credit { text-shadow: 0 0 10px var(--paper), 0 0 2px var(--paper); }
 .sheet-facts { margin: 4px 0 0; color: var(--ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
 .sheet-status.tone-green, .sheet-status.tone-amber { font-weight: 700; }
 .take { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 15px; }
@@ -768,7 +770,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   color: var(--ink); font-size: 11px; font-weight: 700; letter-spacing: 0.02em; text-transform: none;
 }
 .sheet-body { position: relative; padding: 0 clamp(20px, 4vw, 40px) 32px; margin-top: -120px; }
-.sheet-head { display: flex; gap: 24px; align-items: flex-end; }
+/* Poster and text start level; a long title block runs on below the poster rather than up into the banner. */
+.sheet-head { display: flex; gap: 24px; align-items: flex-start; }
 .sheet-poster { width: 150px; flex-shrink: 0; border-radius: 12px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3); }
 .sheet-heading { min-width: 0; padding-bottom: 4px; }
 .sheet-heading h2 { margin: 0; font-size: clamp(28px, 4.4vw, 44px); line-height: 1; letter-spacing: -0.035em; font-weight: 800; }
@@ -776,6 +779,23 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .score b { color: var(--ink); font-size: 16px; }
 .sheet-status { margin: 8px 0 0; font-weight: 600; }
 .sheet-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 0; }
+.action-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; max-width: 460px; }
+.action {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: 4px 2px; border: 0; background: none;
+  color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; line-height: 1.2; text-align: center; cursor: pointer;
+}
+.action > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.action-icon {
+  display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--rule);
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.action:hover:not(:disabled) .action-icon { box-shadow: inset 0 0 0 1px var(--ink); }
+.action:active:not(:disabled) .action-icon { transform: scale(0.94); }
+.action.primary .action-icon { background: var(--ink); color: var(--on-ink); box-shadow: none; }
+.action.on .action-icon { background: var(--lime); color: var(--on-accent); box-shadow: none; }
+.action.danger:hover .action-icon { box-shadow: inset 0 0 0 1px var(--orange); color: var(--orange); }
+.action:disabled { color: var(--muted); cursor: default; }
+.action:disabled .action-icon { opacity: 0.5; }
 .sheet-panel { margin-top: 14px; padding: 14px; border-radius: 14px; background: var(--paper-surface); border: 1px solid var(--rule); }
 .sheet-section { margin-top: 28px; }
 .section-label { margin: 0 0 12px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); }
@@ -908,7 +928,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .sheet-hero-top { left: auto; }
   .sheet-body { margin-top: -90px; }
   /* Poster and title side by side, so the space beside the poster isn't wasted. */
-  .sheet-head { flex-direction: row; align-items: flex-end; gap: 14px; }
+  .sheet-head { flex-direction: row; align-items: flex-start; gap: 14px; }
   .sheet-poster { width: 104px; }
   /* The pill sits beside the poster; its list lines up with the sheet's edge instead of running off it. */
   .watch-on-wrap .popover { left: -118px; width: calc(100vw - 40px); max-width: 360px; }

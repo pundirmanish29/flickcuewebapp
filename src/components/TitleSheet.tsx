@@ -220,9 +220,11 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   })();
 
   const episodesSeen = progress.reduce((sum, season) => sum + season.seen, 0);
+  // The status line may already name the seasons ("Canceled · 2 seasons"); don't say it twice.
+  const statusNamesSeasons = /\bseasons?\b/i.test(headline?.text || status?.text || "");
   const facts = show && details?.seasonCount
     ? [
-      `${details.seasonCount} season${details.seasonCount === 1 ? "" : "s"}`,
+      statusNamesSeasons ? "" : `${details.seasonCount} season${details.seasonCount === 1 ? "" : "s"}`,
       details.episodeCount ? `${details.episodeCount} episodes` : "",
       isSaved && episodesSeen ? `${episodesSeen} watched` : ""
     ].filter(Boolean).join(" · ")
@@ -333,36 +335,43 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
 
           {isSaved ? (
           <>
-          <div className="sheet-actions">
+          {/* One row of actions, icon over label, so they fit a phone's width. */}
+          <div className="sheet-actions action-row">
             <button
               type="button"
-              className={`button ${movie.watched ? "button-quiet" : "button-ink"}`}
+              className={`action ${movie.watched ? "" : "primary"}`}
               disabled={!movie.watched && unreleased}
               onClick={() => actions.toggleWatched(movie.id)}
             >
-              <Icon name={movie.watched ? "eyeOff" : "eye"} size={16} />
-              {movie.watched ? "Back to queue" : unreleased ? "Not out yet" : "Mark watched"}
+              <span className="action-icon"><Icon name={movie.watched ? "eyeOff" : "eye"} size={20} /></span>
+              <span>{movie.watched ? "Unwatch" : unreleased ? "Not out yet" : "Mark watched"}</span>
             </button>
             {!movie.watched && (
-              <button type="button" className="button button-quiet" aria-expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>
-                <Icon name="clock" size={16} /> {reminderActive ? "Change reminder" : "Remind me"}
+              <button
+                type="button"
+                className={`action ${reminderActive ? "on" : ""}`}
+                aria-expanded={choosingReminder}
+                aria-label={reminderActive ? "Change reminder" : "Remind me"}
+                onClick={() => setChoosingReminder((open) => !open)}
+              >
+                <span className="action-icon"><Icon name="clock" size={20} /></span>
+                <span>{reminderActive ? "Reminder" : "Remind"}</span>
               </button>
-            )}
-            {!movie.watched && reminderActive && (
-              <button type="button" className="button button-quiet" onClick={() => actions.clearReminder(movie.id)}>Clear reminder</button>
             )}
             {unreleased && !movie.watched && (
               <button
                 type="button"
-                className={`button ${movie.personal?.interested ? "button-lime" : "button-quiet"}`}
+                className={`action ${movie.personal?.interested ? "on" : ""}`}
                 aria-pressed={Boolean(movie.personal?.interested)}
                 onClick={() => actions.setInterested(movie.id, !movie.personal?.interested)}
               >
-                <Icon name="bell" size={16} /> {movie.personal?.interested ? "Interested" : "Interested?"}
+                <span className="action-icon"><Icon name="bell" size={20} /></span>
+                <span>Interested</span>
               </button>
             )}
-            <button type="button" className="button button-quiet danger" onClick={() => actions.removeTitle(movie.id)}>
-              <Icon name="trash" size={16} /> Remove
+            <button type="button" className="action danger" onClick={() => actions.removeTitle(movie.id)}>
+              <span className="action-icon"><Icon name="trash" size={20} /></span>
+              <span>Remove</span>
             </button>
           </div>
 
@@ -374,6 +383,11 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
                   actions.remindAt(movie.id, at);
                   setChoosingReminder(false);
                 }}
+                             onNone={reminderActive ? () => {
+                  actions.clearReminder(movie.id);
+                  setChoosingReminder(false);
+                } : undefined}
+                noneLabel="Clear reminder"
               />
             </div>
           )}
