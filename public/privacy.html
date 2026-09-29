@@ -3,70 +3,122 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="How FlickCue handles your data: your watchlist stays in your browser and your own Google Drive." />
+    <meta name="description" content="How the FlickCue web app handles your data: your watchlist and settings stay in your browser and your own Google Drive." />
     <meta name="theme-color" content="#0b0d0f" />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <link rel="canonical" href="https://flickcue.in/privacy.html" />
     <link rel="stylesheet" href="./fonts/fonts.css" />
     <title>FlickCue Privacy Policy</title>
+    <script>
+      // The light/dark choice made in the app (src/lib/theme.ts), applied before the page paints.
+      try {
+        var theme = localStorage.getItem("flickcue.theme");
+        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      } catch (error) {}
+    </script>
     <style>
-      :root { --bg: #f4f1ea; --ink: #16181b; --muted: #5d6166; --rule: #d9d4c8; --accent: #2f6f4f; }
+      /* The app's paper and ink (src/styles.css). */
+      :root { --night: #0b0d0f; --paper: #f3f0e8; --surface: #fffdf8; --ink: #16181b; --muted: #5d6166; --rule: #d6d0c5; --link: #178a4a; color-scheme: light; }
       @media (prefers-color-scheme: dark) {
-        :root { --bg: #111315; --ink: #eceae4; --muted: #a3a6aa; --rule: #2a2d31; --accent: #d7ff6b; }
+        :root:not([data-theme="light"]) { --paper: #151719; --surface: #1d2023; --ink: #f4f1e8; --muted: #b3b8bd; --rule: #3f454b; --link: #7ee2a1; color-scheme: dark; }
       }
+      :root[data-theme="dark"] { --paper: #151719; --surface: #1d2023; --ink: #f4f1e8; --muted: #b3b8bd; --rule: #3f454b; --link: #7ee2a1; color-scheme: dark; }
       * { box-sizing: border-box; }
-      body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.65 "Archivo", system-ui, sans-serif; }
-      main { max-width: 720px; margin: 0 auto; padding: 48px 16px 80px; }
-      a { color: var(--accent); }
-      .home { font-weight: 800; letter-spacing: 0.08em; font-size: 14px; text-decoration: none; color: var(--ink); }
-      h1 { font-size: clamp(34px, 6vw, 48px); line-height: 1.1; margin: 40px 0 8px; }
-      h2 { font-size: 21px; margin: 40px 0 8px; padding-top: 24px; border-top: 1px solid var(--rule); }
+      html { background: var(--night); }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.65 "Archivo", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+      a { color: var(--link); text-underline-offset: 3px; }
+      .bar { background: var(--night); color: #fff; }
+      .bar-inner, .foot-inner { max-width: 1280px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); display: flex; align-items: center; gap: 16px; }
+      .bar-inner { height: 64px; justify-content: space-between; }
+      .brand { display: inline-flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 800; letter-spacing: 0.08em; font-size: 15px; }
+      .dots { display: inline-flex; gap: 4px; }
+      .dots i { width: 9px; height: 9px; border-radius: 50%; display: block; }
+      .back { color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 8px 14px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2); }
+      .back:hover { background: rgba(255, 255, 255, 0.08); }
+      main { max-width: 720px; margin: 0 auto; padding: 48px clamp(16px, 4vw, 24px) 88px; }
+      h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; letter-spacing: -0.035em; margin: 0 0 8px; font-weight: 800; }
+      h2 { font-size: 21px; letter-spacing: -0.015em; margin: 40px 0 8px; padding-top: 24px; border-top: 1px solid var(--rule); }
       .muted { color: var(--muted); font-size: 15px; }
+      .summary { margin: 24px 0 0; padding: 18px 22px; border-radius: 16px; background: var(--surface); border: 1px solid var(--rule); }
+      .summary ul { margin: 0; }
       ul { padding-left: 22px; }
-      code { font-size: 0.9em; }
+      li + li { margin-top: 6px; }
+      code { font-size: 0.88em; padding: 1px 5px; border-radius: 5px; background: var(--surface); border: 1px solid var(--rule); }
+      .foot { background: var(--night); color: #9aa1a8; padding: 28px 0 36px; font-size: 14px; }
+      .foot-inner { flex-wrap: wrap; }
+      .foot a { color: #9aa1a8; }
     </style>
   </head>
   <body>
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="brand" href="./"><span class="dots" aria-hidden="true"><i style="background:#64d48a"></i><i style="background:#ff8c45"></i><i style="background:#55a9ff"></i></span>FLICKCUE</a>
+        <a class="back" href="./">Back to FlickCue</a>
+      </div>
+    </header>
+
     <main>
-      <a class="home" href="./">← FLICKCUE</a>
       <h1>Privacy Policy</h1>
-      <p class="muted">Last updated 27 September 2026</p>
+      <p class="muted">Last updated 29 September 2026</p>
 
-      <p>FlickCue is a watchlist that works across the web app at flickcue.in, the FlickCue browser extension and the Android app. This page explains what the web app stores, where, and who can see it.</p>
+      <p>This page covers the FlickCue <strong>web app</strong> at flickcue.in. The FlickCue browser extension has <a href="https://github.com/pundirmanish29/flickcue/blob/main/PRIVACY.md">its own privacy policy</a>. The three FlickCue apps (web, extension and Android) share one list, kept in your own Google Drive.</p>
 
-      <h2>The short version</h2>
-      <ul>
-        <li>There are no FlickCue accounts and no FlickCue database. Your watchlist lives in your browser and, if you sign in, in your own Google Drive.</li>
-        <li>FlickCue does not use analytics, advertising or tracking cookies, and does not sell or share your data.</li>
-      </ul>
+      <div class="summary">
+        <ul>
+          <li>There are no FlickCue accounts and no FlickCue database. Your list and settings live in your browser and, once you sign in, in your own Google Drive.</li>
+          <li>No analytics, no advertising, no tracking cookies. Your data isn't sold or shared.</li>
+          <li>Film and show lookups go through FlickCue's title service. They can name titles from your list, but never who you are.</li>
+        </ul>
+      </div>
 
       <h2>What is stored in your browser</h2>
-      <p>The web app keeps your watchlist, settings (such as your streaming region, your city for cinema showtimes and reminder notifications), sort preference and sync status in your browser's local storage, so it works before you sign in and offline. If you sign in, a short-lived Google access token (about one hour) is stored there too. Clearing your site data removes all of it.</p>
+      <p>The web app keeps your list, your settings and a few things about this device in your browser's local storage, so it works before you sign in and offline. That includes your streaming region, city, Letterboxd username, theme and sort; whether alerts are on; which notifications you've seen or dismissed; and sync status. Once you sign in, a short-lived Google access token (about an hour) is kept there too. Clearing site data for flickcue.in removes all of it.</p>
 
       <h2>Google sign-in and Google Drive</h2>
-      <p>Signing in with Google is optional and is used only to sync your watchlist between the web app, the extension and the Android app. FlickCue requests one permission, <code>drive.appdata</code>, which lets it read and write a single hidden file, <code>flickcue-watchlist.json</code>, in the app-data area of your own Drive. FlickCue cannot see any other files in your Drive.</p>
-      <p>FlickCue also reads your Google account name and profile photo to show which account is syncing. This happens in your browser; nothing is sent to a FlickCue server.</p>
-      <p>FlickCue's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. You can remove FlickCue's access at any time from your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.</p>
+      <p>Signing in with Google is optional. It's used only to keep your list and settings in step between your devices and FlickCue's other apps. FlickCue asks for one permission, <code>drive.appdata</code>, which gives it a private app folder in your Drive that only FlickCue can open. It keeps two files there:</p>
+      <ul>
+        <li><code>flickcue-watchlist.json</code>: your list, shared with the extension and the Android app.</li>
+        <li><code>flickcue-settings.json</code>: the web app's settings (streaming region, city, Letterboxd username, theme and Queue sort), so they follow you between browsers.</li>
+      </ul>
+      <p>FlickCue can't see anything else in your Drive. It also reads your Google account's name, email address and photo to show which account is syncing. All of this happens between your browser and Google; nothing goes to a FlickCue server.</p>
+      <p>In Chrome or Edge with the FlickCue extension installed, the web app can use the extension's Google sign-in rather than asking you to sign in again. It's the same account and the same permission.</p>
+      <p>FlickCue's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. You can remove FlickCue's access at any time in your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.</p>
 
       <h2>Film and show information</h2>
-      <p>Titles, posters and ratings come from <a href="https://www.themoviedb.org/">TMDB</a>. When you browse or search, the search terms and title requests go to TMDB through FlickCue's title service (a Cloudflare Worker that adds FlickCue's TMDB key). These requests don't include your watchlist or your Google account. Posters load from TMDB's image servers, and trailers play from YouTube's privacy-enhanced player (youtube-nocookie.com), which loads only when you press play.</p>
-      <p>For a film in cinemas, FlickCue offers links to its showtimes on Google, BookMyShow and District. Your city is used only to build those links; it isn't sent anywhere until you open one, and then only to the site you chose, as part of that link.</p>
-      <p>Where FlickCue lists showtimes itself, opening them sends the film, the date and your city's centre point (not your own location) to FlickCue's title service, which asks MovieGlu, a cinema listings provider, for the nearest shows. Booking a time opens the cinema's own website. Nothing about you or your list goes with these requests.</p>
+      <p>Titles, posters, cast and where-to-watch information come from <a href="https://www.themoviedb.org/">TMDB</a>, through FlickCue's title service: a Cloudflare Worker that adds FlickCue's TMDB key. Requests to it contain:</p>
+      <ul>
+        <li>what you search for, and the lists you browse in Discover;</li>
+        <li>the titles you open, with your streaming region;</li>
+        <li>titles from your list, by their TMDB number: your recent saves for "For you" suggestions, and shows you're watching, to keep their episode schedules current.</li>
+      </ul>
+      <p>They never include your Google account, your name or your list as a whole. Like any website, the title service sees your IP address; it uses it only to limit how many requests one connection can make, and doesn't store or log it.</p>
+      <p>Posters and photos load from TMDB's image servers. Trailers play from YouTube's privacy-enhanced player (youtube-nocookie.com), which loads only when you press play. Links to streaming services, IMDb and Letterboxd open those sites; nothing is sent to them before you do.</p>
+
+      <h2>Cinema showtimes</h2>
+      <p>For a film in cinemas, FlickCue links to its showtimes on Google, BookMyShow and District. Your city goes into those links, and so reaches the site you open, and only then.</p>
+      <p>Where FlickCue lists showtimes itself, it sends the film, the date and your city's centre point (not your own location) to its title service, which asks MovieGlu, a cinema listings provider, for the nearest shows. Booking a time opens the cinema's own website.</p>
 
       <h2>Notifications</h2>
-      <p>If you turn on reminders, your browser shows notifications for titles you scheduled. They are created locally in your browser; no push service is involved.</p>
+      <p>The Notifications page (reminders due, releases, new episodes and seasons of shows you watch) is worked out in your browser from your list. If you turn on alerts, your browser shows them while FlickCue is open, created on your device. No push service is involved and nothing is sent anywhere.</p>
 
       <h2>Deleting your data</h2>
       <ul>
-        <li>Browser data: clear site data for flickcue.in in your browser settings.</li>
-        <li>Synced data: remove FlickCue from your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>, or delete the app data from Google Drive settings under "Manage apps".</li>
+        <li><strong>On one device:</strong> clear site data for flickcue.in in your browser settings. Signing out removes FlickCue's access on that device but leaves your list and settings in your Drive.</li>
+        <li><strong>Everywhere:</strong> in Google Drive, go to Settings, then Manage apps, find FlickCue and choose "Delete hidden app data". That removes both files. Then remove FlickCue from your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.</li>
       </ul>
 
       <h2>Children</h2>
-      <p>FlickCue is not directed at children under 13 and does not knowingly collect their information.</p>
+      <p>FlickCue isn't directed at children under 13 and doesn't knowingly collect their information.</p>
 
       <h2>Changes and contact</h2>
-      <p>If this policy changes, the date at the top will change with it. Questions or requests: <a href="https://github.com/pundirmanish29/flickcuewebapp/issues">open an issue on GitHub</a>.</p>
+      <p>If this policy changes, the date at the top changes with it. For questions or requests, <a href="https://github.com/pundirmanish29/flickcuewebapp/issues">open an issue on GitHub</a>. Issues are public, so please don't include personal details there.</p>
     </main>
+
+    <footer class="foot">
+      <div class="foot-inner">
+        <a class="brand" href="./"><span class="dots" aria-hidden="true"><i style="background:#64d48a"></i><i style="background:#ff8c45"></i><i style="background:#55a9ff"></i></span>FLICKCUE</a>
+        <span>One watchlist on the web, in Chrome and, soon, on Android.</span>
+      </div>
+    </footer>
   </body>
 </html>
