@@ -1,12 +1,12 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
 import { TitleCard } from "../components/TitleCard";
 import * as actions from "../lib/actions";
 import {
-  displayTitle, formatRating, shortDay, seasonProgress, watchingShows, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
+  cardLine, displayTitle, formatRating, getShowStatus, isShow, shortDay, seasonProgress, watchingShows, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
 } from "../lib/rules";
-import { connect, useAppState } from "../lib/store";
+import { connect, updateSettings, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
 import { upscale } from "../lib/tmdb";
 import { EXTENSION_URL } from "../lib/config";
@@ -37,6 +37,14 @@ function Backdrop({ src }: { src: string }) {
       />
     </>
   );
+}
+
+function readLegacySort(): SortMode | "" {
+  try {
+    return (localStorage.getItem("flickcue.sort") as SortMode) || "";
+  } catch {
+    return "";
+  }
 }
 
 const SORT_LABELS: Record<SortMode, string> = {
@@ -161,23 +169,38 @@ function MarketingHome() {
 }
 
 /** Tonight's pick: whatever is due, else the best-reviewed released title, else anything. */
-function pickTonight(queue: Movie[], skip: number): Movie | undefined {
+function pickTonight(queue: Movie[], skip: number): { movie?: Movie; place: number; due: Movie[] } {
   const released = queue.filter((movie) => !isUnreleased(movie));
   const due = sortMovies(released.filter((movie) => isDueNow(movie)), "reminder");
   const rest = sortMovies(released.filter((movie) => !isDueNow(movie)), "rating");
   const order = [...due, ...rest];
-  return order.length ? order[skip % order.length] : undefined;
+  const index = order.length ? skip % order.length : 0;
+  return { movie: order[index], place: index + 1, due };
 }
+
+type QueueFilter = KindFilter | "airing";
+const PAGE = 40;
+
+/** A show that's on air now: new episodes coming, or one you're partway through. */
+const isAiring = (movie: Movie) => {
+  const kind = getShowStatus(movie)?.kind;
+  return isShow(movie) && (kind === "airing" || kind === "season" || kind === "new-episode" || movie.personal?.status === "watching");
+};
 
 export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; query: string }) {
   const { library, sync, settings } = useAppState();
-  const [kind, setKind] = useState<KindFilter>("all");
-  const [sort, setSort] = useState<SortMode>(() => (localStorage.getItem("flickcue.sort") as SortMode) || "added");
+  const [kind, setKind] = useState<QueueFilter>("all");
+  // Synced with the other settings; an older per-device choice is the starting point.
+  const sort: SortMode = settings.sort ?? (readLegacySort() || "added");
   const [skip, setSkip] = useState(0);
+  const [limit, setLimit] = useState(PAGE);
 
   const queue = useMemo(() => library.movies.filter((movie) => !movie.watched), [library.movies]);
   const dueToday = queue.filter((movie) => isDueNow(movie)).length;
-  const tonight = pickTonight(queue, skip);
+  const pick = pickTonight(queue, skip);
+  const tonight = pick.movie;
+  const tonightDue = Boolean(tonight && isDueNow(tonight));
+  const alsoDue = pick.due.filter((movie) => movie.id !== tonight?.id);
 
   const radar = useMemo(() => {
     const now = Date.now();
@@ -187,7 +210,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
         at: hasActiveReminder(movie, now) ? Number(movie.remindAt)
           : isUnreleased(movie, now) && /^\d{4}-\d{2}-\d{2}$/.test(movie.releaseDate || "") ? new Date(`${movie.releaseDate}T20:00:00`).getTime() : 0
       }))
-      .filter((entry) => entry.at > now && entry.movie.id !== tonight?.id)
+      .filter((entry) => entry.at > now && entry.movie.id !== tonight?.id && !isDueNow(entry.movie, now))
       .sort((a, b) => a.at - b.at)
       .slice(0, 8);
   }, [queue, tonight?.id]);
@@ -195,16 +218,16 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   const watching = useMemo(() => watchingShows(library.movies), [library.movies]);
   useShowScheduleRefresh(library.movies, settings.region || "IN", sync.connected);
 
-  const visible = sortMovies(queue.filter((movie) => matchesKind(movie, kind) && matchesSearch(movie, query)), sort);
+  // The rows above are shortcuts into the queue; the grid doesn't repeat them, unless searching.
+  const shownAbove = useMemo(() => new Set([
+    tonight?.id, ...alsoDue.map((movie) => movie.id), ...watching.map((entry) => entry.movie.id), ...radar.map((entry) => entry.movie.id)
+  ].filter(Boolean) as string[]), [tonight?.id, alsoDue, watching, radar]);
+  const matches = queue.filter((movie) => (kind === "airing" ? isAiring(movie) : matchesKind(movie, kind)) && matchesSearch(movie, query));
+  const visible = sortMovies(query ? matches : matches.filter((movie) => !shownAbove.has(movie.id)), sort);
+  const skipped = matches.length - visible.length;
+  useEffect(() => setLimit(PAGE), [kind, sort, query]);
 
-  const changeSort = (mode: SortMode) => {
-    setSort(mode);
-    try {
-      localStorage.setItem("flickcue.sort", mode);
-    } catch {
-      // Remembering the sort is a convenience only.
-    }
-  };
+  const changeSort = (mode: SortMode) => updateSettings({ sort: mode });
 
   return (
     <>
@@ -213,7 +236,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
       ) : (
         <PageHeader
           title="What are we watching?"
-          meta={[dueToday ? `${dueToday} due today` : "", `${queue.length} in your queue`, `${library.movies.length - queue.length} watched`].filter(Boolean).join(" · ")}
+          meta={[dueToday ? `${dueToday} due today` : "", `${queue.length} in your queue`, library.movies.length > queue.length ? `${library.movies.length - queue.length} watched` : ""].filter(Boolean).join(" · ")}
         />
       )}
 
@@ -230,8 +253,9 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
             <div className="tonight-text">
               {/* On a phone this sits over the backdrop, so the pick takes one screen, not two. */}
               <button type="button" className="tonight-heading" onClick={() => onOpen(tonight.id)} aria-label={`${displayTitle(tonight)}, details`}>
-                <span className={`tonight-when ${isDueNow(tonight) ? "due" : ""}`}>
-                  {!isDueNow(tonight) ? "Tonight's pick" : Number(tonight.remindAt) <= Date.now() ? "Due now" : `Due ${formatReminder(Number(tonight.remindAt))}`}
+                <span className={`tonight-when ${tonightDue ? "due" : ""}`}>
+                  {!tonightDue ? "Tonight's pick" : Number(tonight.remindAt) <= Date.now() ? "Due now" : `Due ${formatReminder(Number(tonight.remindAt))}`}
+                  {tonightDue && pick.due.length > 1 && ` · ${pick.place} of ${pick.due.length}`}
                 </span>
                 <h2>{displayTitle(tonight)}</h2>
                 <span className="tonight-meta">
@@ -250,7 +274,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                   </button>
                 )}
                 {queue.length > 1 && (
-                  <button type="button" className="button button-outline-light icon-when-small" aria-label="Another pick" title="Another pick" onClick={() => setSkip((value) => value + 1)}>
+                  <button type="button" className="button button-outline-light icon-when-small" aria-label={tonightDue && pick.place < pick.due.length ? "Next due" : "Another pick"} title={tonightDue && pick.place < pick.due.length ? "Next due" : "Another pick"} onClick={() => setSkip((value) => value + 1)}>
                     <Icon name="shuffle" size={16} /> <span>Another</span>
                   </button>
                 )}
@@ -260,53 +284,73 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
         </section>
       )}
 
-      {sync.connected && watching.length > 0 && (
-        <section className="paper radar watching" aria-labelledby="watching-title">
-          <div className="wrap">
-            <h2 id="watching-title" className="section-title">Watching <span className="count">{watching.length}</span></h2>
-            <ul className="radar-list">
-              {watching.map(({ movie, label, detail, tone }) => {
-                const progress = seasonProgress(movie).filter((season) => season.seen > 0).at(-1);
-                return (
+      {sync.connected && (alsoDue.length > 0 || watching.length > 0 || radar.length > 0) && (
+        // Side by side on a wide screen: each row is short, and a band each would be mostly empty.
+        <section className="paper radar rails">
+          <div className="wrap rails-grid">
+            {alsoDue.length > 0 && (
+              <div className="rail" aria-labelledby="also-due-title">
+                <h2 id="also-due-title" className="section-title">Also due <span className="count">{alsoDue.length}</span></h2>
+                <ul className="radar-list">
+                  {alsoDue.map((movie) => (
+                    <li key={movie.id}>
+                      <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
+                        <Poster src={movie.poster} title={movie.title} className="radar-poster" />
+                        <span className="radar-text">
+                          <span className="radar-when tone-due">{cardLine(movie)}</span>
+                          <span className="radar-title">{displayTitle(movie)}</span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {watching.length > 0 && (
+              <div className="rail" aria-labelledby="watching-title">
+                <h2 id="watching-title" className="section-title">Watching <span className="count">{watching.length}</span></h2>
+                <ul className="radar-list">
+                {watching.map(({ movie, label, detail, tone }) => {
+                  const progress = seasonProgress(movie).filter((season) => season.seen > 0).at(-1);
+                  return (
+                    <li key={movie.id}>
+                      <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
+                        <Poster src={movie.poster} title={movie.title} className="radar-poster" />
+                        <span className="radar-text">
+                          <span className={`radar-when tone-${tone}`}>{label}</span>
+                          <span className="radar-title">{displayTitle(movie)}</span>
+                          {detail && <span className="radar-sub">{detail}</span>}
+                          {progress && <span className="radar-sub">Watched S{progress.number} · {progress.seen} of {progress.total}</span>}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+            </ul>
+              </div>
+            )}
+            {radar.length > 0 && (
+              <div className="rail" aria-labelledby="radar-title">
+                <h2 id="radar-title" className="section-title">On your radar</h2>
+                <ul className="radar-list">
+                {radar.map(({ movie, at }) => (
                   <li key={movie.id}>
                     <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
                       <Poster src={movie.poster} title={movie.title} className="radar-poster" />
                       <span className="radar-text">
-                        <span className={`radar-when tone-${tone}`}>{label}</span>
+                        <span className="radar-when">
+                          {hasActiveReminder(movie)
+                            ? <><Icon name="clock" size={11} /> {shortDay(at)}</>
+                            : `Out ${shortDay(at, Date.now(), false).replace(/^(Today|Tomorrow)$/, (day) => day.toLowerCase())}`}
+                        </span>
                         <span className="radar-title">{displayTitle(movie)}</span>
-                        {detail && <span className="radar-sub">{detail}</span>}
-                        {progress && <span className="radar-sub">Watched S{progress.number} · {progress.seen} of {progress.total}</span>}
                       </span>
                     </button>
                   </li>
-                );
-              })}
+                ))}
             </ul>
-          </div>
-        </section>
-      )}
-
-      {sync.connected && radar.length > 0 && (
-        <section className="paper radar">
-          <div className="wrap">
-            <h2 className="section-title">On your radar</h2>
-            <ul className="radar-list">
-              {radar.map(({ movie, at }) => (
-                <li key={movie.id}>
-                  <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
-                    <Poster src={movie.poster} title={movie.title} className="radar-poster" />
-                    <span className="radar-text">
-                      <span className="radar-when">
-                        {hasActiveReminder(movie)
-                          ? <><Icon name="clock" size={11} /> {shortDay(at)}</>
-                          : `Out ${shortDay(at, Date.now(), false).replace(/^(Today|Tomorrow)$/, (day) => day.toLowerCase())}`}
-                      </span>
-                      <span className="radar-title">{displayTitle(movie)}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -314,11 +358,11 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
       {sync.connected && <section className="paper titles queue-titles" id="titles">
         <div className="wrap">
           <div className="toolbar">
-            <h2 className="section-title">Queue <span className="count">{visible.length}</span></h2>
+            <h2 className="section-title">Queue <span className="count">{matches.length}</span></h2>
             <div className="segmented" role="group" aria-label="Show">
-              {(["all", "movie", "tv"] as KindFilter[]).map((value) => (
+              {(["all", "movie", "tv", "airing"] as QueueFilter[]).map((value) => (
                 <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
-                  {value === "all" ? "All" : value === "movie" ? "Films" : "Shows"}
+                  {value === "all" ? "All" : value === "movie" ? "Films" : value === "tv" ? "Shows" : "Airing"}
                 </button>
               ))}
             </div>
@@ -330,10 +374,20 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
             </label>
           </div>
 
+          {skipped > 0 && visible.length > 0 && <p className="muted small-print queue-note">The {skipped} shown above aren't repeated here.</p>}
           {visible.length ? (
-            <div className="grid">
-              {visible.map((movie) => <TitleCard key={movie.id} movie={movie} onOpen={onOpen} />)}
-            </div>
+            <>
+              <div className="grid">
+                {visible.slice(0, limit).map((movie) => <TitleCard key={movie.id} movie={movie} onOpen={onOpen} />)}
+              </div>
+              {visible.length > limit && (
+                <div className="load-more">
+                  <button type="button" className="button button-quiet" onClick={() => setLimit(limit + PAGE)}>Show more · {visible.length - limit} left</button>
+                </div>
+              )}
+            </>
+          ) : skipped > 0 ? (
+            <p className="empty">Everything here is in the rows above.</p>
           ) : (
             <p className="empty">
               {query ? `Nothing in your queue matches “${query}”.` : queue.length ? "Nothing matches this filter." : "Your queue is empty. Find something in Discover."}

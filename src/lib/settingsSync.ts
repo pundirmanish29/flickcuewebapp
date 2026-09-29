@@ -3,6 +3,9 @@
 // grants them separately.
 
 import type { ThemeChoice } from "./theme";
+import type { SortMode } from "./types";
+
+const SORTS: SortMode[] = ["added", "reminder", "title", "rating", "shortest"];
 
 export interface SyncedSettings {
   region: string;
@@ -10,9 +13,11 @@ export interface SyncedSettings {
   letterboxd: string;
   letterboxdUnlinked: boolean;
   theme: ThemeChoice;
+  /** The Queue's sort. */
+  sort: SortMode;
 }
 
-export const SYNCED_KEYS = ["region", "city", "letterboxd", "letterboxdUnlinked", "theme"] as const;
+export const SYNCED_KEYS = ["region", "city", "letterboxd", "letterboxdUnlinked", "theme", "sort"] as const;
 
 /** Only well-formed values are taken from Drive; anything else keeps this device's. */
 export function readSynced(raw: Record<string, unknown>, fallback: SyncedSettings): SyncedSettings {
@@ -24,7 +29,8 @@ export function readSynced(raw: Record<string, unknown>, fallback: SyncedSetting
     city: text(raw.city, 60) ?? fallback.city,
     letterboxd: text(raw.letterboxd, 40) ?? fallback.letterboxd,
     letterboxdUnlinked: typeof raw.letterboxdUnlinked === "boolean" ? raw.letterboxdUnlinked : fallback.letterboxdUnlinked,
-    theme: theme ?? fallback.theme
+    theme: theme ?? fallback.theme,
+    sort: SORTS.includes(raw.sort as SortMode) ? (raw.sort as SortMode) : fallback.sort
   };
 }
 

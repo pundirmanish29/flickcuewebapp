@@ -478,3 +478,27 @@ export function watchedGroups(movies: Movie[], now = Date.now()): WatchedGroup[]
   if (undated.length) groups.push({ key: "undated", label: "Date not recorded", movies: undated });
   return groups;
 }
+
+/**
+ * The short line under a poster, worded like the rows above the grid:
+ * "Due now", "Reminder Thu", "Out tomorrow", "Watched Sep 25", or nothing
+ * when there's nothing to say.
+ */
+export function cardLine(movie: Movie, now = Date.now()): string {
+  if (movie.watched) {
+    const at = knownWatchedAt(movie);
+    return at ? `Watched ${formatRelativeDay(at, now)}` : "Watched";
+  }
+  if (isUnreleased(movie, now)) {
+    if (!ISO_DATE.test(movie.releaseDate || "")) return "Coming soon";
+    const release = new Date(`${movie.releaseDate}T00:00:00`);
+    const far = release.getTime() - now > 300 * DAY;
+    const day = far ? release.toLocaleDateString(undefined, { month: "short", year: "numeric" }) : shortDay(release.getTime(), now, false);
+    return `Out ${day.replace(/^(Today|Tomorrow)$/, (word) => word.toLowerCase())}`;
+  }
+  const at = Number(movie.remindAt) || 0;
+  if (!at) return "";
+  if (at <= now) return "Due now";
+  if (isDueNow(movie, now)) return "Due tonight";
+  return `Reminder ${shortDay(at, now, false)}`;
+}

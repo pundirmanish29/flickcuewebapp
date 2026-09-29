@@ -1,5 +1,5 @@
 import * as actions from "../lib/actions";
-import { displayTitle, formatRating, getShowStatus, gridBadge, isStartedShow, isUnreleased, reminderText, yourTake } from "../lib/rules";
+import { cardLine, displayTitle, formatRating, getShowStatus, gridBadge, isStartedShow, isUnreleased, yourTake } from "../lib/rules";
 import { upscale } from "../lib/tmdb";
 import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
@@ -18,6 +18,8 @@ export function TitleCard({ movie, onOpen }: { movie: Movie; onOpen: (id: string
   const following = movie.watched && isStartedShow(movie) && (status?.kind === "airing" || status?.kind === "season" || status?.kind === "new-episode");
   const statusLine = status && ((!movie.watched && !(Number(movie.remindAt) > Date.now())) || following) ? status.text : "";
   const take = movie.watched ? yourTake(movie) : { stars: 0, liked: false };
+  // Nothing to say is said with nothing, not "No reminder".
+  const line = statusLine || cardLine(movie);
 
   return (
     <article className="title-card">
@@ -33,11 +35,13 @@ export function TitleCard({ movie, onOpen }: { movie: Movie; onOpen: (id: string
             {[movie.mediaType, movie.year].filter(Boolean).join(" · ")}
             {formatRating(movie.rating) && <>{" · "}<span className="meta-rating"><Icon name="star" size={11} /> {formatRating(movie.rating)}</span></>}
           </p>
-          <p className={`meta ${statusLine ? `tone-${status!.tone}` : ""}`}>
-            {statusLine || reminderText(movie)}
-            {take.stars > 0 && <span className="your-take" aria-label={`You rated it ${take.stars} out of 5`}> · {stars(take.stars)}</span>}
-            {take.liked && <span className="your-heart" aria-label="Liked"> <Icon name="heart" size={11} /></span>}
-          </p>
+          {(line || take.stars > 0 || take.liked) && (
+            <p className={`meta ${statusLine ? `tone-${status!.tone}` : ""}`}>
+              {line}
+              {take.stars > 0 && <span className="your-take" aria-label={`You rated it ${take.stars} out of 5`}>{line ? " · " : ""}{stars(take.stars)}</span>}
+              {take.liked && <span className="your-heart" aria-label="Liked"> <Icon name="heart" size={11} /></span>}
+            </p>
+          )}
         </div>
       </button>
       <div className="title-card-actions">

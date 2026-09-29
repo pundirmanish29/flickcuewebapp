@@ -9,7 +9,7 @@ import { DriveError, fetchAccount, findRemoteFileId, findSettingsFileId, readRem
 import { readSynced, settingsDirection, SYNCED_KEYS, type SyncedSettings } from "./settingsSync";
 import { getThemeChoice, setThemeChoice, type ThemeChoice } from "./theme";
 import { mergeWatchlists } from "./merge";
-import type { LibraryDocument } from "./types";
+import type { LibraryDocument, SortMode } from "./types";
 
 const LIBRARY_KEY = "flickcue.library";
 const SYNC_KEY = "flickcue.sync";
@@ -45,6 +45,8 @@ export interface Settings {
   /** Unlinked here on purpose, so the extension's profile isn't linked again at the next sign-in. */
   letterboxdUnlinked: boolean;
   theme?: ThemeChoice;
+  /** The Queue's sort, synced like the rest. */
+  sort?: SortMode;
   /** When a synced setting last changed here, or was taken from Drive; 0 for never. */
   settingsUpdatedAt?: number;
 }
@@ -191,8 +193,8 @@ export function chooseTheme(choice: ThemeChoice) {
 }
 
 function syncedSettings(): SyncedSettings {
-  const { region, city, letterboxd, letterboxdUnlinked } = state.settings;
-  return { region, city, letterboxd, letterboxdUnlinked, theme: getThemeChoice() };
+  const { region, city, letterboxd, letterboxdUnlinked, sort } = state.settings;
+  return { region, city, letterboxd, letterboxdUnlinked, theme: getThemeChoice(), sort: sort ?? "added" };
 }
 
 /** Settings sync: whichever side changed last wins. Its failure never fails the list's sync. */

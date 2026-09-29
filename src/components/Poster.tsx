@@ -4,6 +4,7 @@ import { placeholderTint, titleInitials } from "../lib/rules";
 /** A poster, falling back to tinted initials when there's no artwork or it fails to load. */
 export function Poster({ src, title, className = "" }: { src?: string; title: string; className?: string }) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   if (!src || failed) {
     return (
@@ -12,5 +13,16 @@ export function Poster({ src, title, className = "" }: { src?: string; title: st
       </div>
     );
   }
-  return <img className={`poster ${className}`} src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />;
+  // Until it arrives, the frame shimmers (styles.css) rather than sitting as a blank box.
+  return (
+    <img
+      className={`poster ${className} ${loaded ? "" : "is-loading"}`}
+      src={src}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      onLoad={() => setLoaded(true)}
+      onError={() => setFailed(true)}
+    />
+  );
 }

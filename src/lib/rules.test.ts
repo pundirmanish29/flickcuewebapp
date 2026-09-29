@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shortDay, showsToRefresh, smartQuotes, watchedGroups, watchingShows, yourTake } from "./rules";
+import { cardLine, shortDay, showsToRefresh, smartQuotes, watchedGroups, watchingShows, yourTake } from "./rules";
 import type { Movie } from "./types";
 
 describe("short day labels", () => {
@@ -71,5 +71,18 @@ describe("watched page", () => {
     expect(yourTake(seen("x", { letterboxd: { rating: 3.5, liked: true } }))).toEqual({ stars: 3.5, liked: true });
     expect(yourTake(seen("y", { personal: { rating: 5, liked: false }, letterboxd: { rating: 3, liked: true } }))).toEqual({ stars: 5, liked: false });
     expect(yourTake(seen("z", {}))).toEqual({ stars: 0, liked: false });
+  });
+});
+
+describe("card line", () => {
+  const now = new Date(2026, 8, 29, 12, 0).getTime();
+  const film = (fields: Partial<Movie>): Movie => ({ id: "f", title: "F", mediaType: "Movie", tmdbType: "movie", releaseDate: "2020-01-01", ...fields });
+  it("says only what matters, in the rows' words", () => {
+    expect(cardLine(film({}), now)).toBe("");
+    expect(cardLine(film({ remindAt: now - 1000 }), now)).toBe("Due now");
+    expect(cardLine(film({ remindAt: new Date(2026, 8, 29, 20, 0).getTime() }), now)).toBe("Due tonight");
+    expect(cardLine(film({ remindAt: new Date(2026, 9, 1, 20, 0).getTime() }), now)).toMatch(/^Reminder \S+$/);
+    expect(cardLine(film({ releaseDate: "2026-09-30" }), now)).toBe("Out tomorrow");
+    expect(cardLine(film({ releaseDate: "2027-12-18" }), now)).toMatch(/^Out Dec 2027$/);
   });
 });
