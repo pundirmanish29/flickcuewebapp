@@ -11,6 +11,32 @@ import { PageHeader } from "../components/PageHeader";
 import { upscale } from "../lib/tmdb";
 import type { KindFilter, Movie, SortMode } from "../lib/types";
 
+/**
+ * The tonight panel's backdrop: a phone-sized copy on small screens, kept hidden
+ * behind a shimmer until it has fully loaded, so it never paints in strips.
+ */
+function Backdrop({ src }: { src: string }) {
+  const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+  if (state === "failed") return null;
+  return (
+    <>
+      {state === "loading" && <span className="tonight-shimmer" aria-hidden="true" />}
+      <img
+        className={`tonight-backdrop ${state === "ready" ? "ready" : ""}`}
+        src={upscale(src, "w1280")}
+        srcSet={`${upscale(src, "w780")} 780w, ${upscale(src, "w1280")} 1280w`}
+        // Phones take the 780 copy even at 3x: plenty sharp under the panel's gradient, a third the download.
+        sizes="(max-width: 600px) 260px, (max-width: 900px) 100vw, 60vw"
+        alt=""
+        decoding="async"
+        fetchPriority="high"
+        onLoad={() => setState("ready")}
+        onError={() => setState("failed")}
+      />
+    </>
+  );
+}
+
 const SORT_LABELS: Record<SortMode, string> = {
   added: "Recently added",
   reminder: "Reminder soonest",
@@ -192,10 +218,9 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
           <div className="wrap tonight-grid">
             <div
               className={`tonight-art ${!tonight.backdrop && tonight.poster ? "poster-only" : ""}`}
-              style={tonight.backdrop
-                ? { backgroundImage: `url(${upscale(tonight.backdrop, "w1280")})` }
-                : tonight.poster ? { ["--art" as string]: `url(${upscale(tonight.poster, "w342")})` } : undefined}
+              style={!tonight.backdrop && tonight.poster ? { ["--art" as string]: `url(${upscale(tonight.poster, "w342")})` } : undefined}
             >
+              {tonight.backdrop && <Backdrop key={tonight.backdrop} src={tonight.backdrop} />}
               <Poster src={upscale(tonight.poster, "w342")} title={tonight.title} className="tonight-poster" />
             </div>
             <div className="tonight-text">
