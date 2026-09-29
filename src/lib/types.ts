@@ -97,6 +97,8 @@ export interface Candidate {
   upcoming: boolean;
   /** Why it was suggested, e.g. "Because you saved Arrival". */
   reason?: string;
+  /** Its main genre, short: "Thriller", "Sci-Fi". */
+  genre?: string;
 }
 
 export type SortMode = "added" | "reminder" | "title" | "rating" | "shortest";

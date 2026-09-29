@@ -11,7 +11,7 @@ import { regionName } from "../lib/cinemas";
 import { findExisting } from "../lib/editor";
 import { displayTitle } from "../lib/rules";
 import { useAppState } from "../lib/store";
-import { browse, DISCOVER_CATEGORIES, IN_CINEMAS, recommendFrom, searchTitles, upscale, type PersonMatch } from "../lib/tmdb";
+import { browse, DISCOVER_CATEGORIES, IN_CINEMAS, recommendFrom, searchTitles, TRENDING_SHOWS, upscale, type DiscoverCategory, type PersonMatch } from "../lib/tmdb";
 import type { Candidate, KindFilter } from "../lib/types";
 
 type Load =
@@ -167,31 +167,42 @@ function Results({ items, onOpen, showtimes = false }: { items: Candidate[]; onO
   );
 }
 
-/** What's showing in cinemas in the reader's region, as a row above the lists. */
-function CinemaShelf({ region, onOpen, onSeeAll }: { region: string; onOpen: (id: string) => void; onSeeAll: () => void }) {
+/**
+ * A row above the lists: what's in cinemas in the reader's region, or this
+ * week's top 10 shows. A failed or empty lookup leaves Discover as it was.
+ */
+function Shelf({ title, category, region, onOpen, onSeeAll, ranked = false, showtimes = false }: {
+  title: string;
+  category: DiscoverCategory;
+  region: string;
+  onOpen: (id: string) => void;
+  onSeeAll: () => void;
+  ranked?: boolean;
+  showtimes?: boolean;
+}) {
   const [items, setItems] = useState<Candidate[] | null>(null);
   useEffect(() => {
     let live = true;
     setItems(null);
-    browse(IN_CINEMAS, 1, region)
-      .then(({ items: found }) => live && setItems(found.slice(0, 12)))
+    browse(category, 1, region)
+      .then(({ items: found }) => live && setItems(found.slice(0, ranked ? 10 : 12)))
       .catch(() => live && setItems([]));
     return () => {
       live = false;
     };
-  }, [region]);
+  }, [category, region, ranked]);
 
-  // A failed or empty lookup leaves the rest of Discover as it was.
   if (items && !items.length) return null;
+  const id = `shelf-${category.id}`;
   return (
-    <section className="cinema-shelf" aria-labelledby="cinema-shelf-title">
+    <section className={`cinema-shelf ${ranked ? "ranked-shelf" : ""}`} aria-labelledby={id}>
       <div className="cinema-shelf-head">
-        <h2 id="cinema-shelf-title">In cinemas in {regionName(region)}</h2>
+        <h2 id={id}>{title}</h2>
         <button type="button" className="link-button" onClick={onSeeAll}>See all</button>
       </div>
       <div className="cinema-row" aria-busy={!items}>
         {items
-          ? items.map((item) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} showtimes />)
+          ? items.map((item, index) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} showtimes={showtimes} rank={ranked ? index + 1 : undefined} />)
           : Array.from({ length: 6 }, (_, index) => <div key={index} className="skeleton-card" />)}
       </div>
     </section>
@@ -269,8 +280,11 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
 
       <section className="paper titles">
         <div className="wrap">
+          {!searching && category !== TRENDING_SHOWS.id && (
+            <Shelf title="Top 10 shows this week" category={TRENDING_SHOWS} region={region} onOpen={onOpen} onSeeAll={() => setCategory(TRENDING_SHOWS.id)} ranked />
+          )}
           {!searching && category !== IN_CINEMAS.id && (
-            <CinemaShelf region={region} onOpen={onOpen} onSeeAll={() => setCategory(IN_CINEMAS.id)} />
+            <Shelf title={`In cinemas in ${regionName(region)}`} category={IN_CINEMAS} region={region} onOpen={onOpen} onSeeAll={() => setCategory(IN_CINEMAS.id)} showtimes />
           )}
 
           {!searching && (

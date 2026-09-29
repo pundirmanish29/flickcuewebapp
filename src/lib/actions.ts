@@ -29,6 +29,14 @@ export function toggleWatched(id: string) {
   );
 }
 
+export function setWatching(id: string, watching: boolean) {
+  apply(
+    editor.setWatching(getState().library, id, watching),
+    (title) => (watching ? `Watching ${title}` : `Stopped watching ${title}`),
+    (before) => commit(before)
+  );
+}
+
 export function remindAt(id: string, at: number) {
   apply(editor.setReminder(getState().library, id, at), (title) => `${title}: reminder ${formatReminder(at)}`);
 }

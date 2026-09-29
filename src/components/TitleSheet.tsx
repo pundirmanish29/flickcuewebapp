@@ -196,9 +196,16 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   ].filter(Boolean).join(" · ");
 
   // The one line that says what's next: the next episode by name, or when a film comes out.
+  const watchingNow = movie.personal?.status === "watching";
+  // "New episode every Wednesday": the last and next episodes a week apart.
+  const weekly = show && details?.nextEpisode && details.lastEpisode
+    && Math.round((new Date(`${details.nextEpisode.date}T00:00:00`).getTime() - new Date(`${details.lastEpisode.date}T00:00:00`).getTime()) / 86400000) === 7
+    ? new Date(`${details.nextEpisode.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long" })
+    : "";
   const headline = (() => {
-    if (movie.watched) return null;
     const next = details?.nextEpisode;
+    // A show you've caught up on still has news: its next episode.
+    if (movie.watched && !(show && next)) return null;
     if (show && next) {
       return { tone: "green", text: `Next: S${next.season} E${next.episode}${next.name && !/^episode \d+$/i.test(next.name) ? ` “${next.name}”` : ""} · ${dayLabel(next.date)}` };
     }
@@ -298,6 +305,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
                 {details?.certification && <span className="certification" title="Age rating">{details.certification}</span>}
                 <span>{[movie.mediaType, movie.year, details?.episodeMinutes ? `${formatRuntime(details.episodeMinutes)} ep` : formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes)].filter(Boolean).join(" · ")}</span>
               </p>
+              {weekly && <p className="sheet-cadence">New episode every {weekly}</p>}
               <h2 id="sheet-title">{title}</h2>
               {credit && <p className="sheet-credit">{credit}</p>}
               <div className="score-row">
@@ -351,8 +359,19 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
               onClick={() => actions.toggleWatched(movie.id)}
             >
               <span className="action-icon"><Icon name={movie.watched ? "eyeOff" : "eye"} size={20} /></span>
-              <span>{movie.watched ? "Unwatch" : unreleased ? "Not out yet" : "Mark watched"}</span>
+              <span>{movie.watched ? "Unwatch" : unreleased ? "Not out yet" : "Watched it"}</span>
             </button>
+            {show && !movie.watched && !unreleased && (
+              <button
+                type="button"
+                className={`action ${watchingNow ? "on" : ""}`}
+                aria-pressed={watchingNow}
+                onClick={() => actions.setWatching(movie.id, !watchingNow)}
+              >
+                <span className="action-icon"><Icon name="play" size={19} /></span>
+                <span>Watching</span>
+              </button>
+            )}
             {!movie.watched && (
               <button
                 type="button"

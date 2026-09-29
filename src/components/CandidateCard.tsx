@@ -16,9 +16,11 @@ import { openPreview } from "../lib/preview";
  * A search or Discover result. Saving asks when to be reminded first, as the
  * extension's on-page card does, so nothing lands carrying a time nobody chose.
  */
-export function CandidateCard({ candidate, onOpenSaved, showtimes = false }: {
+export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank }: {
   candidate: Candidate;
   onOpenSaved: (id: string) => void;
+  /** Its place in a top-10 list, drawn large on the poster. */
+  rank?: number;
   /** In cinemas: offer where to see its showtimes. */
   showtimes?: boolean;
 }) {
@@ -46,6 +48,7 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false }: {
         >
           <div className="title-card-art">
             <Poster src={upscale(candidate.poster, "w342")} title={candidate.title} />
+            {rank && <span className="rank-number" aria-label={`Number ${rank}`}>{rank}</span>}
             {isUnreleased(candidate) && <span className="badge badge-amber">SOON</span>}
             {formatRating(candidate.rating) && (
               <span className="title-card-rating"><Icon name="star" size={11} /> {formatRating(candidate.rating)}</span>
@@ -65,7 +68,7 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false }: {
       </div>
       <button type="button" className="title-card-open title-card-text" onClick={() => (saved ? onOpenSaved(saved.id) : openPreview(candidate))} tabIndex={-1} aria-hidden="true">
         <h3>{title}</h3>
-        <p className="meta">{[candidate.mediaType, candidate.year].filter(Boolean).join(" · ")}</p>
+        <p className="meta">{[rank ? candidate.genre || candidate.mediaType : candidate.mediaType, candidate.year].filter(Boolean).join(" · ")}</p>
         {candidate.reason
           ? <p className="candidate-reason">{candidate.reason}</p>
           : candidate.overview && <p className="candidate-overview">{candidate.overview}</p>}

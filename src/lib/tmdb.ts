@@ -53,9 +53,19 @@ function toCandidate(item: any, defaultType?: "movie" | "tv"): Candidate {
     backdrop: posterUrl(item.backdrop_path, "w780"),
     upcoming: false
   };
+  const genre = (Array.isArray(item.genre_ids) ? item.genre_ids : []).map((id: number) => GENRES[id]).find(Boolean);
+  if (genre) candidate.genre = genre;
   candidate.upcoming = Boolean(date) && isUnreleased(candidate);
   return candidate;
 }
+
+// TMDB's genre ids, films' and shows', named short as streaming apps do.
+const GENRES: Record<number, string> = {
+  28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime", 99: "Documentary", 18: "Drama",
+  10751: "Family", 14: "Fantasy", 36: "History", 27: "Horror", 10402: "Music", 9648: "Mystery", 10749: "Romance",
+  878: "Sci-Fi", 10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western",
+  10759: "Action", 10762: "Kids", 10763: "News", 10764: "Reality", 10765: "Sci-Fi", 10766: "Soap", 10767: "Talk", 10768: "War"
+};
 
 function dedupe(list: Candidate[]): Candidate[] {
   const seen = new Set<string>();
@@ -132,6 +142,7 @@ const FOUR_YEARS_AGO = `${new Date().getFullYear() - 4}-01-01`;
 /** The Android app's Discover lists, plus a few for finding something good. */
 export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
   { id: "trending", label: "Trending", path: "trending/all/week" },
+  { id: "trending-shows", label: "Trending shows", path: "trending/tv/week", type: "tv" },
   { id: "now-playing", label: "In cinemas", path: "movie/now_playing", type: "movie", regional: true },
   { id: "upcoming", label: "Coming soon", path: "movie/upcoming", type: "movie", regional: true },
   { id: "popular-films", label: "Popular films", path: "movie/popular", type: "movie" },
@@ -153,6 +164,7 @@ export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
 ];
 
 export const IN_CINEMAS = DISCOVER_CATEGORIES.find((category) => category.id === "now-playing")!;
+export const TRENDING_SHOWS = DISCOVER_CATEGORIES.find((category) => category.id === "trending-shows")!;
 
 const cinemaLists = new Map<string, Promise<Set<string>>>();
 

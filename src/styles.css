@@ -529,6 +529,13 @@ a { color: inherit; }
 
 .candidate-overview { margin: 6px 0 0; font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .candidate-art-wrap { position: relative; }
+/* A top-10 place, big in the poster's corner as Apple TV draws it. */
+.rank-number {
+  position: absolute; top: 4px; left: 10px; z-index: 1; color: #fff; font-size: clamp(40px, 5vw, 56px); font-weight: 800;
+  line-height: 1; letter-spacing: -0.05em; font-variant-numeric: lining-nums;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55), 0 0 2px rgba(0, 0, 0, 0.4);
+}
+.rank-number::after { content: ""; position: absolute; inset: -12px -40px -24px -20px; z-index: -1; background: radial-gradient(closest-side, rgba(0, 0, 0, 0.35), transparent); }
 .candidate-card .title-card-text { width: 100%; cursor: pointer; }
 /* Save, on the poster's corner: ink with a plus, lime with a tick once it's in the list. */
 .candidate-quick {
@@ -548,7 +555,7 @@ a { color: inherit; }
   transition: background-color 160ms ease;
 }
 /* The shelf's heading already says it's in cinemas. */
-.cinema-row .candidate-reason { display: none; }
+.cinema-row .candidate-reason, .cinema-row .candidate-overview { display: none; }
 .showtimes-button:hover { background: var(--paper-deep); }
 .showtime-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .showtime-days { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 16px; padding-bottom: 4px; scrollbar-width: none; }
@@ -871,6 +878,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .score-audience svg { color: #f5a623; }
 .imdb-mark { padding: 1px 4px; border-radius: 3px; background: #f5c518; color: #000; font-size: 10px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; }
 .sheet-status { margin: 8px 0 0; font-weight: 600; }
+/* Apple TV's "New Episode Every Wednesday": a small pill above the title. */
+.sheet-cadence {
+  display: inline-block; margin: 0 0 8px; padding: 3px 10px; border-radius: 999px;
+  background: var(--paper-deep); color: var(--ink); font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+}
 .sheet-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 0; }
 /* Fixed-width slots from the left, so two actions sit together rather than at opposite edges. */
 .action-row { display: grid; grid-auto-flow: column; grid-auto-columns: 80px; justify-content: start; gap: 8px; }

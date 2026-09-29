@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as editor from "./editor";
 import { mergeWatchlists } from "./merge";
 import { sortMovies, tonightReminder, weekendReminder } from "./rules";
-import type { Candidate, LibraryDocument } from "./types";
+import type { Candidate, LibraryDocument, Movie } from "./types";
 
 const NOW = new Date(2026, 8, 24, 15, 0).getTime();
 
@@ -103,5 +103,20 @@ describe("rules", () => {
       { id: "3", title: "C", runtimeMinutes: 200 }
     ], "shortest");
     expect(sorted.map((movie) => movie.id)).toEqual(["2", "3", "1"]);
+  });
+});
+
+describe("start and stop watching a show", () => {
+  const doc = (movie: Partial<Movie>): LibraryDocument => ({ movies: [{ id: "s", title: "Slow Horses", mediaType: "Show", tmdbType: "tv", releaseDate: "2022-04-01", ...movie } as Movie], deleted: [] });
+  it("marks a show as watching, and a watched one goes back to unwatched", () => {
+    const started = editor.setWatching(doc({}), "s", true, NOW);
+    expect(started.ok && started.movie.personal?.status).toBe("watching");
+    const rewatch = editor.setWatching(doc({ watched: true, watchedAt: 5 }), "s", true, NOW);
+    expect(rewatch.ok && [rewatch.movie.watched, rewatch.movie.watchedAt, rewatch.movie.personal?.status]).toEqual([false, undefined, "watching"]);
+  });
+  it("stops watching back to queued, and refuses films", () => {
+    const stopped = editor.setWatching(doc({ personal: { status: "watching" } }), "s", false, NOW);
+    expect(stopped.ok && stopped.movie.personal?.status).toBe("queued");
+    expect(editor.setWatching(doc({ mediaType: "Movie", tmdbType: "movie" }), "s", true, NOW).ok).toBe(false);
   });
 });
