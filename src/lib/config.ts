@@ -12,3 +12,6 @@ export const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 export const EXTENSION_IDS = ["hmgefidihfkkeleeblhecnhlkbbojmmh", "jojcdljmjbgkpakaacobgnpcfmcambaa"];
 export const PROXY_BASE_URL = ((import.meta.env.VITE_PROXY_URL as string | undefined)?.trim() || "https://flickcue-proxy.manishpundir29.workers.dev").replace(/\/+$/, "");
 
+
+/** The FlickCue extension's Chrome Web Store page. */
+export const EXTENSION_URL = "https://chromewebstore.google.com/detail/flickcue-watch-later/hmgefidihfkkeleeblhecnhlkbbojmmh?hl=en";

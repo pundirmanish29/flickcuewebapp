@@ -5,7 +5,9 @@
 
 import { useSyncExternalStore } from "react";
 import { canAskExtension, getStoredToken, forgetToken, requestExtensionSession, requestToken, revokeToken, storeToken } from "./auth";
-import { DriveError, fetchAccount, findRemoteFileId, readRemote, writeRemote, type Account } from "./drive";
+import { DriveError, fetchAccount, findRemoteFileId, findSettingsFileId, readRemote, readRemoteSettings, writeRemote, writeRemoteSettings, type Account } from "./drive";
+import { readSynced, settingsDirection, SYNCED_KEYS, type SyncedSettings } from "./settingsSync";
+import { getThemeChoice, setThemeChoice, type ThemeChoice } from "./theme";
 import { mergeWatchlists } from "./merge";
 import type { LibraryDocument } from "./types";
 
@@ -25,6 +27,8 @@ export type SyncStatus = "local" | "connecting" | "idle" | "syncing" | "needs-au
 export interface SyncState {
   connected: boolean;
   fileId: string;
+  /** flickcue-settings.json, beside the list in Drive. */
+  settingsFileId?: string;
   account: Account | null;
   lastSyncAt: number;
   status: SyncStatus;
@@ -34,12 +38,15 @@ export interface SyncState {
 export interface Settings {
   region: string;
   notifications: boolean;
-  /** This device's link to a Letterboxd profile, never synced, as in the other clients. */
+  /** The link to a Letterboxd profile; synced between this app's devices through flickcue-settings.json. */
   letterboxd: string;
   /** The reader's city for showtimes: a listed city's id, or a place typed by name. Kept on this device. */
   city: string;
   /** Unlinked here on purpose, so the extension's profile isn't linked again at the next sign-in. */
   letterboxdUnlinked: boolean;
+  theme?: ThemeChoice;
+  /** When a synced setting last changed here, or was taken from Drive; 0 for never. */
+  settingsUpdatedAt?: number;
 }
 
 export interface AppState {
@@ -99,6 +106,7 @@ function initialState(onLoad = true): AppState {
     sync: {
       connected: Boolean(stored.connected),
       fileId: stored.fileId ?? "",
+      settingsFileId: stored.settingsFileId ?? "",
       account: stored.account ?? null,
       lastSyncAt: stored.lastSyncAt ?? 0,
       status: stored.connected ? (getStoredToken() ? "idle" : "needs-auth") : onLoad && willAskExtension() ? "connecting" : "local",
@@ -161,10 +169,55 @@ export function commit(library: LibraryDocument) {
   }
 }
 
-export function updateSettings(patch: Partial<Settings>) {
-  const settings = { ...state.settings, ...patch };
+/**
+ * Changes settings on this device. A change to one that syncs (region, city,
+ * Letterboxd, theme) is stamped and pushed to Drive with the next sync.
+ */
+export function updateSettings(patch: Partial<Settings>, fromDrive = false) {
+  const changesSynced = !fromDrive && SYNCED_KEYS.some((key) => key in patch && patch[key] !== state.settings[key]);
+  const settings = { ...state.settings, ...patch, ...(changesSynced ? { settingsUpdatedAt: Date.now() } : {}) };
   write(SETTINGS_KEY, settings);
   setState({ settings });
+  if (changesSynced && state.sync.connected) {
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => void sync(), PUSH_DELAY);
+  }
+}
+
+/** The light/dark choice: applied now, and synced like the other settings. */
+export function chooseTheme(choice: ThemeChoice) {
+  setThemeChoice(choice);
+  updateSettings({ theme: choice });
+}
+
+function syncedSettings(): SyncedSettings {
+  const { region, city, letterboxd, letterboxdUnlinked } = state.settings;
+  return { region, city, letterboxd, letterboxdUnlinked, theme: getThemeChoice() };
+}
+
+/** Settings sync: whichever side changed last wins. Its failure never fails the list's sync. */
+async function syncSettings(token: string) {
+  try {
+    const fileId = state.sync.settingsFileId || await findSettingsFileId(token);
+    const remote = fileId ? await readRemoteSettings(fileId, token) : null;
+    const direction = settingsDirection(Number(state.settings.settingsUpdatedAt) || 0, remote);
+    if (direction === "pull" && remote) {
+      const values = readSynced(remote.settings, syncedSettings());
+      updateSettings({ ...values, settingsUpdatedAt: remote.updatedAt }, true);
+      if (values.theme !== getThemeChoice()) setThemeChoice(values.theme);
+    } else if (direction === "push") {
+      // A device's first push is stamped now, so its other devices take it.
+      const at = Number(state.settings.settingsUpdatedAt) || Date.now();
+      if (!state.settings.settingsUpdatedAt) updateSettings({ settingsUpdatedAt: at }, true);
+      const nextId = await writeRemoteSettings(fileId, token, at, { ...syncedSettings() });
+      if (nextId !== state.sync.settingsFileId) patchSync({ settingsFileId: nextId });
+      return;
+    }
+    if (fileId && fileId !== state.sync.settingsFileId) patchSync({ settingsFileId: fileId });
+  } catch (error) {
+    // A settings file removed elsewhere is found or made again next time.
+    if (error instanceof DriveError && error.status === 404) patchSync({ settingsFileId: "" });
+  }
 }
 
 /**
@@ -240,6 +293,7 @@ async function runSync() {
     const nextFileId = remoteChanged || !fileId ? await writeRemote(fileId, token.accessToken, merged) : fileId;
     const account = state.sync.account?.email ? state.sync.account : await fetchAccount(token.accessToken);
 
+    await syncSettings(token.accessToken);
     patchSync({ fileId: nextFileId, account: account ?? state.sync.account, lastSyncAt: Date.now(), status: "idle", error: "" });
   } catch (error) {
     if (error instanceof DriveError && error.status === 401) {
@@ -276,7 +330,7 @@ export async function disconnect() {
   if (token && token.source !== "extension") await revokeToken(token.accessToken);
   else forgetToken();
   setExtensionSignInOff(true);
-  patchSync({ connected: false, fileId: "", account: null, lastSyncAt: 0, status: "local", error: "" });
+  patchSync({ connected: false, fileId: "", settingsFileId: "", account: null, lastSyncAt: 0, status: "local", error: "" });
 }
 
 /** Replaces the library with an imported backup, then lets sync merge it. */

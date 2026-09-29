@@ -775,7 +775,36 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 
 /* ---- Settings ---- */
 
-.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 20px; padding-bottom: 96px; }
+/* Two columns of cards at their own heights, so short ones don't sit in tall empty boxes. */
+.settings { columns: 2 380px; column-gap: 20px; padding-bottom: 96px; }
+.settings > .card { break-inside: avoid; margin-bottom: 20px; }
+.card > :last-child { margin-bottom: 0; }
+.field-label { margin-bottom: 6px; font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.note { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--paper-deep); font-size: 14px; line-height: 1.45; }
+.note svg { vertical-align: -2px; }
+/* An on/off switch, the same shape iOS and Android use. */
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; }
+.toggle > span { display: flex; flex-direction: column; gap: 2px; }
+.toggle small { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.toggle.disabled { cursor: default; opacity: 0.6; }
+.toggle input {
+  appearance: none; flex-shrink: 0; position: relative; width: 48px; height: 28px; margin: 0; border-radius: 999px;
+  background: var(--paper-deep); box-shadow: inset 0 0 0 1px var(--rule); cursor: inherit; transition: background-color 180ms ease;
+}
+.toggle input::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 180ms ease;
+}
+.toggle input:checked { background: var(--green); box-shadow: none; }
+.toggle input:checked::after { transform: translateX(20px); }
+.toggle input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.linked-row { margin: 0 0 4px; font-size: 17px; font-weight: 700; }
+.linked-row a { color: var(--ink); text-decoration: none; }
+.linked-row svg { color: var(--muted); vertical-align: -1px; }
+.linked-actions { margin: 0 0 12px; font-size: 14px; color: var(--muted); }
+.about-links { list-style: none; margin: 12px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; font-weight: 600; }
+.about-links a { color: var(--ink); }
+.about-links svg { vertical-align: -1px; color: var(--muted); }
 .card { padding: 24px; border-radius: var(--radius); background: var(--paper-surface); border: 1px solid var(--rule); }
 .card h2 { margin: 0 0 12px; font-size: 22px; letter-spacing: -0.02em; }
 .card p { margin: 0 0 16px; }

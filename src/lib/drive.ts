@@ -26,11 +26,11 @@ async function driveFetch(url: string, token: string, init: RequestInit = {}): P
   return response;
 }
 
-export async function findRemoteFileId(token: string): Promise<string> {
+export async function findRemoteFileId(token: string, name = DRIVE_FILE_NAME): Promise<string> {
   const url = new URL(DRIVE_FILES_URL);
   url.search = new URLSearchParams({
     spaces: "appDataFolder",
-    q: `name = '${DRIVE_FILE_NAME}' and trashed = false`,
+    q: `name = '${name}' and trashed = false`,
     fields: "files(id,modifiedTime)",
     pageSize: "10"
   }).toString();
@@ -50,7 +50,28 @@ export async function readRemote(fileId: string, token: string): Promise<Library
 
 export async function writeRemote(fileId: string, token: string, document: LibraryDocument): Promise<string> {
   const body = JSON.stringify({ version: 1, updatedAt: Date.now(), movies: document.movies, deleted: document.deleted });
+  return writeFile(fileId, token, DRIVE_FILE_NAME, body);
+}
 
+// The web app's settings live in a file of their own beside the list: the
+// other clients rewrite the list file with only the fields they know, so
+// anything added there would be lost at their next sync.
+const SETTINGS_FILE_NAME = "flickcue-settings.json";
+
+export const findSettingsFileId = (token: string) => findRemoteFileId(token, SETTINGS_FILE_NAME);
+
+export async function readRemoteSettings(fileId: string, token: string): Promise<{ updatedAt: number; settings: Record<string, unknown> } | null> {
+  const response = await driveFetch(`${DRIVE_FILES_URL}/${fileId}?alt=media`, token);
+  const data = await response.json().catch(() => null);
+  if (!data || typeof data !== "object" || typeof data.settings !== "object" || !data.settings) return null;
+  return { updatedAt: Number(data.updatedAt) || 0, settings: data.settings };
+}
+
+export function writeRemoteSettings(fileId: string, token: string, updatedAt: number, settings: Record<string, unknown>): Promise<string> {
+  return writeFile(fileId, token, SETTINGS_FILE_NAME, JSON.stringify({ version: 1, updatedAt, settings }));
+}
+
+async function writeFile(fileId: string, token: string, name: string, body: string): Promise<string> {
   if (fileId) {
     await driveFetch(`${DRIVE_UPLOAD_URL}/${fileId}?uploadType=media`, token, {
       method: "PATCH",
@@ -61,7 +82,7 @@ export async function writeRemote(fileId: string, token: string, document: Libra
   }
 
   const boundary = `flickcue${Date.now()}`;
-  const metadata = JSON.stringify({ name: DRIVE_FILE_NAME, parents: ["appDataFolder"] });
+  const metadata = JSON.stringify({ name, parents: ["appDataFolder"] });
   const multipart = [
     `--${boundary}`, "Content-Type: application/json; charset=UTF-8", "", metadata,
     `--${boundary}`, "Content-Type: application/json; charset=UTF-8", "", body,

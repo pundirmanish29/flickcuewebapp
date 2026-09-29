@@ -9,6 +9,7 @@ import {
 import { connect, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
 import { upscale } from "../lib/tmdb";
+import { EXTENSION_URL } from "../lib/config";
 import { useShowScheduleRefresh } from "../lib/showSync";
 import type { KindFilter, Movie, SortMode } from "../lib/types";
 
@@ -46,7 +47,6 @@ const SORT_LABELS: Record<SortMode, string> = {
   shortest: "Shortest first"
 };
 
-const EXTENSION_URL = "https://chromewebstore.google.com/detail/flickcue-watch-later/hmgefidihfkkeleeblhecnhlkbbojmmh?hl=en";
 // Empty until the Android app has a public listing; the homepage then says "coming soon".
 const ANDROID_URL = "";
 
