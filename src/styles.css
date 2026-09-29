@@ -481,6 +481,32 @@ a { color: inherit; }
 }
 .showtimes-button:hover { background: var(--paper-deep); }
 .showtime-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.showtime-days { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 16px; padding-bottom: 4px; scrollbar-width: none; }
+.day-chip {
+  flex-shrink: 0; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--rule);
+  background: none; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+.day-chip:hover { border-color: var(--ink); }
+.day-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.cinema-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.cinema { padding: 14px 0; border-top: 1px solid var(--rule); }
+.cinema:first-child { border-top: 0; padding-top: 4px; }
+.cinema-name { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
+.cinema-name b { font-size: 15px; font-weight: 700; }
+.cinema-name span { flex-shrink: 0; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.cinema-format { display: flex; align-items: flex-start; gap: 10px; margin-top: 8px; }
+.format-label { flex-shrink: 0; min-width: 64px; padding-top: 9px; color: var(--muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.cinema-times { display: flex; flex-wrap: wrap; gap: 8px; }
+.time-chip {
+  min-width: 68px; min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--rule);
+  background: var(--paper-surface); color: var(--ink); font: inherit; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+.time-chip:hover { border-color: var(--green); }
+.time-chip:active { transform: scale(0.96); }
+.showtime-more { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule); }
+.showtime-more .showtime-hint:first-child { margin: 0 0 8px; }
 .showtime-hint { margin: 10px 0 0; color: var(--ink-soft); font-size: 14px; }
 .showtime-hint a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
 .inline-link { padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }

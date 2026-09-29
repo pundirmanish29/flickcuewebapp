@@ -6,7 +6,7 @@ import {
 } from "../lib/rules";
 import { commit, getState, useAppState } from "../lib/store";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
-import { ShowtimeLinks } from "./Showtimes";
+import { FilmShowtimes } from "./Showtimes";
 import { cinemaKey, fetchDetails, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
 import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
@@ -189,7 +189,7 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
           {showing && !movie.watched && (
             <section className="sheet-section">
               <h3 className="section-label">In cinemas · showtimes in {place}</h3>
-              <ShowtimeLinks title={movie.title} year={movie.year} />
+              <FilmShowtimes title={movie.title} year={movie.year} imdb={imdbId} />
             </section>
           )}
 
@@ -200,7 +200,7 @@ export function TitleSheet({ id, onClose }: { id: string; onClose: () => void })
               <ProviderRow label="Rent or buy" providers={details.rentOrBuy} tone="paid" link={details.watchLink} />
             </section>
           )}
-          {details && !details.streaming.length && !details.rentOrBuy.length && (
+          {details && !showing && !details.streaming.length && !details.rentOrBuy.length && (
             <p className="muted small-print">Not streaming in {settings.region} right now. Change the region in Settings.</p>
           )}
 

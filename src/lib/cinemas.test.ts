@@ -40,3 +40,15 @@ describe("in-cinemas notifications", () => {
     expect(buildNotifications([film({ tmdbId: "7" })], Date.now(), cinema)).toHaveLength(0);
   });
 });
+
+describe("showtime days", () => {
+  it("offers today, tomorrow and five more days as local dates", async () => {
+    const { showtimeDays } = await import("./showtimes");
+    const days = showtimeDays(new Date(2026, 8, 29, 23, 30).getTime());
+    expect(days).toHaveLength(7);
+    expect(days.slice(0, 3).map((day) => day.date)).toEqual(["2026-09-29", "2026-09-30", "2026-10-01"]);
+    expect(days[0].label).toBe("Today");
+    expect(days[1].label).toBe("Tomorrow");
+    expect(days[2].label).toMatch(/^\S+ 1$/);
+  });
+});

@@ -23,6 +23,9 @@ Vite + React + TypeScript, no backend. It builds to static files.
   cities in `src/lib/cinemas.ts` (District's city pages were each checked; BookMyShow
   refuses automated checks, so it's linked for major cities only). Saved films that
   reach cinemas show up in Notifications. Title details show the same links.
+  Once the title service has MovieGlu credentials (see the proxy's README),
+  title details list real showtimes instead: a week of days, the nearest cinemas
+  with each format's times, and a tap on a time opens that cinema's booking page.
 - **Discover**: TMDB search, plus the Android app's lists (trending, popular, top
   rated, coming soon, genres). Saving asks when to remind you, the way the
   extension's on-page card does. Titles can also be added by hand.

@@ -51,6 +51,7 @@
       <h2>Film and show information</h2>
       <p>Titles, posters and ratings come from <a href="https://www.themoviedb.org/">TMDB</a>. When you browse or search, the search terms and title requests go to TMDB through FlickCue's title service (a Cloudflare Worker that adds FlickCue's TMDB key). These requests don't include your watchlist or your Google account. Posters load from TMDB's image servers, and trailers open on YouTube.</p>
       <p>For a film in cinemas, FlickCue offers links to its showtimes on Google, BookMyShow and District. Your city is used only to build those links; it isn't sent anywhere until you open one, and then only to the site you chose, as part of that link.</p>
+      <p>Where FlickCue lists showtimes itself, opening them sends the film, the date and your city's centre point (not your own location) to FlickCue's title service, which asks MovieGlu, a cinema listings provider, for the nearest shows. Booking a time opens the cinema's own website. Nothing about you or your list goes with these requests.</p>
 
       <h2>Notifications</h2>
       <p>If you turn on reminders, your browser shows notifications for titles you scheduled. They are created locally in your browser; no push service is involved.</p>
