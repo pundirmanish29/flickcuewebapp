@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getStoredToken } from "../lib/auth";
+import { letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import { connect, disconnect, sync, useAppState } from "../lib/store";
 import { Icon } from "./Icon";
 import { Popover } from "./ReminderMenu";
@@ -14,7 +15,7 @@ export function timeAgo(time: number) {
 
 /** The signed-in header pill, opening the account, sync state and sign out. */
 export function AccountMenu() {
-  const { sync: state, library } = useAppState();
+  const { sync: state, library, settings } = useAppState();
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -35,6 +36,13 @@ export function AccountMenu() {
     : syncing ? "Syncing…" : failed ? state.error || "Sync failed." : `Synced ${timeAgo(state.lastSyncAt)}`;
   const viaExtension = getStoredToken()?.source === "extension";
   const titles = library.movies.length;
+  const lb = settings.letterboxd;
+  const lbStats = letterboxdStats(library.movies);
+  const lbLine = [
+    lbStats.rated && `${lbStats.rated} rated`,
+    lbStats.liked && `${lbStats.liked} liked`,
+    lbStats.reviewed && `${lbStats.reviewed} review${lbStats.reviewed === 1 ? "" : "s"}`
+  ].filter(Boolean).join(" · ");
 
   return (
     <div className="account-menu">
@@ -69,6 +77,27 @@ export function AccountMenu() {
           {titles} title{titles === 1 ? "" : "s"} in your Google Drive
           {viaExtension ? " · signed in through the FlickCue extension" : ""}
         </p>
+        <div className="account-letterboxd">
+          {lb ? (
+            <a className="account-lb-link" href={letterboxdProfileUrl(lb)} target="_blank" rel="noreferrer" onClick={close}>
+              <span className="account-lb-icon" aria-hidden="true"><Icon name="star" size={15} /></span>
+              <span className="account-lb-text">
+                <b>Letterboxd · {lb}</b>
+                <span>{lbLine || "Your public profile"}</span>
+              </span>
+              <Icon name="external" size={15} />
+            </a>
+          ) : (
+            <a className="account-lb-link" href="#/settings" onClick={close}>
+              <span className="account-lb-icon" aria-hidden="true"><Icon name="star" size={15} /></span>
+              <span className="account-lb-text">
+                <b>Link your Letterboxd</b>
+                <span>{lbLine ? `${lbLine} from Letterboxd in your list` : "Show your profile here"}</span>
+              </span>
+              <Icon name="plus" size={15} />
+            </a>
+          )}
+        </div>
         <div className="account-actions">
           {expired ? (
             <button type="button" className="account-item" onClick={() => connect()}>

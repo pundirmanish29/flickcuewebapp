@@ -34,6 +34,8 @@ export interface SyncState {
 export interface Settings {
   region: string;
   notifications: boolean;
+  /** This device's link to a Letterboxd profile, never synced, as in the other clients. */
+  letterboxd: string;
 }
 
 export interface AppState {
@@ -84,7 +86,7 @@ function willAskExtension(): boolean {
 function initialState(onLoad = true): AppState {
   const library = read<LibraryDocument>(LIBRARY_KEY, { movies: [], deleted: [] });
   const stored = read<Partial<SyncState>>(SYNC_KEY, {});
-  const settings = read<Settings>(SETTINGS_KEY, { region: "IN", notifications: false });
+  const settings = read<Settings>(SETTINGS_KEY, { region: "IN", notifications: false, letterboxd: "" });
   return {
     library: {
       movies: Array.isArray(library.movies) ? library.movies : [],

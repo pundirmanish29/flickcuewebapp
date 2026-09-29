@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CandidateCard } from "../components/CandidateCard";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
@@ -33,6 +33,12 @@ function AddByHand({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string
   const [picked, setPicked] = useState<Candidate | null>(null);
   const [matches, setMatches] = useState<Candidate[]>([]);
   const [looking, setLooking] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+
+  // Opening it brings it to the top of the screen, leaving room for matches above the keyboard.
+  useEffect(() => {
+    box.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, []);
 
   const wanted = [title.trim(), year].filter(Boolean).join(" ");
   useEffect(() => {
@@ -45,7 +51,7 @@ function AddByHand({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string
     setLooking(true);
     const timer = setTimeout(() => {
       searchTitles(wanted)
-        .then((result) => live && setMatches(result.titles.slice(0, 5)))
+        .then((result) => live && setMatches(result.titles.slice(0, 4)))
         .catch(() => live && setMatches([]))
         .finally(() => live && setLooking(false));
     }, 350);
@@ -61,41 +67,36 @@ function AddByHand({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string
   };
 
   return (
-    <div className="manual">
+    <div className="manual" ref={box}>
       {step === "form" ? (
-        <>
-          <form
-            className="manual-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!title.trim()) return;
-              setPicked(null);
-              setStep("remind");
-            }}
-          >
-            <label className="manual-title">
-              <span className="eyebrow">Title</span>
-              <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={200} required autoFocus autoComplete="off" />
-            </label>
-            <label className="manual-year">
-              <span className="eyebrow">Year</span>
-              <input value={year} onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="Optional" />
-            </label>
-            <label>
-              <span className="eyebrow">Type</span>
-              <select value={mediaType} onChange={(event) => setMediaType(event.target.value)}>
-                <option>Movie</option>
-                <option>Show</option>
-                <option>Documentary</option>
-              </select>
-            </label>
-            <button type="submit" className="button button-ink">Add by hand</button>
-          </form>
+        <form
+          className="manual-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!title.trim()) return;
+            setPicked(null);
+            setStep("remind");
+          }}
+        >
+          <label className="manual-title">
+            <span className="eyebrow">Title</span>
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              maxLength={200}
+              required
+              autoFocus
+              autoComplete="off"
+              enterKeyHint="search"
+              placeholder="Start typing a film or show"
+            />
+          </label>
 
+          {/* Matches sit right under the title on phones, so what's typed stays in view above the keyboard. */}
           {title.trim().length >= 2 && (
             <div className="manual-matches" aria-live="polite">
               <p className="manual-matches-label">
-                {looking && !matches.length ? "Looking for matches…" : matches.length ? "Is it one of these?" : "No matches. Add it by hand."}
+                {looking && !matches.length ? "Looking for matches…" : matches.length ? "Is it one of these?" : "No matches. Add it by hand below."}
               </p>
               {matches.length > 0 && (
                 <ul>
@@ -118,7 +119,7 @@ function AddByHand({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string
                             <span>{[match.mediaType, match.year].filter(Boolean).join(" · ")}</span>
                           </span>
                           <span className={`manual-match-action ${saved ? "saved" : ""}`}>
-                            {saved ? <><Icon name="check" size={14} /> {saved.watched ? "Watched" : "In your queue"}</> : <><Icon name="plus" size={14} /> Save</>}
+                            {saved ? <><Icon name="check" size={13} /> {saved.watched ? "Watched" : "Saved"}</> : <><Icon name="plus" size={13} /> Save</>}
                           </span>
                         </button>
                       </li>
@@ -128,7 +129,21 @@ function AddByHand({ onDone, onOpen }: { onDone: () => void; onOpen: (id: string
               )}
             </div>
           )}
-        </>
+
+          <label className="manual-year">
+            <span className="eyebrow">Year</span>
+            <input value={year} onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" placeholder="Optional" />
+          </label>
+          <label className="manual-type">
+            <span className="eyebrow">Type</span>
+            <select value={mediaType} onChange={(event) => setMediaType(event.target.value)}>
+              <option>Movie</option>
+              <option>Show</option>
+              <option>Documentary</option>
+            </select>
+          </label>
+          <button type="submit" className="button button-ink manual-submit">Add by hand</button>
+        </form>
       ) : (
         <div>
           <p className="popover-label">Remind me about {picked ? displayTitle(picked) : title.trim()}…</p>

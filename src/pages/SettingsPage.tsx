@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { timeAgo } from "../components/AccountMenu";
 import { toast } from "../components/Toast";
 import { connect, disconnect, importLibrary, sync, updateSettings, useAppState } from "../lib/store";
+import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import type { LibraryDocument } from "../lib/types";
 
 const REGIONS = [
@@ -20,6 +21,8 @@ const REGIONS = [
 export function SettingsPage() {
   const { sync: syncState, settings, library } = useAppState();
   const [region, setRegion] = useState(settings.region);
+  const [letterboxd, setLetterboxd] = useState(settings.letterboxd);
+  const lbStats = letterboxdStats(library.movies);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const exportBackup = () => {
@@ -123,6 +126,56 @@ export function SettingsPage() {
                 <span className="hint">Where-to-watch availability is shown for this country or region.</span>
               </label>
               <button type="submit" className="button button-ink">Save</button>
+            </form>
+          </article>
+
+          <article className="card" id="letterboxd">
+            <h2>Letterboxd</h2>
+            <p className="muted">
+              Link your public Letterboxd profile to see it in your account menu. The link stays on this device, like in the extension.
+              {lbStats.linked > 0 && ` ${lbStats.linked} titles in your list already carry Letterboxd ratings, likes or reviews, synced from the extension.`}
+            </p>
+            <form
+              className="field-stack"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const handle = letterboxdHandle(letterboxd);
+                if (letterboxd.trim() && !handle) return toast("That doesn't look like a Letterboxd username.");
+                setLetterboxd(handle);
+                updateSettings({ letterboxd: handle });
+                toast(handle ? `Linked letterboxd.com/${handle}` : "Letterboxd unlinked");
+              }}
+            >
+              <label>
+                <span className="eyebrow">Username or profile link</span>
+                <input
+                  value={letterboxd}
+                  onChange={(event) => setLetterboxd(event.target.value)}
+                  placeholder="letterboxd.com/yourname"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+              </label>
+              <div className="button-row">
+                <button type="submit" className="button button-ink">{settings.letterboxd ? "Update" : "Link profile"}</button>
+                {settings.letterboxd && (
+                  <>
+                    <a className="button button-quiet" href={letterboxdProfileUrl(settings.letterboxd)} target="_blank" rel="noreferrer">Open profile</a>
+                    <button
+                      type="button"
+                      className="button button-quiet"
+                      onClick={() => {
+                        setLetterboxd("");
+                        updateSettings({ letterboxd: "" });
+                        toast("Letterboxd unlinked");
+                      }}
+                    >
+                      Unlink
+                    </button>
+                  </>
+                )}
+              </div>
             </form>
           </article>
 
