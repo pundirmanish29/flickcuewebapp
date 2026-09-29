@@ -311,14 +311,31 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
               <h2 id="sheet-title">{title}</h2>
               {credit && <p className="sheet-credit">{credit}</p>}
               <div className="score-row">
-                {formatRating(movie.rating || details?.rating) && <span className="score"><b>{formatRating(movie.rating || details?.rating)}</b> Rating</span>}
-                {imdbRating > 0 && <span className="score"><b>{imdbRating.toFixed(1)}</b> IMDb</span>}
-                {Number(movie.criticScore) >= 0 && movie.criticScore != null && <span className="score"><b>{movie.criticScore}%</b> Critics</span>}
-                {Number(movie.audienceScore) >= 0 && movie.audienceScore != null && <span className="score"><b>{movie.audienceScore}%</b> Audience</span>}
+                {/* Icon and number only, so all four fit one line beside the poster; the words are in the labels. */}
+                {formatRating(movie.rating || details?.rating) && (
+                  <span className="score" title="Rating" aria-label={`Rating ${formatRating(movie.rating || details?.rating)} out of 10`}>
+                    <Icon name="star" size={13} /> {formatRating(movie.rating || details?.rating)}
+                  </span>
+                )}
+                {imdbRating > 0 && (
+                  <span className="score" title="IMDb" aria-label={`IMDb ${imdbRating.toFixed(1)}`}>
+                    <span className="imdb-mark" aria-hidden="true">IMDb</span> {imdbRating.toFixed(1)}
+                  </span>
+                )}
+                {Number(movie.criticScore) >= 0 && movie.criticScore != null && (
+                  <span className="score" title="Critics" aria-label={`Critics ${movie.criticScore}%`}>
+                    <Icon name="tomato" size={14} /> {movie.criticScore}%
+                  </span>
+                )}
+                {Number(movie.audienceScore) >= 0 && movie.audienceScore != null && (
+                  <span className="score" title="Audience" aria-label={`Audience ${movie.audienceScore}%`}>
+                    <Icon name="popcorn" size={14} /> {movie.audienceScore}%
+                  </span>
+                )}
               </div>
               {headline ? (
                 <p className={`sheet-status tone-${headline.tone}`}>{headline.text}</p>
-              ) : (status || isSaved || unreleased) && (
+              ) : (status || reminderActive || unreleased || movie.watched) && (
                 <p className={`sheet-status ${status ? `tone-${status.tone}` : ""}`}>{status ? status.text : reminderText(movie)}</p>
               )}
               {facts && <p className="sheet-facts">{facts}</p>}
