@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AccountMenu } from "./components/AccountMenu";
 import { Icon, Logo, type IconName } from "./components/Icon";
 import { TitleSheet } from "./components/TitleSheet";
 import { ToastHost } from "./components/Toast";
 import { displayTitle } from "./lib/rules";
-import { connect, getState, startBackgroundSync, sync, useAppState } from "./lib/store";
+import { connect, getState, startBackgroundSync, useAppState } from "./lib/store";
 import { DiscoverPage } from "./pages/DiscoverPage";
 import { QueuePage } from "./pages/QueuePage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -88,21 +89,7 @@ function SyncIndicator() {
       <button type="button" className="button button-lime header-sign-in" onClick={() => void connect()}>Sign in</button>
     );
   }
-  if (state.status === "needs-auth") {
-    return (
-      <button type="button" className="sync-pill warn" onClick={() => void connect()} title="Google access expired" aria-label="Reconnect Google sync">
-        <span className="dot dot-warn" /> <span className="sync-label">Reconnect</span>
-      </button>
-    );
-  }
-  const label = state.status === "syncing" ? "Syncing" : state.status === "error" ? "Sync failed" : "Synced";
-  return (
-    <button type="button" className={`sync-pill ${state.status === "error" ? "warn" : ""}`} onClick={() => void sync()} title={state.error || "Sync now"} aria-label={`${label}. Sync now`}>
-      {state.account?.photo ? <img src={state.account.photo} alt="" referrerPolicy="no-referrer" /> : <span className={`dot ${state.status === "error" ? "dot-warn" : "dot-on"}`} />}
-      <span className={state.status === "syncing" ? "spin" : ""}><Icon name="sync" size={14} /></span>
-      <span className="sync-label">{label}</span>
-    </button>
-  );
+  return <AccountMenu />;
 }
 
 export default function App() {

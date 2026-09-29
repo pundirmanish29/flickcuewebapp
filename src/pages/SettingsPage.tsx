@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { timeAgo } from "../components/AccountMenu";
 import { toast } from "../components/Toast";
 import { TMDB_ATTRIBUTION } from "../lib/config";
 import { connect, disconnect, importLibrary, sync, updateSettings, useAppState } from "../lib/store";
@@ -16,14 +17,6 @@ const REGIONS = [
   ["ES", "Spain"], ["SE", "Sweden"], ["CH", "Switzerland"], ["TW", "Taiwan"],
   ["TH", "Thailand"], ["TR", "Turkey"], ["GB", "United Kingdom"], ["US", "United States"]
 ] as const;
-
-function timeAgo(time: number) {
-  if (!time) return "never";
-  const minutes = Math.round((Date.now() - time) / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  return new Date(time).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
 
 export function SettingsPage() {
   const { sync: syncState, settings, library } = useAppState();

@@ -487,6 +487,25 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   box-shadow: 0 18px 48px rgba(22, 24, 27, 0.18);
 }
 .popover-label { margin: 0 0 10px; font-weight: 700; }
+
+.account-menu { position: relative; flex-shrink: 0; }
+.account-menu .popover { left: auto; right: 0; width: min(320px, calc(100vw - 32px)); padding: 16px; color: var(--ink); }
+.account-menu .account { margin-bottom: 10px; }
+.account-menu .account div { min-width: 0; }
+.account-menu .account span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.account-status { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; }
+.account-status .dot { flex-shrink: 0; }
+.account-meta { margin: 4px 0 0; font-size: 13px; }
+.account-actions { display: flex; flex-direction: column; margin: 12px -8px -8px; padding-top: 8px; border-top: 1px solid var(--rule); }
+.account-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 10px;
+  border: 0; border-radius: 10px; background: none; color: var(--ink); font: inherit; font-size: 15px; font-weight: 500;
+  text-align: left; text-decoration: none; cursor: pointer;
+  transition: background-color 160ms ease;
+}
+.account-item:hover:not(:disabled) { background: var(--paper-deep); }
+.account-item:disabled { color: var(--muted); cursor: default; }
+.account-item.danger { color: var(--red); }
 .reminder-choices { display: flex; flex-wrap: wrap; gap: 8px; }
 .reminder-custom { display: flex; gap: 8px; flex-basis: 100%; }
 .reminder-custom input { flex: 1; min-width: 0; height: 34px; font-size: 14px; }
