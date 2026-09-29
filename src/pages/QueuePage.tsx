@@ -85,7 +85,7 @@ function Demo() {
   );
 }
 
-function MarketingHome({ onNavigate }: { onNavigate: (route: string) => void }) {
+function MarketingHome() {
   return (
     <div className="home">
       <section className="home-hero">
@@ -97,9 +97,7 @@ function MarketingHome({ onNavigate }: { onNavigate: (route: string) => void }) 
             <a className="button button-ink large" href={EXTENSION_URL} target="_blank" rel="noreferrer">
               <Icon name="plus" size={17} /> Add to Chrome
             </a>
-            <button type="button" className="button button-quiet large" onClick={() => onNavigate("discover")}>
-              <Icon name="compass" size={17} /> Browse films
-            </button>
+            <button type="button" className="button button-quiet large" onClick={() => void connect()}>Sign in to the web app</button>
           </div>
           <figure className="demo-frame hero-shot">
             <img src="./flickcue-extension-03.webp" alt="The FlickCue library: saved films and shows with ratings and reminders" width={1280} height={800} fetchPriority="high" />
@@ -143,7 +141,7 @@ function pickTonight(queue: Movie[], skip: number): Movie | undefined {
   return order.length ? order[skip % order.length] : undefined;
 }
 
-export function QueuePage({ onOpen, query, onNavigate }: { onOpen: (id: string) => void; query: string; onNavigate: (route: string) => void }) {
+export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; query: string }) {
   const { library, sync } = useAppState();
   const [kind, setKind] = useState<KindFilter>("all");
   const [sort, setSort] = useState<SortMode>(() => (localStorage.getItem("flickcue.sort") as SortMode) || "added");
@@ -180,7 +178,7 @@ export function QueuePage({ onOpen, query, onNavigate }: { onOpen: (id: string) 
   return (
     <>
       {!sync.connected ? (
-        <MarketingHome onNavigate={onNavigate} />
+        <MarketingHome />
       ) : (
         <section className="intro compact paper signed-in-intro">
           <div className="wrap signed-in-heading">

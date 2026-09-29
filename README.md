@@ -27,8 +27,9 @@ Vite + React + TypeScript, no backend. It builds to static files.
   optional personal TMDB key, browser notifications for reminders while the tab is
   open, and JSON backup export/import (import merges, it doesn't overwrite).
 
-Everything works signed out, with the list kept in `localStorage`. Signing in merges
-that list into Drive.
+Signed out, the site is just the homepage; the Queue, Discover, Watched and Settings
+need sign-in. A list already kept in `localStorage` on this device is merged into Drive
+when you sign in.
 
 **Signed in through the extension.** In Chrome or Edge with the FlickCue extension
 signed in, the site signs in by itself: on load it asks the extension (by its ids in

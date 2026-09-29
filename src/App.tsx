@@ -11,7 +11,7 @@ import { WatchedPage } from "./pages/WatchedPage";
 
 type Route = "queue" | "discover" | "watched" | "settings";
 
-const AUTHENTICATED_ROUTES = new Set<Route>(["watched", "settings"]);
+const AUTHENTICATED_ROUTES = new Set<Route>(["discover", "watched", "settings"]);
 // A #/title/<id> link followed while signed out (the extension's "Notes &
 // progress" link, say), kept for this tab and opened once signing in has
 // brought the list. Opened straight away, it would find nothing and close.
@@ -164,7 +164,6 @@ export default function App() {
   }, [route]);
 
   const queueCount = library.movies.filter((movie) => !movie.watched).length;
-  const visibleNav = sync.connected ? NAV : NAV.filter((item) => item.route === "discover");
 
   const openTitle = useCallback((id: string) => {
     location.hash = `#/title/${encodeURIComponent(id)}`;
@@ -174,9 +173,6 @@ export default function App() {
     history.replaceState(null, "", `#/${route === "queue" ? "" : route}`);
     window.dispatchEvent(new HashChangeEvent("hashchange"));
   }, [route]);
-  const navigate = (next: string) => {
-    location.hash = `#/${next === "queue" ? "" : next}`;
-  };
 
   return (
     <>
@@ -187,15 +183,17 @@ export default function App() {
             <Logo />
             <span className="brand-name">FLICKCUE</span>
           </a>
-          <nav className={`top-nav ${sync.connected ? "" : "guest"}`} aria-label="Main">
-            {visibleNav.map((item) => (
-              <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined}>
-                {item.label}
-                {item.route === "queue" && queueCount > 0 && <span className="nav-count">{queueCount}</span>}
-              </a>
-            ))}
-          </nav>
-          {route !== "settings" && (sync.connected || route === "discover") && (
+          {sync.connected && (
+            <nav className="top-nav" aria-label="Main">
+              {NAV.map((item) => (
+                <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined}>
+                  {item.label}
+                  {item.route === "queue" && queueCount > 0 && <span className="nav-count">{queueCount}</span>}
+                </a>
+              ))}
+            </nav>
+          )}
+          {route !== "settings" && sync.connected && (
             <label className="search">
               <Icon name="search" size={16} />
               <span className="visually-hidden">Search</span>
@@ -232,7 +230,7 @@ export default function App() {
             <p>Signing you in…</p>
           </div>
         )}
-        {!connecting && route === "queue" && <QueuePage onOpen={openTitle} query={query} onNavigate={navigate} />}
+        {!connecting && route === "queue" && <QueuePage onOpen={openTitle} query={query} />}
         {route === "discover" && <DiscoverPage onOpen={openTitle} query={query} />}
         {route === "watched" && <WatchedPage onOpen={openTitle} query={query} />}
         {route === "settings" && <SettingsPage />}
@@ -248,8 +246,8 @@ export default function App() {
       </footer>
 
       {sync.connected && (
-        <nav className="bottom-nav" aria-label="Main" style={{ gridTemplateColumns: `repeat(${visibleNav.length}, 1fr)` }}>
-          {visibleNav.map((item) => (
+        <nav className="bottom-nav" aria-label="Main" style={{ gridTemplateColumns: `repeat(${NAV.length}, 1fr)` }}>
+          {NAV.map((item) => (
             <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined}>
               <Icon name={item.icon} size={20} />
               <span>{item.label}</span>

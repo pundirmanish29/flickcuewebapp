@@ -182,6 +182,8 @@ a { color: inherit; }
   flex-shrink: 0;
   transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
+/* Signed out there is no nav or search to push it over. */
+.sync-pill.guest { margin-left: auto; }
 .sync-pill:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.24); }
 .sync-pill:active { transform: scale(0.97); }
 .sync-pill img { width: 26px; height: 26px; border-radius: 50%; }
@@ -598,10 +600,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .bottom-nav { display: none; }
 
 @media (max-width: 900px) {
-  .top-nav:not(.guest) { display: none; }
+  .top-nav { display: none; }
   .sync-pill.guest .sync-label { display: inline; }
-  /* The Discover link is redundant on Discover itself, and the search box needs the room. */
-  .top-nav.guest a[aria-current="page"] { display: none; }
   .search { min-width: 0; }
   .header-inner { gap: 12px; }
   .search { flex: 1; width: auto; margin-left: auto; }
