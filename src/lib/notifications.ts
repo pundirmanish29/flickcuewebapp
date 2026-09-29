@@ -2,7 +2,7 @@
 // "On your radar" are: nothing is sent or stored except when the reader last
 // looked, so every device shows the same ones for the same list.
 
-import { displayTitle, getShowSchedule, isShow, localIsoDate } from "./rules";
+import { displayTitle, getShowSchedule, isShow, isStartedShow, localIsoDate } from "./rules";
 import { cinemaKey } from "./tmdb";
 import type { Movie } from "./types";
 
@@ -13,6 +13,7 @@ const EPISODE_WINDOW = 7 * DAY;
 const LIMIT = 60;
 const SEEN_KEY = "flickcue.notificationsSeenAt";
 const CINEMA_SEEN_KEY = "flickcue.cinemaSeenAt";
+const EPISODE_SEEN_KEY = "flickcue.episodeSeenAt";
 
 /** Which saved films are in cinemas, when each was first seen there, and where. */
 export interface CinemaState {
@@ -32,6 +33,8 @@ export interface FlickNotification {
   at: number;
   text: string;
   detail: string;
+  /** For an episode dated from when it was first seen: the air date, to show. */
+  airedAt?: number;
 }
 
 /** Midnight local time on an ISO date, or NaN when it isn't one. */
@@ -43,9 +46,17 @@ const recent = (at: number, window: number, now: number) => Number.isFinite(at) 
 
 export function buildNotifications(movies: Movie[], now = Date.now(), cinema?: CinemaState): FlickNotification[] {
   const items: FlickNotification[] = [];
+  const today = localIsoDate(now);
   for (const movie of movies) {
-    if (movie.watched) continue;
     const title = displayTitle(movie);
+    // A show marked watched that's still running is one being followed: its
+    // new episodes are news, nothing else about it is.
+    const following = Boolean(movie.watched) && isStartedShow(movie) && !/^(ended|canceled)$/i.test(getShowSchedule(movie)?.status ?? "");
+    if (movie.watched && !following) continue;
+    if (following) {
+      episodeNews(movie, title, today, now, NaN, items);
+      continue;
+    }
 
     const remindAt = Number(movie.remindAt);
     if (remindAt > 0 && remindAt <= now) {
@@ -83,22 +94,47 @@ export function buildNotifications(movies: Movie[], now = Date.now(), cinema?: C
         text: `${title} has premiered`, detail: "The first episode is out"
       });
     }
-    const last = schedule?.last;
-    const aired = dayStart(last?.date);
-    // A premiere already covers its own first episode.
-    if (last && recent(aired, EPISODE_WINDOW, now) && aired !== premiere) {
-      const code = `S${last.season} · E${last.episode}`;
-      const kind: NotificationKind = last.finale ? "finale" : last.episode === 1 && last.season > 1 ? "season" : "episode";
-      items.push({
-        id: `episode:${movie.id}:S${last.season}E${last.episode}`, movieId: movie.id, kind, at: aired,
-        text: kind === "finale" ? `The season ${last.season} finale of ${title} is out`
-          : kind === "season" ? `Season ${last.season} of ${title} is here`
-          : `New episode of ${title}`,
-        detail: code
-      });
-    }
+    episodeNews(movie, title, today, now, premiere, items);
   }
-  return items.sort((a, b) => b.at - a.at).slice(0, LIMIT);
+  // Today's episode and, once it has aired, the same one as the latest share an id.
+  const unique = new Map<string, FlickNotification>();
+  for (const item of items) if (!unique.has(item.id)) unique.set(item.id, item);
+  return [...unique.values()].sort((a, b) => b.at - a.at).slice(0, LIMIT);
+}
+
+type Air = { season: number; episode: number; finale?: boolean };
+
+function episodeKind(air: Air): NotificationKind {
+  return air.finale ? "finale" : air.episode === 1 && air.season > 1 ? "season" : "episode";
+}
+
+/** An episode airing today, and the latest one to have aired this week. */
+function episodeNews(movie: Movie, title: string, today: string, now: number, premiere: number, items: FlickNotification[]) {
+  const schedule = getShowSchedule(movie);
+  const next = schedule?.next;
+  if (next && next.date === today) {
+    const kind = episodeKind(next);
+    items.push({
+      id: `episode:${movie.id}:S${next.season}E${next.episode}`, movieId: movie.id, kind, at: dayStart(today),
+      text: kind === "finale" ? `The season ${next.season} finale of ${title} streams today`
+        : kind === "season" ? `Season ${next.season} of ${title} starts today`
+        : `New episode of ${title} streams today`,
+      detail: `S${next.season} · E${next.episode}`
+    });
+  }
+  const last = schedule?.last;
+  const aired = dayStart(last?.date);
+  // A premiere already covers its own first episode.
+  if (last && recent(aired, EPISODE_WINDOW, now) && aired !== premiere) {
+    const kind = episodeKind(last);
+    items.push({
+      id: `episode:${movie.id}:S${last.season}E${last.episode}`, movieId: movie.id, kind, at: aired,
+      text: kind === "finale" ? `The season ${last.season} finale of ${title} is out`
+        : kind === "season" ? `Season ${last.season} of ${title} is here`
+        : `New episode of ${title}`,
+      detail: `S${last.season} · E${last.episode}`
+    });
+  }
 }
 
 export function getSeenAt(): number {
@@ -140,6 +176,37 @@ export function cinemaFirstSeen(movies: Movie[], inCinemas: Set<string>, now = D
     // Without storage the time is kept for this visit only.
   }
   return next;
+}
+
+/**
+ * An episode is often learned of after its air date (when the schedule is
+ * looked up), so it's dated from when this device first saw it: news found
+ * after the reader last looked still counts as new.
+ */
+export function stampEpisodes(items: FlickNotification[], now = Date.now()): FlickNotification[] {
+  let stored: Record<string, number> = {};
+  // The first time round, what's already there keeps its own date rather than all turning new at once.
+  let first = true;
+  try {
+    const raw = localStorage.getItem(EPISODE_SEEN_KEY);
+    first = raw === null;
+    stored = JSON.parse(raw || "{}");
+  } catch {
+    // Unreadable: start over.
+  }
+  const next: Record<string, number> = {};
+  const stamped = items.map((item) => {
+    if (item.kind !== "episode" && item.kind !== "season" && item.kind !== "finale") return item;
+    const seen = Number(stored[item.id]) || (first ? item.at : now);
+    next[item.id] = seen;
+    return seen > item.at ? { ...item, at: seen, airedAt: item.at } : item;
+  });
+  try {
+    localStorage.setItem(EPISODE_SEEN_KEY, JSON.stringify(next));
+  } catch {
+    // Without storage the time is kept for this visit only.
+  }
+  return stamped.sort((a, b) => b.at - a.at);
 }
 
 export const countUnread = (items: FlickNotification[], seenAt: number) => items.filter((item) => item.at > seenAt).length;

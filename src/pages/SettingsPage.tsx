@@ -228,7 +228,7 @@ export function SettingsPage() {
           <article className="card">
             <h2>Reminders</h2>
             <p className="muted">
-              Due titles are flagged in your queue. You can also get a browser notification when a reminder comes due while FlickCue is open in a tab.
+              Due titles are flagged in your queue. You can also get a browser notification while FlickCue is open in a tab: when a reminder comes due, and when a show you're watching has a new episode out today.
             </p>
             <label className="switch">
               <input type="checkbox" checked={settings.notifications} onChange={(event) => void toggleNotifications(event.target.checked)} />

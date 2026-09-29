@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon, type IconName } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 import { Poster } from "../components/Poster";
-import { buildNotifications, cinemaFirstSeen, countUnread, getSeenAt, markSeen, type FlickNotification, type NotificationKind } from "../lib/notifications";
+import { buildNotifications, cinemaFirstSeen, stampEpisodes, countUnread, getSeenAt, markSeen, type FlickNotification, type NotificationKind } from "../lib/notifications";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { formatRelativeDay } from "../lib/rules";
 import { useAppState } from "../lib/store";
 import { upscale } from "../lib/tmdb";
 
 const SEEN_EVENT = "flickcue:notifications-seen";
+// Things that happen on a day, not at a time: shown as "Today", "Yesterday", "Sep 12".
+const DAY_KINDS = new Set<NotificationKind>(["release", "premiere", "episode", "season", "finale"]);
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 const KIND_ICON: Record<NotificationKind, IconName> = {
   reminder: "bell",
@@ -32,7 +35,7 @@ function useNotifications(): FlickNotification[] {
   const { place } = useWhere();
   return useMemo(() => {
     const cinema = inCinemas ? { keys: inCinemas, firstSeen: cinemaFirstSeen(library.movies, inCinemas, now), place } : undefined;
-    return buildNotifications(library.movies, now, cinema);
+    return stampEpisodes(buildNotifications(library.movies, now, cinema), now);
   }, [library.movies, now, inCinemas, place]);
 }
 
@@ -88,7 +91,7 @@ function NotificationList({ items, unread, onOpen }: { items: FlickNotification[
               </span>
               <span className="notification-text">
                 <b>{item.text}</b>
-                <span>{item.detail} · {when(item.at, now)}</span>
+                <span>{item.detail} · {DAY_KINDS.has(item.kind) ? capitalize(formatRelativeDay(item.airedAt ?? item.at, now)) : when(item.at, now)}</span>
               </span>
               {unread && <span className="notification-dot" aria-label="New" />}
             </button>
@@ -114,7 +117,7 @@ export function NotificationsPage({ onOpen }: { onOpen: (id: string) => void }) 
     <>
     <PageHeader
       title="Notifications"
-      meta={<>Reminders, releases and new episodes.{!settings.notifications && <> <a href="#/settings">Turn on browser alerts</a></>}</>}
+      meta={<>Reminders, releases and new episodes of shows you watch.{!settings.notifications && <> <a href="#/settings">Turn on browser alerts</a></>}</>}
     />
     <section className="paper notifications">
       <div className="wrap notifications-wrap">

@@ -10,6 +10,7 @@ import { displayTitle } from "./lib/rules";
 import { connect, getState, startBackgroundSync, useAppState } from "./lib/store";
 import { DiscoverPage } from "./pages/DiscoverPage";
 import { NotificationBell, NotificationsPage } from "./pages/NotificationsPage";
+import { buildNotifications } from "./lib/notifications";
 import { QueuePage } from "./pages/QueuePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { WatchedPage } from "./pages/WatchedPage";
@@ -49,7 +50,30 @@ function useHashRoute() {
   return value;
 }
 
-/** While the tab is open, a reminder coming due becomes a browser notification, once per reminder. */
+const EPISODE_KINDS = new Set(["episode", "season", "finale"]);
+const ALERTED_KEY = "flickcue.alertedEpisodes";
+
+function readAlerted(): string[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(ALERTED_KEY) || "[]");
+    return Array.isArray(value) ? value.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeAlerted(ids: string[]) {
+  try {
+    localStorage.setItem(ALERTED_KEY, JSON.stringify(ids.slice(-200)));
+  } catch {
+    // Without storage an episode may be announced again on the next visit.
+  }
+}
+
+/**
+ * While the tab is open, a reminder coming due, or a followed show's episode
+ * airing today, becomes a browser notification, once each.
+ */
 function useReminderNotifications() {
   useEffect(() => {
     const notified = new Set<string>();
@@ -74,6 +98,21 @@ function useReminderNotifications() {
           location.hash = `#/title/${encodeURIComponent(movie.id)}`;
         };
       }
+
+      // A followed show's episode airing today, once per episode on this device.
+      const alerted = readAlerted();
+      const todayStart = new Date(new Date(now).toDateString()).getTime();
+      for (const item of buildNotifications(library.movies, now)) {
+        if (!EPISODE_KINDS.has(item.kind) || item.at < todayStart || alerted.includes(item.id)) continue;
+        alerted.push(item.id);
+        const movie = library.movies.find((entry) => entry.id === item.movieId);
+        const notification = new Notification(item.text, { body: item.detail, icon: movie?.poster || "./icon.svg", tag: item.id });
+        notification.onclick = () => {
+          window.focus();
+          location.hash = `#/title/${encodeURIComponent(item.movieId)}`;
+        };
+      }
+      writeAlerted(alerted);
     };
     check();
     const timer = setInterval(check, 30 * 1000);
