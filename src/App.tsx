@@ -339,6 +339,14 @@ export default function App() {
         </div>
       </header>
 
+      {/* A sign-in lasts about an hour and can only be renewed by the person, so say so plainly, with the button. */}
+      {sync.connected && sync.status === "needs-auth" && (
+        <div className="sync-banner" role="status">
+          <span>Sync is paused. Your changes are safe on this device.</span>
+          <button type="button" className="button button-lime" onClick={() => void connect()}>Resume sync</button>
+        </div>
+      )}
+
       <main id="main" tabIndex={-1}>
         {connecting && (
           <div className="wrap signing-in" role="status">

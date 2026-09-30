@@ -200,25 +200,32 @@ export function knownWatchedAt(movie: Movie, importDays?: ReadonlySet<string>): 
   const stampedOnImport = movie.origin === "letterboxd" && Math.abs(at - (Number(movie.createdAt) || 0)) < 60 * 1000;
   if (stampedOnImport) return 0;
   // An import that ran for more than a minute stamps a whole day; see importDays.
-  if (importDays?.has(dayKey(at)) && movie.origin === "letterboxd" && dayKey(at) === dayKey(Number(movie.createdAt) || 0)) return 0;
+  if (importDays?.has(dayKey(at)) && stampedWithCreation(movie)) return 0;
   return at;
 }
 
 const dayKey = (time: number) => localIsoDate(time);
+
+/** A Letterboxd title marked watched within a day of being created: stamped by the import that made it. */
+function stampedWithCreation(movie: Movie): boolean {
+  const gap = (Number(movie.watchedAt) || 0) - (Number(movie.createdAt) || 0);
+  return movie.origin === "letterboxd" && gap >= 0 && gap < 24 * 60 * 60 * 1000;
+}
 
 /** How many Letterboxd titles stamped on one day make it an import, not a day of viewing. */
 const IMPORT_DAY_MIN = 40;
 
 /**
  * The days on which a Letterboxd import stamped its titles as watched: a day with
- * dozens of them, each created that same day, is an import running, not 500 films
- * seen in a day. Their dates aren't real viewing dates.
+ * dozens of them, each made within a day of that stamp (an import can run past
+ * midnight), is an import running, not 500 films seen in a day. Their dates aren't
+ * real viewing dates.
  */
 export function importDays(movies: readonly Movie[]): Set<string> {
   const counts = new Map<string, number>();
   for (const movie of movies) {
     const at = Number(movie.watchedAt) || 0;
-    if (!movie.watched || !at || movie.origin !== "letterboxd" || dayKey(at) !== dayKey(Number(movie.createdAt) || 0)) continue;
+    if (!movie.watched || !at || !stampedWithCreation(movie)) continue;
     counts.set(dayKey(at), (counts.get(dayKey(at)) ?? 0) + 1);
   }
   return new Set([...counts].filter(([, count]) => count >= IMPORT_DAY_MIN).map(([day]) => day));

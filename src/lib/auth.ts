@@ -84,15 +84,6 @@ export function getStoredToken(): StoredToken | null {
   return null;
 }
 
-/** When the stored token stops working, or 0 when there isn't one. */
-export function storedTokenExpiry(): number {
-  try {
-    return (JSON.parse(localStorage.getItem(TOKEN_KEY) || "null") as StoredToken | null)?.expiresAt ?? 0;
-  } catch {
-    return 0;
-  }
-}
-
 export function storeToken(token: StoredToken | null) {
   try {
     if (token) localStorage.setItem(TOKEN_KEY, JSON.stringify(token));
@@ -115,10 +106,9 @@ function describeError(code: string | undefined, fallback?: string): string {
 /**
  * Asks Google for an access token. `prompt: "consent"` shows the account
  * picker and consent screen; an empty prompt reuses an earlier grant and only
- * flashes a popup. Must be called from a click, or the popup is blocked,
- * unless `silent`, which shows nothing and simply rejects if Google needs the user.
+ * flashes a popup. Must be called from a click, or the popup is blocked.
  */
-export async function requestToken({ consent = false, hint = "", silent = false } = {}): Promise<StoredToken> {
+export async function requestToken({ consent = false, hint = "" } = {}): Promise<StoredToken> {
   await loadScript();
   const oauth2 = window.google!.accounts.oauth2;
 
@@ -141,8 +131,7 @@ export async function requestToken({ consent = false, hint = "", silent = false 
       },
       error_callback: (error) => reject(new Error(describeError(error.type, error.message)))
     });
-    // "none" asks Google to answer without showing anything; it fails, quietly, when it would have to.
-    client.requestAccessToken({ prompt: silent ? "none" : consent ? "consent" : "", ...(hint ? { login_hint: hint } : {}) });
+    client.requestAccessToken({ prompt: consent ? "consent" : "", ...(hint ? { login_hint: hint } : {}) });
   });
 }
 

@@ -73,6 +73,9 @@ describe("watched page", () => {
     const groups = watchedGroups([...imported, seen("real", { watchedAt: at(2026, 8, 20) })], now);
     expect(groups.map((group) => [group.key, group.movies.length])).toEqual([["2026-8", 1], ["undated", 45]]);
     expect(importDays(imported).size).toBe(1);
+    // An import that runs past midnight stamps the next day with titles made the day before.
+    const overnight = Array.from({ length: 45 }, (_, index) => seen(`n${index}`, { origin: "letterboxd", createdAt: new Date(2026, 8, 14, 23, 50).getTime() + index * 1000, watchedAt: new Date(2026, 8, 15, 0, 20).getTime() + index * 1000 }));
+    expect(watchedGroups(overnight, now).map((group) => group.key)).toEqual(["undated"]);
     // A handful of Letterboxd titles logged on one day is just a day of viewing.
     expect(importDays(imported.slice(0, 5)).size).toBe(0);
   });

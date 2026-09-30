@@ -4,7 +4,7 @@
 // through the editor functions, which is what keeps every edit sync-safe.
 
 import { useSyncExternalStore } from "react";
-import { canAskExtension, getStoredToken, storedTokenExpiry, forgetToken, requestExtensionSession, requestToken, revokeToken, storeToken } from "./auth";
+import { canAskExtension, getStoredToken, forgetToken, requestExtensionSession, requestToken, revokeToken, storeToken } from "./auth";
 import { needsConfirmation, newRemovals } from "./syncGuard";
 import { DriveError, fetchAccount, fileVersion, findRemoteFileId, findSettingsFileId, readRemote, readRemoteSettings, writeRemote, writeRemoteSettings, type Account } from "./drive";
 import { readSynced, settingsDirection, SYNCED_KEYS, type SyncedSettings } from "./settingsSync";
@@ -285,38 +285,11 @@ async function adoptExtensionSession(): Promise<boolean> {
   return true;
 }
 
-let silentRetryAt = 0;
-/** After a failed quiet renewal, wait this long before trying again, so a blocked window isn't retried on every poll. */
-const SILENT_BACKOFF = 15 * 60 * 1000;
-/** Renew a token this long before it runs out. */
-const RENEW_AHEAD = 5 * 60 * 1000;
-
-/**
- * Asks Google for a new token without showing anything. It works while the
- * person is still signed in to Google and has already allowed FlickCue; when it
- * can't, nothing changes and the usual "Resume sync" button remains.
- */
-async function renewSilently(): Promise<boolean> {
-  if (Date.now() < silentRetryAt || !navigator.onLine) return false;
-  try {
-    await requestToken({ silent: true, hint: state.sync.account?.email ?? "" });
-    silentRetryAt = 0;
-    return true;
-  } catch {
-    silentRetryAt = Date.now() + SILENT_BACKOFF;
-    return false;
-  }
-}
-
 async function runSync() {
   if (!state.sync.connected) return;
-  // An expired token is renewed from the extension, or quietly from Google, when it can be,
-  // so only someone neither can help is asked to reconnect.
-  const token = getStoredToken()
-    ?? (await adoptExtensionSession() ? getStoredToken() : null)
-    ?? ((await renewSilently()) ? getStoredToken() : null);
-  // A token about to run out is replaced now, before the pause.
-  if (token && storedTokenExpiry() - Date.now() < RENEW_AHEAD) void renewSilently();
+  // An expired token is renewed from the extension when it can be, so only
+  // someone without it is asked to reconnect.
+  const token = getStoredToken() ?? (await adoptExtensionSession() ? getStoredToken() : null);
   if (!token) {
     patchSync({ status: "needs-auth", error: "" });
     return;

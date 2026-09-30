@@ -135,6 +135,11 @@ a { color: inherit; }
 }
 .skip-link:focus { top: 12px; }
 .skip-link-second:focus { top: 60px; }
+.sync-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px var(--gutter);
+  background: color-mix(in srgb, var(--orange) 18%, var(--paper)); color: var(--ink); font-size: 14px; font-weight: 500;
+}
+.sync-banner .button { flex-shrink: 0; height: 44px; padding: 0 18px; }
 #main:focus, #titles:focus { outline: none; }
 
 .wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
@@ -1148,7 +1153,7 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
 .contact-address { user-select: all; }
 .about-links .link-button.inline { color: var(--ink); font-weight: inherit; }
 .site-footer .link-button.inline { color: inherit; font-weight: inherit; }
-.site-footer .contact-reveal-toggle { text-decoration: none; }
+.site-footer .contact-reveal-toggle { text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
 .site-footer .contact-reveal-toggle:hover { color: #fff; }
 
 .bottom-nav { display: none; }
@@ -1472,4 +1477,11 @@ html[data-transition="title"] .site-header, html[data-transition="title"] .botto
 @media (max-width: 900px) {
   .discover-head { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .discover-head + .titles { padding-top: 12px; }
+}
+
+/* Phone tap targets: the poster's save button keeps its look but takes a 44px touch area; the text buttons are 44px tall. */
+.candidate-quick::after { content: ""; position: absolute; inset: -4px; }
+@media (max-width: 900px) {
+  .showtimes-button { min-height: 44px; }
+  .add-by-hand-hint .link-button.inline { display: inline-flex; align-items: center; min-height: 44px; }
 }
