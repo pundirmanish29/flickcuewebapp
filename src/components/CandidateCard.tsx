@@ -6,6 +6,7 @@ import { useAppState } from "../lib/store";
 import { upscale } from "../lib/tmdb";
 import type { Candidate } from "../lib/types";
 import { Icon } from "./Icon";
+import { RatingScore } from "./RatingScore";
 import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
 import { ShowtimeLinks } from "./Showtimes";
@@ -69,7 +70,7 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank 
         {/* The rating sits here, not on the poster, where it would cover the title art. */}
         <p className="meta">
           {[rank ? candidate.genre || candidate.mediaType : candidate.mediaType, candidate.year].filter(Boolean).join(" · ")}
-          {formatRating(candidate.rating) && <>{" · "}<span className="meta-rating"><Icon name="star" size={11} /> {formatRating(candidate.rating)}</span></>}
+          {formatRating(candidate.rating) && <>{" · "}<RatingScore value={candidate.rating} /></>}
         </p>
         {candidate.reason
           ? <p className="candidate-reason">{candidate.reason}</p>

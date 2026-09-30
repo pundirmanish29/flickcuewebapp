@@ -3,6 +3,7 @@ import { cardLine, displayTitle, formatRating, getShowStatus, gridBadge, isStart
 import { upscale } from "../lib/tmdb";
 import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
+import { RatingScore } from "./RatingScore";
 import { Poster } from "./Poster";
 
 /** Stars out of five, halves as ½: "★★★★½". */
@@ -33,7 +34,7 @@ export function TitleCard({ movie, onOpen, priority = false }: { movie: Movie; o
           {/* The rating sits here, not on the poster, where it would cover the title art. */}
           <p className="meta">
             {[movie.mediaType, movie.year].filter(Boolean).join(" · ")}
-            {formatRating(movie.rating) && <>{" · "}<span className="meta-rating"><Icon name="star" size={11} /> {formatRating(movie.rating)}</span></>}
+            {formatRating(movie.rating) && <>{" · "}<RatingScore value={movie.rating} /></>}
           </p>
           {(line || take.stars > 0 || take.liked) && (
             <p className={`meta ${statusLine ? `tone-${status!.tone}` : ""}`}>

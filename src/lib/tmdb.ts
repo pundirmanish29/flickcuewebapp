@@ -160,6 +160,8 @@ export interface DiscoverCategory {
   regional?: boolean;
   /** A chart: shown numbered, saved titles kept in place. */
   ranked?: boolean;
+  /** A few words on why each title is here, shown under its name ("New Movie"); empty says nothing. */
+  reason?: (item: Candidate) => string;
 }
 
 const FOUR_YEARS_AGO = `${new Date().getFullYear() - 4}-01-01`;
@@ -264,7 +266,11 @@ export async function browse(category: DiscoverCategory, page = 1, region = ""):
     .map((item: any) => toCandidate(item, category.type)))
     // The list itself is the news: say so on each card. (Its release_date is
     // the first release anywhere, not this region's, so no date is claimed.)
-    .map((item) => (category.id === "now-playing" ? { ...item, reason: "In cinemas now" } : item));
+    .map((item) => (category.id === "now-playing" ? { ...item, reason: "In cinemas now" } : item))
+    .map((item) => {
+      const reason = category.reason?.(item);
+      return reason ? { ...item, reason } : item;
+    });
   return { items, more: page < Math.min(Number(data.total_pages) || 1, 10) };
 }
 

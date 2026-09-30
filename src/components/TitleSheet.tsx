@@ -19,6 +19,7 @@ import { writeBack } from "../lib/showSync";
 import { dismissEpisode, episodeKey, newEpisodeFor, readDismissed } from "../lib/newEpisode";
 import { NewEpisodeCard } from "./NewEpisodeCard";
 import { Seasons } from "./Seasons";
+import { RatingScore } from "./RatingScore";
 import { goDiscover } from "../lib/discoverIntent";
 import { openTitle as openWithMotion, pop, reducedMotion } from "../lib/motion";
 import { safeImage, safeImdbId, safeLink } from "../lib/safe";
@@ -348,11 +349,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
               {credit && <p className="sheet-credit">{credit}</p>}
               <div className="score-row">
                 {/* Icon and number only, so all four fit one line beside the poster; the words are in the labels. */}
-                {formatRating(movie.rating || details?.rating) && (
-                  <span className="score" title="Rating" aria-label={`Rating ${formatRating(movie.rating || details?.rating)} out of 10`}>
-                    <Icon name="star" size={13} /> {formatRating(movie.rating || details?.rating)}
-                  </span>
-                )}
+                {formatRating(movie.rating || details?.rating) && <RatingScore value={movie.rating || details?.rating} className="score" size={13} />}
                 {imdbRating > 0 && (
                   <span className="score" title="IMDb" aria-label={`IMDb ${imdbRating.toFixed(1)}`}>
                     <span className="imdb-mark" aria-hidden="true">IMDb</span> {imdbRating.toFixed(1)}

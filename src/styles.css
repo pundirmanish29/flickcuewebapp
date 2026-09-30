@@ -553,7 +553,10 @@ a { color: inherit; }
   transition: background-color 160ms ease;
 }
 /* The shelf's heading already says it's in cinemas. */
-.cinema-row .candidate-reason, .cinema-row .candidate-overview { display: none; }
+.cinema-row .candidate-overview { display: none; }
+.no-reasons .candidate-reason { display: none; }
+/* On a shelf the reason is the one quiet line under the title, like a streaming app's "New Movie". */
+.cinema-row .candidate-reason { margin-top: 4px; color: var(--muted); font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .showtimes-button:hover { background: var(--paper-deep); }
 .showtime-links { display: flex; flex-wrap: wrap; gap: 8px; }
 .showtime-days { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 16px; padding-bottom: 4px; scrollbar-width: none; }
@@ -700,7 +703,14 @@ a { color: inherit; }
 .danger-link { color: var(--red); font-size: 14px; }
 .button.button-danger { background: var(--red); border-color: var(--red); color: var(--paper); }
 .meta-rating { display: inline-flex; align-items: center; gap: 3px; }
-.meta-rating svg { color: var(--green); fill: currentColor; align-self: center; }
+.meta-rating svg { color: currentColor; fill: currentColor; align-self: center; }
+
+/* How well liked a title is, by colour: the star and number take the band's colour. */
+.tier-great { color: var(--green-ink); }
+.tier-good { color: color-mix(in srgb, var(--green-ink) 55%, var(--orange-ink)); }
+.tier-mixed { color: var(--orange-ink); }
+.tier-poor { color: var(--red); }
+.score-row .score[class*="tier-"] svg { color: currentColor; fill: currentColor; }
 .add-by-hand-hint { margin: 32px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
 .link-button.inline { min-height: 0; padding: 0; font-size: inherit; }
 .shelf-tools { display: flex; align-items: center; gap: 14px; }

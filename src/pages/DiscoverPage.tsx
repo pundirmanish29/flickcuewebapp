@@ -12,6 +12,7 @@ import { onIntent, takeIntent } from "../lib/discoverIntent";
 import { findExisting } from "../lib/editor";
 import { displayTitle } from "../lib/rules";
 import { useAppState } from "../lib/store";
+import { COMING_SOON, freeToWatch, HIDDEN_GEMS, onProvider, providersFor, TALK_OF_THE_TOWN, TALK_SEE_ALL } from "../lib/shelves";
 import { browse, browseGenre, DISCOVER_CATEGORIES, genreHasShows, GENRES_LIST, IN_CINEMAS, recommendRows, searchTitles, TRENDING_SHOWS, upscale, type DiscoverCategory, type PersonMatch } from "../lib/tmdb";
 import type { Candidate, KindFilter } from "../lib/types";
 
@@ -169,19 +170,21 @@ function Results({ items, onOpen, showtimes = false, ranked = false }: { items: 
 }
 
 /** A sideways row of titles, with arrows for a mouse. */
-function Row({ title, items, onOpen, onSeeAll, ranked = false, showtimes = false }: {
+function Row({ title, items, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true }: {
   title: string;
   items: Candidate[] | null;
   onOpen: (id: string) => void;
   onSeeAll?: () => void;
   ranked?: boolean;
   showtimes?: boolean;
+  /** Say why each title is here, under its name. */
+  reasons?: boolean;
 }) {
   const row = useRef<HTMLDivElement>(null);
   const id = useId();
   const scroll = (direction: number) => row.current?.scrollBy({ left: direction * row.current.clientWidth * 0.85, behavior: "smooth" });
   return (
-    <section className={`cinema-shelf ${ranked ? "ranked-shelf" : ""}`} aria-labelledby={id}>
+    <section className={`cinema-shelf ${ranked ? "ranked-shelf" : ""} ${reasons ? "" : "no-reasons"}`} aria-labelledby={id}>
       <div className="cinema-shelf-head">
         <h2 id={id}>{title}</h2>
         <div className="shelf-tools">
@@ -202,28 +205,56 @@ function Row({ title, items, onOpen, onSeeAll, ranked = false, showtimes = false
 }
 
 /** A row fetched from one list: what's in cinemas here, or this week's top 10 shows. A failed or empty lookup leaves Discover as it was. */
-function Shelf({ title, category, region, onOpen, onSeeAll, ranked = false, showtimes = false }: {
+function Shelf({ title, category, load, region, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true, skip }: {
   title: string;
-  category: DiscoverCategory;
+  category?: DiscoverCategory;
+  /** A row that isn't one list: fetched by this instead of by `category`. */
+  load?: () => Promise<Candidate[]>;
   region: string;
   onOpen: (id: string) => void;
-  onSeeAll: () => void;
+  onSeeAll?: () => void;
   ranked?: boolean;
   showtimes?: boolean;
+  reasons?: boolean;
+  /** Keys of titles already saved, left out: a shelf is for finding something new. */
+  skip?: Set<string>;
 }) {
   const [items, setItems] = useState<Candidate[] | null>(null);
+  const anchor = useRef<HTMLDivElement>(null);
+  // Shelves below the fold wait until they are near the screen, so the page doesn't ask for a dozen lists at once.
+  const [near, setNear] = useState(false);
   useEffect(() => {
+    const node = anchor.current;
+    if (!node || typeof IntersectionObserver === "undefined") return setNear(true);
+    const watcher = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setNear(true);
+        watcher.disconnect();
+      }
+    }, { rootMargin: "500px 0px" });
+    watcher.observe(node);
+    return () => watcher.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!near) return;
     let live = true;
     setItems(null);
-    browse(category, 1, region)
-      .then(({ items: found }) => live && setItems(found.slice(0, ranked ? 10 : 12)))
+    const request = load ? load() : browse(category!, 1, region).then((result) => result.items);
+    request
+      .then((found) => live && setItems(found.slice(0, ranked ? 10 : 12)))
       .catch(() => live && setItems([]));
     return () => {
       live = false;
     };
-  }, [category, region, ranked]);
-  if (items && !items.length) return null;
-  return <Row title={title} items={items} onOpen={onOpen} onSeeAll={onSeeAll} ranked={ranked} showtimes={showtimes} />;
+  }, [near, category, region, ranked]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = items && skip ? items.filter((item) => !skip.has(item.key)) : items;
+  if (shown && !shown.length) return null;
+  return (
+    <div ref={anchor}>
+      <Row title={title} items={shown} onOpen={onOpen} onSeeAll={onSeeAll} ranked={ranked} showtimes={showtimes} reasons={reasons} />
+    </div>
+  );
 }
 
 const GENRE_PREFIX = "genre:";
@@ -330,8 +361,15 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
         <div className="wrap">
           {showShelves && (
             <>
+              <Shelf title="Talk of the town" category={TALK_OF_THE_TOWN} region={region} onOpen={onOpen} onSeeAll={() => choose(TALK_SEE_ALL)} skip={saved} />
               <Shelf title="Top 10 shows this week" category={TRENDING_SHOWS} region={region} onOpen={onOpen} onSeeAll={() => choose(TRENDING_SHOWS.id)} ranked />
-              <Shelf title={`In cinemas in ${regionName(region)}`} category={IN_CINEMAS} region={region} onOpen={onOpen} onSeeAll={() => choose(IN_CINEMAS.id)} showtimes />
+              <Shelf title={`In cinemas in ${regionName(region)}`} category={IN_CINEMAS} region={region} onOpen={onOpen} onSeeAll={() => choose(IN_CINEMAS.id)} showtimes reasons={false} />
+              <Shelf title="Coming soon" category={COMING_SOON} region={region} onOpen={onOpen} onSeeAll={() => choose("upcoming")} skip={saved} />
+              <Shelf title="Hidden gems" category={HIDDEN_GEMS} region={region} onOpen={onOpen} onSeeAll={() => choose("hidden-gems")} skip={saved} />
+              <Shelf title="Free to watch" load={() => freeToWatch(region)} region={region} onOpen={onOpen} skip={saved} />
+              {providersFor(region).map((provider) => (
+                <Shelf key={`${provider.id}:${region}`} title={`Don't miss these on ${provider.name}`} load={() => onProvider(provider, region)} region={region} onOpen={onOpen} skip={saved} />
+              ))}
             </>
           )}
 
