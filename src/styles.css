@@ -672,13 +672,6 @@ a { color: inherit; }
 
 /* ---- Discover ---- */
 
-/* The list chips stay under the header while the list scrolls. */
-.discover-bar {
-  position: sticky; top: var(--header); z-index: 6; margin: 0 calc(-1 * var(--gutter)); padding: 10px var(--gutter);
-  background: var(--paper); box-shadow: 0 1px 0 var(--rule);
-}
-.discover-bar .category-row { margin: 0; padding: 0; }
-@media (min-width: 901px) { .discover-bar .category-row { flex-wrap: wrap; overflow: visible; } }
 .discover-toolbar { justify-content: flex-start; gap: 10px; margin: 16px 0 20px; }
 .segmented button:disabled { opacity: 0.4; cursor: default; }
 .genre-select.active select { background-color: var(--ink); color: var(--on-ink); border-color: var(--ink); }
@@ -723,7 +716,6 @@ a { color: inherit; }
 .shelf-arrow:hover { border-color: var(--ink); }
 .shelf-arrow.flip svg { transform: scaleX(-1); }
 
-.category-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 20px; }
 .category {
   flex-shrink: 0; height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--rule);
   background: var(--paper-surface); font-weight: 600; font-size: 14px;
@@ -1243,11 +1235,7 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   .candidate-card .title-card-text h3 { font-size: 14px; }
   .candidate-card .meta, .candidate-reason, .candidate-overview { font-size: 12px; }
   .candidate-quick { width: 36px; height: 36px; right: 6px; bottom: 6px; }
-  .category-row { gap: 6px; margin: 0 calc(-1 * var(--gutter)) 12px; padding: 0 var(--gutter) 4px; scrollbar-width: none; }
-  .discover-bar { padding: 8px var(--gutter); }
-  .discover-bar .category-row { margin: 0 calc(-1 * var(--gutter)); padding: 0 var(--gutter); }
   .discover-toolbar { margin: 12px 0 16px; }
-  .category-row::-webkit-scrollbar { display: none; }
   .category, .titles .toolbar .segmented button { min-height: 36px; height: 36px; padding: 0 14px; font-size: 14px; }
   .titles .toolbar .button.small { height: 36px; min-height: 36px; font-size: 14px; }
   /* A narrow card's popover would run off the screen: it rises from the bottom instead. */
@@ -1451,25 +1439,34 @@ html[data-transition="title"] .site-header, html[data-transition="title"] .botto
 .verdict-word.verdict-perfection { color: var(--green-ink); }
 @media (max-width: 420px) { .verdict { font-size: 13px; padding: 0 4px; } }
 
-/* ---- Discover: one chip rail up top, four shelves, everything else a tap away ---- */
-.category-divider { flex-shrink: 0; align-self: center; width: 1px; height: 20px; margin: 0 4px; background: var(--rule); }
-.category-more { position: relative; padding: 0; }
-.category-more select {
-  height: 100%; padding: 0 30px 0 16px; border: 0; border-radius: inherit; background: none; color: inherit;
-  font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; appearance: none; -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 12px center;
-}
-.category-more select:focus, .category-more select:focus-visible { outline: none; }
-.category-more:focus-within { box-shadow: 0 0 0 2px var(--ink); }
-.category-more.active { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
-.category-more select option { background: var(--paper-surface); color: var(--ink); }
-.genre-browse { margin-top: clamp(8px, 2vw, 20px); padding-top: clamp(20px, 3vw, 32px); border-top: 1px solid var(--rule); }
+/* ---- Discover: the cinema first, then streaming ---- */
+.list-head { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; }
+.list-head h2 { margin: 0; font-size: clamp(22px, 3vw, 28px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.list-back { color: var(--ink); background: var(--paper-deep); }
+.list-back:hover { background: var(--rule); }
+.genre-browse { margin-top: clamp(28px, 4vw, 44px); padding-top: clamp(20px, 3vw, 28px); border-top: 1px solid var(--rule); }
 .genre-browse h2 { margin: 0 0 14px; font-size: clamp(19px, 2.2vw, 24px); font-weight: 800; letter-spacing: -0.02em; }
+.genre-browse .genre-browse-sub { margin-top: 26px; }
 .genre-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-/* The rail is a pinned strip on a phone; on a wide screen it is the top of the page and wraps, so it doesn't pin over the shelves. */
-@media (min-width: 901px) {
-  .discover-bar { position: static; box-shadow: none; padding: 0; margin: 0 0 20px; }
-  .discover-bar .category-row { padding-bottom: 0; }
-  .category-divider { display: none; }
+
+.cinema-shelf-title .segmented button { height: 36px; padding: 0 18px; font-size: 15px; }
+
+/* "On Netflix": the row's heading is the menu that changes what the row shows. */
+.stream-picker { position: relative; display: inline-flex; align-items: center; }
+.stream-picker select {
+  max-width: 100%; padding: 0 1.5em 2px 0; border: 0; border-bottom: 2px solid var(--rule); border-radius: 0; background: none; color: var(--ink);
+  font: inherit; letter-spacing: inherit; cursor: pointer; appearance: none; -webkit-appearance: none; text-overflow: ellipsis;
+  transition: border-color 160ms ease;
+}
+.stream-picker:hover select { border-bottom-color: var(--ink); }
+.stream-picker select:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 4px; }
+.stream-picker select option { font-size: 16px; font-weight: 500; background: var(--paper-surface); color: var(--ink); }
+.stream-picker svg { position: absolute; right: 0; top: 50%; margin-top: -10px; pointer-events: none; color: var(--ink); }
+
+.cinema-shelf { margin-bottom: clamp(32px, 5vw, 52px); }
+
+/* On a phone the bottom bar already says this is Discover; the page title is only for screen readers. */
+@media (max-width: 900px) {
+  .discover-head { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .discover-head + .titles { padding-top: 12px; }
 }

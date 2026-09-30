@@ -18,13 +18,15 @@ import { openTitle as openWithMotion, pop } from "../lib/motion";
  * A search or Discover result. Saving asks when to be reminded first, as the
  * extension's on-page card does, so nothing lands carrying a time nobody chose.
  */
-export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank }: {
+export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank, compact = false }: {
   candidate: Candidate;
   onOpenSaved: (id: string) => void;
   /** Its place in a top-10 list, drawn large on the poster. */
   rank?: number;
   /** In cinemas: offer where to see its showtimes. */
   showtimes?: boolean;
+  /** Two lines under the poster: its name, then a rating and one short reason, with no summary. */
+  compact?: boolean;
 }) {
   const { library } = useAppState();
   const saved = findExisting(library, candidate);
@@ -68,13 +70,22 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank 
       <button type="button" className="title-card-open title-card-text" onClick={() => (saved ? onOpenSaved(saved.id) : openWithMotion(() => openPreview(candidate)))} tabIndex={-1} aria-hidden="true">
         <h3>{title}</h3>
         {/* The rating sits here, not on the poster, where it would cover the title art. */}
-        <p className="meta">
-          {[rank ? candidate.genre || candidate.mediaType : candidate.mediaType, candidate.year].filter(Boolean).join(" · ")}
-          {formatRating(candidate.rating) && <>{" · "}<RatingScore value={candidate.rating} /></>}
-        </p>
-        {candidate.reason
-          ? <p className="candidate-reason">{candidate.reason}</p>
-          : candidate.overview && <p className="candidate-overview">{candidate.overview}</p>}
+        {compact ? (
+          <p className="meta">
+            {formatRating(candidate.rating) && <><RatingScore value={candidate.rating} />{" · "}</>}
+            {candidate.reason || (rank ? candidate.genre || candidate.mediaType : [candidate.mediaType, candidate.year].filter(Boolean).join(" · "))}
+          </p>
+        ) : (
+          <>
+            <p className="meta">
+              {[rank ? candidate.genre || candidate.mediaType : candidate.mediaType, candidate.year].filter(Boolean).join(" · ")}
+              {formatRating(candidate.rating) && <>{" · "}<RatingScore value={candidate.rating} /></>}
+            </p>
+            {candidate.reason
+              ? <p className="candidate-reason">{candidate.reason}</p>
+              : candidate.overview && <p className="candidate-overview">{candidate.overview}</p>}
+          </>
+        )}
       </button>
       <div className="candidate-save">
         {showtimes && (

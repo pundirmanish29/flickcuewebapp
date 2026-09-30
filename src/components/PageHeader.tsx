@@ -5,9 +5,9 @@ import type { ReactNode } from "react";
  * reading. It stays short so the page's own content starts on the first
  * screen of a phone. The big display lettering belongs to the homepage.
  */
-export function PageHeader({ title, meta }: { title: ReactNode; meta?: ReactNode }) {
+export function PageHeader({ title, meta, className = "" }: { title: ReactNode; meta?: ReactNode; className?: string }) {
   return (
-    <header className="page-head">
+    <header className={`page-head ${className}`}>
       <div className="wrap">
         <h1>{title}</h1>
         {meta && <p className="page-meta">{meta}</p>}

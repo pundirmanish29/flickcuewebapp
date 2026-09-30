@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { CandidateCard } from "../components/CandidateCard";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
@@ -7,13 +7,12 @@ import { ReminderChoices } from "../components/ReminderMenu";
 import { toast } from "../components/Toast";
 import * as actions from "../lib/actions";
 import { pickSeeds, savedKeys } from "../lib/discover";
-import { regionName } from "../lib/cinemas";
 import { onIntent, takeIntent } from "../lib/discoverIntent";
 import { findExisting } from "../lib/editor";
 import { displayTitle } from "../lib/rules";
 import { useAppState } from "../lib/store";
-import { browseStream, COMING_SOON, HIDDEN_GEMS, streamChoices, TALK_OF_THE_TOWN, TALK_SEE_ALL } from "../lib/shelves";
-import { browse, browseGenre, DISCOVER_CATEGORIES, genreHasShows, GENRES_LIST, IN_CINEMAS, recommendRows, searchTitles, TRENDING_SHOWS, upscale, type DiscoverCategory, type PersonMatch } from "../lib/tmdb";
+import { browseStream, COMING_SOON, HIDDEN_GEMS, streamChoices, TALK_OF_THE_TOWN, type StreamChoice } from "../lib/shelves";
+import { browse, browseGenre, DISCOVER_CATEGORIES, genreHasShows, GENRES_LIST, IN_CINEMAS, recommendRows, searchTitles, upscale, type DiscoverCategory, type PersonMatch } from "../lib/tmdb";
 import type { Candidate, KindFilter } from "../lib/types";
 
 type Load =
@@ -159,17 +158,21 @@ function AddByHand({ onDone, onOpen, initialTitle = "" }: { onDone: () => void; 
 
 const matchesKindFilter = (item: Candidate, kind: KindFilter) => kind === "all" || item.tmdbType === kind;
 
-function Results({ items, onOpen, showtimes = false, ranked = false }: { items: Candidate[]; onOpen: (id: string) => void; showtimes?: boolean; ranked?: boolean }) {
+function Results({ items, onOpen, showtimes = false, ranked = false, compact = false }: { items: Candidate[]; onOpen: (id: string) => void; showtimes?: boolean; ranked?: boolean; compact?: boolean }) {
   return (
     <div className="grid">
-      {items.map((item, index) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} showtimes={showtimes} rank={ranked ? index + 1 : undefined} />)}
+      {items.map((item, index) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} showtimes={showtimes} rank={ranked ? index + 1 : undefined} compact={compact} />)}
     </div>
   );
 }
 
 /** A sideways row of titles, with arrows for a mouse. */
-function Row({ title, items, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true }: {
+function Row({ title, heading, bare = false, items, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true, compact = false }: {
   title: string;
+  /** What the heading shows in place of the plain title, such as a menu. */
+  heading?: ReactNode;
+  /** The heading is itself a control, so it is not a heading element. */
+  bare?: boolean;
   items: Candidate[] | null;
   onOpen: (id: string) => void;
   onSeeAll?: () => void;
@@ -177,6 +180,8 @@ function Row({ title, items, onOpen, onSeeAll, ranked = false, showtimes = false
   showtimes?: boolean;
   /** Say why each title is here, under its name. */
   reasons?: boolean;
+  /** Two lines under each poster, no summary. */
+  compact?: boolean;
 }) {
   const row = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -184,7 +189,7 @@ function Row({ title, items, onOpen, onSeeAll, ranked = false, showtimes = false
   return (
     <section className={`cinema-shelf ${ranked ? "ranked-shelf" : ""} ${reasons ? "" : "no-reasons"}`} aria-labelledby={id}>
       <div className="cinema-shelf-head">
-        <h2 id={id}>{title}</h2>
+        {bare ? <div id={id} className="cinema-shelf-title">{heading}</div> : <h2 id={id}>{heading ?? title}</h2>}
         <div className="shelf-tools">
           <span className="shelf-arrows">
             <button type="button" className="shelf-arrow" aria-label={`Scroll ${title} back`} onClick={() => scroll(-1)}><Icon name="back" size={16} /></button>
@@ -195,73 +200,136 @@ function Row({ title, items, onOpen, onSeeAll, ranked = false, showtimes = false
       </div>
       <div className="cinema-row" ref={row} aria-busy={!items}>
         {items
-          ? items.map((item, index) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} showtimes={showtimes} rank={ranked ? index + 1 : undefined} />)
+          ? items.map((item, index) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} showtimes={showtimes} rank={ranked ? index + 1 : undefined} compact={compact} />)
           : Array.from({ length: 6 }, (_, index) => <div key={index} className="skeleton-card" />)}
       </div>
     </section>
   );
 }
 
-/** A row fetched from one list: what's in cinemas here, or this week's top 10 shows. A failed or empty lookup leaves Discover as it was. */
-function Shelf({ title, category, region, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true, skip }: {
-  title: string;
-  category: DiscoverCategory;
-  region: string;
-  onOpen: (id: string) => void;
-  onSeeAll?: () => void;
-  ranked?: boolean;
-  showtimes?: boolean;
-  reasons?: boolean;
-  /** Keys of titles already saved, left out: a shelf is for finding something new. */
-  skip?: Set<string>;
-}) {
-  const [items, setItems] = useState<Candidate[] | null>(null);
-  const anchor = useRef<HTMLDivElement>(null);
-  // Shelves below the fold wait until they are near the screen, so the page doesn't ask for a dozen lists at once.
-  const [near, setNear] = useState(false);
-  useEffect(() => {
-    const node = anchor.current;
-    if (!node || typeof IntersectionObserver === "undefined") return setNear(true);
-    const watcher = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        setNear(true);
-        watcher.disconnect();
-      }
-    }, { rootMargin: "500px 0px" });
-    watcher.observe(node);
-    return () => watcher.disconnect();
-  }, []);
+const GENRE_PREFIX = "genre:";
+const STREAM_PREFIX = "stream:";
+const STREAM_KEY = "flickcue.discoverStream";
+
+/** The lists behind "See all" and "Explore more": a name for each. */
+const BROWSE_LISTS: { id: string; title: string }[] = [
+  { id: "trending", title: "Trending" },
+  { id: "trending-shows", title: "Top 10 shows" },
+  { id: "now-playing", title: "In cinemas" },
+  { id: "upcoming", title: "Coming soon" },
+  { id: "hidden-gems", title: "Hidden gems" },
+  { id: "popular-films", title: "Popular films" },
+  { id: "top-films", title: "Top rated films" },
+  { id: "popular-shows", title: "Popular shows" },
+  { id: "top-shows", title: "Top rated shows" }
+];
+/** The lists that get a chip under "Explore more"; the others are reached from the rows above. */
+const EXPLORE_LISTS = ["trending-shows", "hidden-gems", "popular-films", "top-films", "popular-shows", "top-shows"];
+/** Lists whose cards say why: a date, a rating. */
+const LABELLED_LISTS: Record<string, DiscoverCategory> = { upcoming: COMING_SOON, "hidden-gems": HIDDEN_GEMS };
+
+const readStream = (): string => {
+  try {
+    return localStorage.getItem(STREAM_KEY) || "";
+  } catch {
+    return "";
+  }
+};
+
+/**
+ * The top of Discover: what's in cinemas now or coming soon, as ordinary posters.
+ * The two lists share one row, switched by the pair of buttons that is its heading.
+ */
+function CinemaRow({ region, onOpen, onSeeAll }: { region: string; onOpen: (id: string) => void; onSeeAll: (list: string) => void }) {
+  const [mode, setMode] = useState<"now" | "soon">("now");
+  const [lists, setLists] = useState<Record<"now" | "soon", Candidate[] | null>>({ now: null, soon: null });
 
   useEffect(() => {
-    if (!near) return;
     let live = true;
-    setItems(null);
-    browse(category, 1, region)
-      .then(({ items: found }) => live && setItems(found.slice(0, ranked ? 10 : 12)))
-      .catch(() => live && setItems([]));
+    setLists({ now: null, soon: null });
+    const fetchList = (key: "now" | "soon", category: DiscoverCategory) =>
+      browse(category, 1, region)
+        .then(({ items }) => live && setLists((current) => ({ ...current, [key]: items })))
+        .catch(() => live && setLists((current) => ({ ...current, [key]: [] })));
+    void fetchList("now", IN_CINEMAS);
+    void fetchList("soon", COMING_SOON);
     return () => {
       live = false;
     };
-  }, [near, category, region, ranked]); // eslint-disable-line react-hooks/exhaustive-deps
-  const shown = items && skip ? items.filter((item) => !skip.has(item.key)) : items;
-  if (shown && !shown.length) return null;
+  }, [region]);
+
+  const items = lists[mode]?.slice(0, 12) ?? null;
+  if (lists.now && lists.soon && !lists.now.length && !lists.soon.length) return null;
   return (
-    <div ref={anchor}>
-      <Row title={title} items={shown} onOpen={onOpen} onSeeAll={onSeeAll} ranked={ranked} showtimes={showtimes} reasons={reasons} />
-    </div>
+    <Row
+      title="At the cinema"
+      bare
+      heading={
+        <div className="segmented" role="group" aria-label="At the cinema">
+          <button type="button" aria-pressed={mode === "now"} onClick={() => setMode("now")}>In cinemas</button>
+          <button type="button" aria-pressed={mode === "soon"} onClick={() => setMode("soon")}>Coming soon</button>
+        </div>
+      }
+      items={items}
+      onOpen={onOpen}
+      onSeeAll={() => onSeeAll(mode === "now" ? IN_CINEMAS.id : "upcoming")}
+      showtimes={mode === "now"}
+      compact
+    />
   );
 }
 
-const GENRE_PREFIX = "genre:";
-const STREAM_PREFIX = "stream:";
-const HOME = "home";
+/** "On Netflix ▾": the row's own heading is the menu that changes what it shows. */
+function StreamingRow({ region, streams, saved, onOpen, onSeeAll }: {
+  region: string;
+  streams: StreamChoice[];
+  saved: Set<string>;
+  onOpen: (id: string) => void;
+  onSeeAll: (list: string) => void;
+}) {
+  const [chosen, setChosen] = useState(readStream);
+  // Netflix unless one was picked before (and is still on offer in this region).
+  const choice = streams.find((item) => item.id === chosen) ?? streams[1] ?? streams[0];
+  const [items, setItems] = useState<Candidate[] | null>(null);
 
-/** The lists that get a chip of their own; every other list is under "More lists". */
-const MAIN_LISTS = ["trending", "now-playing", "upcoming", "hidden-gems"];
-const MORE_LISTS = ["trending-shows", "popular-films", "top-films", "popular-shows", "top-shows"];
-const listById = (id: string) => DISCOVER_CATEGORIES.find((item) => item.id === id)!;
-/** Lists whose cards say why: a date, a rating. */
-const LABELLED_LISTS: Record<string, DiscoverCategory> = { upcoming: COMING_SOON, "hidden-gems": HIDDEN_GEMS };
+  useEffect(() => {
+    let live = true;
+    setItems(null);
+    browseStream(choice, region, "all", 1).then(({ items: found }) => live && setItems(found)).catch(() => live && setItems([]));
+    return () => {
+      live = false;
+    };
+  }, [choice.id, region]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const label = (item: StreamChoice) => (item.id === "free" ? "Free to watch" : `On ${item.label}`);
+  const pick = (id: string) => {
+    setChosen(id);
+    try {
+      localStorage.setItem(STREAM_KEY, id);
+    } catch {
+      // Without storage the choice lasts for this visit.
+    }
+  };
+  const shown = items ? items.filter((item) => !saved.has(item.key)).slice(0, 10) : null;
+  return (
+    <Row
+      title={label(choice)}
+      heading={
+        <label className="stream-picker">
+          <span className="visually-hidden">Streaming service</span>
+          <select value={choice.id} onChange={(event) => pick(event.target.value)} style={{ width: `${label(choice).length * 0.58 + 2.4}em` }}>
+            {streams.map((item) => <option key={item.id} value={item.id}>{label(item)}</option>)}
+          </select>
+          <Icon name="chevron" size={20} />
+        </label>
+      }
+      items={shown}
+      onOpen={onOpen}
+      onSeeAll={() => onSeeAll(STREAM_PREFIX + choice.id)}
+      compact
+    />
+  );
+}
 
 export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; query: string }) {
   const { library, settings } = useAppState();
@@ -273,49 +341,54 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const seedKey = seeds.map((seed) => seed.tmdbId).join(",");
   const hasSeeds = seeds.length > 0;
 
-  const [category, setCategory] = useState(HOME);
+  // "" is Discover's own page; anything else is a full list opened from it.
+  const [list, setList] = useState("");
   const [kind, setKind] = useState<KindFilter>("all");
   const [load, setLoad] = useState<Load>({ state: "loading" });
+  const [trending, setTrending] = useState<Candidate[] | null>(null);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [manual, setManual] = useState(false);
-  const bar = useRef<HTMLDivElement>(null);
 
   // A genre tapped in a title's details opens here on that genre.
   useEffect(() => onIntent(() => {
     const wanted = takeIntent("genre");
-    if (wanted) setCategory(GENRE_PREFIX + wanted);
+    if (wanted) setList(GENRE_PREFIX + wanted);
   }), []);
 
   const searching = query.trim().length >= 2;
-  const atHome = !searching && category === HOME;
-  const forYou = atHome && hasSeeds;
-  const genre = category.startsWith(GENRE_PREFIX) ? category.slice(GENRE_PREFIX.length) : "";
-  const stream = category.startsWith(STREAM_PREFIX) ? streams.find((item) => STREAM_PREFIX + item.id === category) : undefined;
-  const activeCategory = LABELLED_LISTS[category] ?? DISCOVER_CATEGORIES.find((item) => item.id === category) ?? DISCOVER_CATEGORIES[0];
+  const root = !searching && !list;
+  const forYou = root && hasSeeds;
+  const genre = list.startsWith(GENRE_PREFIX) ? list.slice(GENRE_PREFIX.length) : "";
+  const stream = list.startsWith(STREAM_PREFIX) ? streams.find((item) => STREAM_PREFIX + item.id === list) : undefined;
+  const activeCategory = LABELLED_LISTS[list] ?? DISCOVER_CATEGORIES.find((item) => item.id === list) ?? DISCOVER_CATEGORIES[0];
   // A list of one kind shows that kind, fixed; a genre without shows is films only.
-  const fixedKind: KindFilter | null = searching || atHome || stream ? null : genre ? (genreHasShows(genre) ? null : "movie") : activeCategory.type ?? null;
+  const fixedKind: KindFilter | null = searching || root || stream ? null : genre ? (genreHasShows(genre) ? null : "movie") : activeCategory.type ?? null;
   const shownKind = fixedKind ?? kind;
-  const ranked = !searching && !genre && !atHome && !stream && Boolean(activeCategory.ranked);
+  const ranked = !searching && Boolean(list) && !genre && !stream && Boolean(activeCategory.ranked);
 
-  // The chosen chip stays in view in the sideways rail, wherever the choice came from.
+  // Changing region can remove a service (JioHotstar, Disney+): leave its list rather than sit on one that is gone.
   useEffect(() => {
-    bar.current?.querySelector<HTMLElement>('[aria-current="true"]')?.scrollIntoView({ inline: "center", block: "nearest" });
-  }, [category]);
+    if (list.startsWith(STREAM_PREFIX) && !stream) setList("");
+  }, [list, stream]);
 
-  // Changing region can remove a service (JioHotstar, Disney+): leave its list rather than sit on a chip that is gone.
+  // Every list opens at its top, and coming back to Discover does too.
   useEffect(() => {
-    if (category.startsWith(STREAM_PREFIX) && !stream) setCategory(HOME);
-  }, [category, stream]);
+    window.scrollTo({ top: 0 });
+  }, [list]);
 
   // A search starts clean: a half-filled "add by hand" form closes.
   useEffect(() => setManual(false), [searching]);
 
-  const choose = (next: string) => {
-    setCategory(next);
-    // The new list starts at the top, under the bar.
-    if (bar.current && bar.current.getBoundingClientRect().top < 80) bar.current.scrollIntoView({ block: "start" });
-  };
+  // What's trending is a row of its own on the page.
+  useEffect(() => {
+    if (!root) return;
+    let live = true;
+    browse(TALK_OF_THE_TOWN, 1, region).then(({ items }) => live && setTrending(items)).catch(() => live && setTrending([]));
+    return () => {
+      live = false;
+    };
+  }, [root, region]);
 
   const fetchPage = (pageNumber: number) =>
     genre ? browseGenre(genre, kind === "all" ? "all" : kind, pageNumber)
@@ -331,7 +404,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
         ? searchTitles(query.trim()).then((result) => ({ state: "done", items: result.titles, person: result.person }))
         : forYou
           ? recommendRows(seeds, saved).then((rows) => ({ state: "done", items: [], rows }))
-          : atHome
+          : root
             ? Promise.resolve<Load>({ state: "done", items: [] })
             : fetchPage(1).then(({ items, more }) => ({ state: "done", items, more }));
       request
@@ -342,7 +415,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
       live = false;
       clearTimeout(timer);
     };
-  }, [category, query, searching, forYou, seedKey, region, genre || stream ? kind : ""]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [list, query, searching, forYou, root, seedKey, region, genre || stream ? kind : ""]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = async () => {
     if (load.state !== "done") return;
@@ -365,45 +438,37 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const visible = load.state === "done"
     ? load.items.filter((item) => matchesKindFilter(item, shownKind) && (searching || ranked || !saved.has(item.key)))
     : [];
-  const rows = load.state === "done" && load.rows
-    ? load.rows.map((row) => ({ ...row, items: row.items.filter((item) => matchesKindFilter(item, kind)) })).filter((row) => row.items.length >= 3)
-    : [];
   const person = load.state === "done" ? load.person : undefined;
   const personWork = person ? person.titles.filter((item) => matchesKindFilter(item, shownKind)) : [];
-  const nothing = load.state === "done" && !atHome && !visible.length && !rows.length && !personWork.length;
+  const nothing = load.state === "done" && !root && !visible.length && !personWork.length;
 
-  const chip = (id: string, label: string, icon?: "star" | "play", name?: string) => (
-    <button key={id} type="button" aria-current={category === id ? "true" : undefined} aria-label={name} className="category" onClick={() => choose(id)}>
-      {icon && <Icon name={icon} size={13} />} {label}
-    </button>
-  );
+  const picks = load.state === "done" && load.rows ? load.rows.filter((row) => row.items.length >= 3) : [];
+  const fresh = (items: Candidate[]) => items.filter((item) => !saved.has(item.key)).slice(0, 10);
+  const forYouRow = picks[0] ? { title: `Because you saved ${picks[0].because}`, items: fresh(picks[0].items) } : null;
+  const trendingItems = trending ? fresh(trending) : null;
+
+  const listTitle = genre
+    ? GENRES_LIST.find((item) => item.id === genre)?.label ?? "Genre"
+    : stream
+      ? stream.id === "free" ? "Free to watch" : `On ${stream.label}`
+      : BROWSE_LISTS.find((item) => item.id === list)?.title ?? activeCategory.label;
 
   return (
     <>
-      <PageHeader title="Discover" meta={searching ? <>Results for “{query.trim()}”</> : undefined} />
+      <PageHeader title="Discover" className="discover-head" meta={searching ? <>Results for “{query.trim()}”</> : undefined} />
 
       <section className="paper titles discover">
         <div className="wrap">
-          {!searching && (
-            <div className="discover-bar" ref={bar}>
-              <div className="category-row" role="group" aria-label="Lists">
-                {chip(HOME, hasSeeds ? "For you" : "Home", hasSeeds ? "star" : undefined)}
-                {MAIN_LISTS.map((id) => chip(id, listById(id).label))}
-                <span className="category-divider" role="presentation" />
-                {streams.map((item) => chip(STREAM_PREFIX + item.id, item.id === "free" ? "Free to watch" : item.label, "play", item.id === "free" ? "Free to watch" : `On ${item.label}`))}
-                <span className="category-divider" role="presentation" />
-                <label className={`category category-more ${MORE_LISTS.includes(category) ? "active" : ""}`}>
-                  <span className="visually-hidden">More lists</span>
-                  <select value={MORE_LISTS.includes(category) ? category : ""} onChange={(event) => event.target.value && choose(event.target.value)}>
-                    <option value="">More lists</option>
-                    {MORE_LISTS.map((id) => <option key={id} value={id}>{listById(id).label}</option>)}
-                  </select>
-                </label>
-              </div>
+          {!searching && list && (
+            <div className="list-head">
+              <button type="button" className="header-icon list-back" onClick={() => setList("")} aria-label="Back to Discover">
+                <Icon name="back" size={20} />
+              </button>
+              <h2>{listTitle}</h2>
             </div>
           )}
 
-          {!atHome && (
+          {!root && (
             <div className="toolbar discover-toolbar">
               <div className="segmented" role="group" aria-label="Show">
                 {(["all", "movie", "tv"] as KindFilter[]).map((value) => (
@@ -418,10 +483,10 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
                   </button>
                 ))}
               </div>
-              {!searching && (
+              {!searching && !stream && (
                 <label className={`select genre-select ${genre ? "active" : ""}`}>
                   <span className="visually-hidden">Genre</span>
-                  <select value={genre} onChange={(event) => choose(event.target.value ? GENRE_PREFIX + event.target.value : HOME)}>
+                  <select value={genre} onChange={(event) => setList(event.target.value ? GENRE_PREFIX + event.target.value : "")}>
                     <option value="">Genre</option>
                     {GENRES_LIST.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </select>
@@ -430,7 +495,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
             </div>
           )}
 
-          {load.state === "loading" && !atHome && (
+          {load.state === "loading" && !root && (
             <div className="grid" aria-busy="true">
               {Array.from({ length: 12 }, (_, index) => <div key={index} className="skeleton-card" />)}
             </div>
@@ -451,29 +516,36 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
             </div>
           )}
 
-          {/* Home: picks from your list first, then four shelves; every other list is one chip away. */}
-          {atHome && (
+          {/* Discover: the cinema first, then streaming, then more picks; every other list is at the bottom. */}
+          {root && (
             <>
-              {forYou && load.state === "loading" && <Row title="For you" items={null} onOpen={onOpen} />}
-              {rows.slice(0, 2).map((row) => <Row key={row.because} title={`Because you saved ${row.because}`} items={row.items} onOpen={onOpen} />)}
-              <Shelf title="Talk of the town" category={TALK_OF_THE_TOWN} region={region} onOpen={onOpen} onSeeAll={() => choose(TALK_SEE_ALL)} skip={saved} />
-              <Shelf title="Top 10 shows this week" category={TRENDING_SHOWS} region={region} onOpen={onOpen} onSeeAll={() => choose(TRENDING_SHOWS.id)} ranked />
-              <Shelf title={`In cinemas in ${regionName(region)}`} category={IN_CINEMAS} region={region} onOpen={onOpen} onSeeAll={() => choose(IN_CINEMAS.id)} showtimes reasons={false} />
-              <Shelf title="Coming soon" category={COMING_SOON} region={region} onOpen={onOpen} onSeeAll={() => choose("upcoming")} skip={saved} />
-              <section className="genre-browse" aria-labelledby="genre-browse-title">
-                <h2 id="genre-browse-title">Browse by genre</h2>
+              <CinemaRow region={region} onOpen={onOpen} onSeeAll={setList} />
+              <StreamingRow region={region} streams={streams} saved={saved} onOpen={onOpen} onSeeAll={setList} />
+              {forYou && load.state === "loading" && <Row title="For you" items={null} onOpen={onOpen} compact />}
+              {forYouRow && forYouRow.items.length > 0 && <Row title={forYouRow.title} items={forYouRow.items} onOpen={onOpen} compact />}
+              {(!trendingItems || trendingItems.length > 0) && (
+                <Row title="Trending now" items={trendingItems} onOpen={onOpen} onSeeAll={() => setList("trending")} compact />
+              )}
+              <section className="genre-browse" aria-labelledby="explore-title">
+                <h2 id="explore-title">Explore more</h2>
+                <div className="genre-chips">
+                  {EXPLORE_LISTS.map((id) => (
+                    <button key={id} type="button" className="category" onClick={() => setList(id)}>{BROWSE_LISTS.find((item) => item.id === id)!.title}</button>
+                  ))}
+                </div>
+                <h2 className="genre-browse-sub">Genres</h2>
                 <div className="genre-chips">
                   {GENRES_LIST.map((item) => (
-                    <button key={item.id} type="button" className="category" onClick={() => choose(GENRE_PREFIX + item.id)}>{item.label}</button>
+                    <button key={item.id} type="button" className="category" onClick={() => setList(GENRE_PREFIX + item.id)}>{item.label}</button>
                   ))}
                 </div>
               </section>
             </>
           )}
 
-          {!atHome && visible.length > 0 && (
+          {!root && visible.length > 0 && (
             <>
-              <Results key={`${category}:${shownKind}`} items={visible} onOpen={onOpen} showtimes={!searching && category === IN_CINEMAS.id} ranked={ranked} />
+              <Results key={`${list}:${shownKind}`} items={visible} onOpen={onOpen} showtimes={!searching && list === IN_CINEMAS.id} ranked={ranked} compact={!searching} />
               {!searching && load.state === "done" && load.more && (
                 <div className="load-more">
                   <button type="button" className="button button-quiet" onClick={() => void loadMore()} disabled={loadingMore}>
@@ -492,8 +564,8 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
             </p>
           )}
 
-          {/* The rarely needed way in, where it's needed: after a search, or at the end. */}
-          {(load.state !== "loading" || atHome) && (manual ? (
+          {/* The rarely needed way in, where it's needed: after a search, in a list, or at the end of the page. */}
+          {(load.state !== "loading" || root) && (manual ? (
             <AddByHand key={query} initialTitle={searching ? query.trim() : ""} onDone={() => setManual(false)} onOpen={onOpen} />
           ) : (
             <p className="add-by-hand-hint">
