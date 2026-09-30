@@ -66,37 +66,53 @@ export function providersFor(region: string): { id: string; name: string }[] {
   ];
 }
 
-/** Films and shows from one discover query, taken in turn so a shelf isn't all of one kind. */
-async function mixed(id: string, label: string, params: Record<string, string>, since: { movie: string; tv: string } | null, reason: (item: Candidate) => string): Promise<Candidate[]> {
-  const lists = await Promise.all(
-    (["movie", "tv"] as const).map((type) =>
+/** Films and shows from one discover query, taken in turn so a list isn't all of one kind. */
+async function mixed(
+  id: string, label: string, params: Record<string, string>, since: string | null, reason: (item: Candidate) => string,
+  kind: "all" | "movie" | "tv" = "all", page = 1
+): Promise<{ items: Candidate[]; more: boolean }> {
+  const types = kind === "all" ? (["movie", "tv"] as const) : ([kind] as const);
+  const results = await Promise.all(
+    types.map((type) =>
       browse({
         id: `${id}-${type}`, label, path: `discover/${type}`, type,
-        params: { ...params, ...(since ? { [type === "tv" ? "first_air_date.gte" : "primary_release_date.gte"]: since[type] } : {}) },
+        params: { ...params, ...(since ? { [type === "tv" ? "first_air_date.gte" : "primary_release_date.gte"]: since } : {}) },
         reason
-      }).then((result) => result.items).catch(() => [] as Candidate[])
+      }, page).catch(() => ({ items: [] as Candidate[], more: false }))
     )
   );
   const items: Candidate[] = [];
-  for (let index = 0; index < Math.max(...lists.map((list) => list.length)); index++) {
-    for (const list of lists) if (list[index]) items.push(list[index]);
+  for (let index = 0; index < Math.max(...results.map((result) => result.items.length)); index++) {
+    for (const result of results) if (result.items[index]) items.push(result.items[index]);
   }
-  return items;
+  return { items, more: results.some((result) => result.more) };
 }
 
-/** Recent, well-liked films and shows included with a service. */
-export function onProvider(provider: { id: string; name: string }, region: string): Promise<Candidate[]> {
-  const since = `${new Date().getFullYear() - 2}-01-01`;
-  return mixed(provider.id, provider.name, {
-    with_watch_providers: provider.id, watch_region: region, with_watch_monetization_types: "flatrate",
+const twoYearsAgo = () => `${new Date().getFullYear() - 2}-01-01`;
+
+/** A streaming chip on Discover: what's free, or what's on one service. */
+export interface StreamChoice {
+  /** "free" or a watch-provider id. */
+  id: string;
+  label: string;
+}
+
+export const FREE_CHOICE: StreamChoice = { id: "free", label: "Free" };
+
+export function streamChoices(region: string): StreamChoice[] {
+  return [FREE_CHOICE, ...providersFor(region).map((provider) => ({ id: provider.id, label: provider.name }))];
+}
+
+/** One page of a streaming choice, films and shows or just one kind: the list behind its chip. */
+export function browseStream(choice: StreamChoice, region: string, kind: "all" | "movie" | "tv", page = 1): Promise<{ items: Candidate[]; more: boolean }> {
+  if (choice.id === "free") {
+    return mixed("free", "Free to watch", {
+      watch_region: region, with_watch_monetization_types: "free|ads",
+      sort_by: "popularity.desc", "vote_count.gte": "200", "vote_average.gte": "6.5"
+    }, null, () => "Free to watch", kind, page);
+  }
+  return mixed(choice.id, choice.label, {
+    with_watch_providers: choice.id, watch_region: region, with_watch_monetization_types: "flatrate",
     sort_by: "popularity.desc", "vote_count.gte": "100", "vote_average.gte": "6.5"
-  }, { movie: since, tv: since }, (item) => providerReason(item, provider.name));
-}
-
-/** What can be watched at no cost in the region, free or with ads, whatever its age. */
-export function freeToWatch(region: string): Promise<Candidate[]> {
-  return mixed("free", "Free to watch", {
-    watch_region: region, with_watch_monetization_types: "free|ads",
-    sort_by: "popularity.desc", "vote_count.gte": "200", "vote_average.gte": "6.5"
-  }, null, () => "Free to watch");
+  }, twoYearsAgo(), (item) => providerReason(item, choice.label), kind, page);
 }

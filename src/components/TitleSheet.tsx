@@ -20,6 +20,7 @@ import { dismissEpisode, episodeKey, newEpisodeFor, readDismissed } from "../lib
 import { NewEpisodeCard } from "./NewEpisodeCard";
 import { Seasons } from "./Seasons";
 import { RatingScore } from "./RatingScore";
+import { VerdictScale } from "./VerdictScale";
 import { goDiscover } from "../lib/discoverIntent";
 import { openTitle as openWithMotion, pop, reducedMotion } from "../lib/motion";
 import { safeImage, safeImdbId, safeLink } from "../lib/safe";
@@ -558,6 +559,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           {isSaved && (movie.watched || take) && (
             <section className="sheet-section">
               <h3 className="section-label">Your take</h3>
+              <VerdictScale stars={takeRating} ownStars={personalRating} onPick={(stars) => actions.setTake(movie.id, { rating: stars })} />
               <div className="take" onClickCapture={(event) => pop((event.target as Element).closest("button"))}>
                 <span className="take-stars-edit" role="group" aria-label="Your rating">
                   {[1, 2, 3, 4, 5].map((star) => {

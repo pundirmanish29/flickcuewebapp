@@ -4,6 +4,7 @@ import { upscale } from "../lib/tmdb";
 import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
 import { RatingScore } from "./RatingScore";
+import { verdictLabel, verdictOf } from "../lib/verdict";
 import { Poster } from "./Poster";
 
 /** Stars out of five, halves as ½: "★★★★½". */
@@ -39,7 +40,11 @@ export function TitleCard({ movie, onOpen, priority = false }: { movie: Movie; o
           {(line || take.stars > 0 || take.liked) && (
             <p className={`meta ${statusLine ? `tone-${status!.tone}` : ""}`}>
               {line}
-              {take.stars > 0 && <span className="your-take" aria-label={`You rated it ${take.stars} out of 5`}>{line ? " · " : ""}{stars(take.stars)}</span>}
+              {take.stars > 0 && (
+                <span className={`your-take verdict-word verdict-${verdictOf(take.stars)}`} title={stars(take.stars)} aria-label={`Your verdict: ${verdictLabel(verdictOf(take.stars)!)}, ${take.stars} out of 5`}>
+                  {line ? " · " : ""}{verdictLabel(verdictOf(take.stars)!)}
+                </span>
+              )}
               {take.liked && <span className="your-heart" aria-label="Liked"> <Icon name="heart" size={11} /></span>}
             </p>
           )}
