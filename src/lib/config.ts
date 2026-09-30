@@ -13,5 +13,8 @@ export const EXTENSION_IDS = ["hmgefidihfkkeleeblhecnhlkbbojmmh", "jojcdljmjbgkp
 export const PROXY_BASE_URL = ((import.meta.env.VITE_PROXY_URL as string | undefined)?.trim() || "https://flickcue-proxy.manishpundir29.workers.dev").replace(/\/+$/, "");
 
 
+/** Where people reach the developer; the extension and the Android app show the same address. */
+export const SUPPORT_EMAIL = "support@flickcue.in";
+
 /** The FlickCue extension's Chrome Web Store page. */
 export const EXTENSION_URL = "https://chromewebstore.google.com/detail/flickcue-watch-later/hmgefidihfkkeleeblhecnhlkbbojmmh?hl=en";

@@ -8,7 +8,7 @@ import { chooseTheme, confirmHeldRemoval, connect, disconnect, importLibrary, ke
 import { getStoredToken } from "../lib/auth";
 import { listRevisions, readRevision, type Revision } from "../lib/drive";
 import { INDIAN_CITIES } from "../lib/cinemas";
-import { EXTENSION_URL } from "../lib/config";
+import { EXTENSION_URL, SUPPORT_EMAIL } from "../lib/config";
 import { alertSupport } from "../lib/alerts";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import { useTheme, type ThemeChoice } from "../lib/theme";
@@ -384,6 +384,7 @@ function About() {
         <li><a href={EXTENSION_URL} target="_blank" rel="noreferrer">Chrome extension <Icon name="external" size={13} /></a></li>
         <li><span className="muted">Android app · coming soon</span></li>
         <li><a href="./privacy.html">Privacy</a></li>
+        <li><a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`FlickCue for the web v${__APP_VERSION__}`)}`}>Contact support</a></li>
       </ul>
       <p className="muted small-print">Version {__APP_VERSION__}</p>
     </article>

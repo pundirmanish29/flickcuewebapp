@@ -7,6 +7,7 @@ import { Icon, Logo, type IconName } from "./components/Icon";
 import { TitleSheet } from "./components/TitleSheet";
 import { closePreview, usePreview } from "./lib/preview";
 import { ToastHost } from "./components/Toast";
+import { SUPPORT_EMAIL } from "./lib/config";
 import { displayTitle } from "./lib/rules";
 import { connect, getState, startBackgroundSync, useAppState } from "./lib/store";
 import { DiscoverPage } from "./pages/DiscoverPage";
@@ -334,6 +335,7 @@ export default function App() {
           <span className="brand"><Logo size={8} /> <span className="brand-name">FLICKCUE</span></span>
           <span className="muted">One watchlist on the web, in Chrome and, soon, on Android.</span>
           <a className="muted footer-link" href="./privacy.html">Privacy</a>
+          <a className="muted footer-link" href={`mailto:${SUPPORT_EMAIL}`}>Contact</a>
         </div>
       </footer>
 
