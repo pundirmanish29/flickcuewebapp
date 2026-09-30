@@ -24,6 +24,9 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- The body font and the italic accent are needed for the first paint: fetched before the stylesheet asks for them. -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="./fonts/archivo-variable-latin.woff2" />
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="./fonts/instrument-serif-400italic-latin.woff2" />
     <link rel="stylesheet" href="./fonts/fonts.css" />
     <script src="./theme.js"></script>
     <title>FlickCue — One watchlist. Everywhere.</title>
