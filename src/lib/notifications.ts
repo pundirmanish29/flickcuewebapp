@@ -248,4 +248,16 @@ export function dismiss(id: string) {
   window.dispatchEvent(new Event(DISMISSED_EVENT));
 }
 
+/** Puts a dismissed notification back (the Undo after a swipe). */
+export function undismiss(id: string) {
+  const ids = getDismissed();
+  ids.delete(id);
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...ids]));
+  } catch {
+    // Without storage it stays as it was for this visit only.
+  }
+  window.dispatchEvent(new Event(DISMISSED_EVENT));
+}
+
 export const countUnread = (items: FlickNotification[], seenAt: number) => items.filter((item) => item.at > seenAt).length;

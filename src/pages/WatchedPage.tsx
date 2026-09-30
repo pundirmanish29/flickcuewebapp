@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { TitleCard } from "../components/TitleCard";
 import { importDays, knownWatchedAt, matchesKind, matchesSearch, watchedGroups } from "../lib/rules";
 import { PageHeader } from "../components/PageHeader";
 import { useAppState } from "../lib/store";
+import { useSwap } from "../lib/motion";
 import type { KindFilter } from "../lib/types";
 
 const PAGE = 60;
@@ -10,6 +11,8 @@ const PAGE = 60;
 export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; query: string }) {
   const { library } = useAppState();
   const [kind, setKind] = useState<KindFilter>("all");
+  const months = useRef<HTMLDivElement>(null);
+  useSwap(months, kind);
 
   const watched = useMemo(() => library.movies.filter((movie) => movie.watched), [library.movies]);
   const stats = useMemo(() => {
@@ -44,13 +47,13 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
     <>
       <PageHeader
         title="Watched"
-        meta={[
-          `${watched.length} in all`,
-          stats.month ? `${stats.month} this month` : "",
-          stats.year ? `${stats.year} this year` : "",
+        stats={[
+          { value: watched.length, label: "in all" },
+          ...(stats.month ? [{ value: stats.month, label: "this month" }] : []),
+          ...(stats.year ? [{ value: stats.year, label: "this year" }] : []),
           // Hours only count titles with a known runtime, so they wait until there are some.
-          stats.hours ? `${stats.hours} hours` : ""
-        ].filter(Boolean).join(" · ")}
+          ...(stats.hours ? [{ value: stats.hours, label: "hours" }] : [])
+        ]}
       />
 
       <section className="paper titles">
@@ -66,6 +69,7 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
           </div>
           {groups.length ? (
             <>
+              <div ref={months}>
               {groups.map((group) => (
                 <section key={group.key} className="watched-month" aria-labelledby={`month-${group.key}`}>
                   <h2 id={`month-${group.key}`} className="watched-month-title">
@@ -77,6 +81,7 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
                   </div>
                 </section>
               ))}
+              </div>
               {visible.length > limit && (
                 <div className="load-more">
                   <button type="button" className="button button-quiet" onClick={() => setLimit(limit + PAGE)}>

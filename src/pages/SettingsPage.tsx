@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { timeAgo } from "../components/AccountMenu";
-import { Icon } from "../components/Icon";
+import { GoogleIcon, Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 import * as actions from "../lib/actions";
 import { toast } from "../components/Toast";
@@ -152,7 +152,7 @@ function Account() {
             app folder in your own Google Drive. FlickCue can't see anything else in your Drive.
           </p>
           {syncState.error && <p className="error">{syncState.error}</p>}
-          <button type="button" className="button button-ink" onClick={() => void connect()}>Sign in with Google</button>
+          <button type="button" className="button button-ink" onClick={() => void connect()}><GoogleIcon /> Sign in with Google</button>
         </>
       )}
     </article>
@@ -170,7 +170,7 @@ function Appearance() {
           <button key={value} type="button" aria-pressed={choice === value} onClick={() => chooseTheme(value)}>{label}</button>
         ))}
       </div>
-      <p className="muted small-print">The sun and moon in the top bar switch it too.</p>
+      <p className="muted small-print">You can also switch it from your profile menu.</p>
     </article>
   );
 }

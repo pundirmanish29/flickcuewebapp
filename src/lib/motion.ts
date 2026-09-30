@@ -3,6 +3,8 @@
 // it, quiet continuity (pages cross-fade) and small feedback (pop). All of it
 // steps aside for prefers-reduced-motion and for browsers without the APIs.
 
+import { useEffect, useRef, type RefObject } from "react";
+
 type ViewTransition = { finished: Promise<void> };
 type TransitionDocument = Document & { startViewTransition?: (update: () => void | Promise<void>) => ViewTransition };
 
@@ -14,7 +16,7 @@ let running = false;
 export const transitionRunning = () => running;
 
 /** Runs a DOM change as a view transition where the browser has them, else at once. */
-export function transition(update: () => void | Promise<void>, kind: "page" | "title" = "page") {
+export function transition(update: () => void | Promise<void>, kind: "page" | "title" = "page", direction?: "forward" | "back") {
   if (!canTransition() || running) {
     void update();
     return;
@@ -22,12 +24,34 @@ export function transition(update: () => void | Promise<void>, kind: "page" | "t
   running = true;
   const root = document.documentElement;
   root.dataset.transition = kind;
+  // Which way the page slides: toward the tab you chose (styles.css).
+  if (direction) root.dataset.direction = direction;
   const done = () => {
     running = false;
     delete root.dataset.transition;
+    delete root.dataset.direction;
     delete root.dataset.opening;
   };
   (document as TransitionDocument).startViewTransition!(update).finished.then(done, done);
+}
+
+/**
+ * When a list changes under a filter, sort or toggle, it settles in from just below
+ * rather than swapping in a frame. Nothing is remounted (so nothing flashes), and the
+ * first render, and anyone who asked for less motion, get no animation.
+ */
+export function useSwap(target: RefObject<HTMLElement | null>, dependency: unknown) {
+  const previous = useRef(dependency);
+  useEffect(() => {
+    if (previous.current === dependency) return;
+    previous.current = dependency;
+    const element = target.current;
+    if (!element || reducedMotion() || typeof element.animate !== "function") return;
+    element.animate(
+      [{ opacity: 0, transform: "translateY(14px)" }, { opacity: 1, transform: "none" }],
+      { duration: 420, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }
+    );
+  }, [dependency, target]);
 }
 
 // The poster last pressed, to grow from when a title opens.

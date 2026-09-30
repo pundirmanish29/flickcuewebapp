@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
-import { Landing } from "../components/Landing";
 import { TitleCard } from "../components/TitleCard";
 import { TonightStrip } from "../components/TonightStrip";
 import { airingToday, readDismissed } from "../lib/newEpisode";
@@ -11,18 +10,47 @@ import {
 } from "../lib/rules";
 import { updateSettings, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
-import { fetchDetails, upscale } from "../lib/tmdb";
+import { fetchDetails, fetchSharpBackdrop, upscale } from "../lib/tmdb";
 import { safeImage } from "../lib/safe";
-import { pop } from "../lib/motion";
+import { pop, useSwap } from "../lib/motion";
 import { useShowScheduleRefresh } from "../lib/showSync";
 import type { KindFilter, Movie, SortMode } from "../lib/types";
 
+// The signed-out page brings its own styles, its animation library and its screenshots' markup,
+// so people who are signed in never download them.
+const Landing = lazy(() => import("../components/Landing").then((module) => ({ default: module.Landing })));
+
+/** A big screen, or a sharp one, on a connection that isn't saving data: worth fetching the original-size picture. */
+function wantsSharpPicture() {
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  if (connection?.saveData || /^(slow-2g|2g|3g)$/.test(connection?.effectiveType ?? "")) return false;
+  return Math.min(window.devicePixelRatio || 1, 2) * window.innerWidth > 1400;
+}
+
 /**
- * The tonight panel's backdrop: a phone-sized copy on small screens, kept hidden
- * behind a shimmer until it has fully loaded, so it never paints in strips.
+ * Tonight's backdrop, behind the pick: a phone-sized copy on small screens, kept hidden
+ * behind a shimmer until it has fully loaded, so it never paints in strips. On a big or
+ * sharp screen the original-size picture is then fetched and faded in over it, so the
+ * page never waits for the large file.
  */
-function Backdrop({ src }: { src: string }) {
+function Backdrop({ src, movie }: { src: string; movie: Movie }) {
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+  const [sharp, setSharp] = useState("");
+  const [sharpReady, setSharpReady] = useState(false);
+
+  useEffect(() => {
+    if (state !== "ready" || !wantsSharpPicture()) return;
+    let live = true;
+    fetchSharpBackdrop(movie).then((url) => {
+      // Where the title service can't say, the saved picture's own original is the next best thing.
+      const best = safeImage(url) || safeImage(upscale(src, "original"));
+      if (live && best) setSharp(best);
+    });
+    return () => {
+      live = false;
+    };
+  }, [state, movie.tmdbId, movie.tmdbType, src]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (state === "failed") return null;
   return (
     <>
@@ -32,13 +60,14 @@ function Backdrop({ src }: { src: string }) {
         src={upscale(src, "w1280")}
         srcSet={`${upscale(src, "w780")} 780w, ${upscale(src, "w1280")} 1280w`}
         // Phones take the 780 copy even at 3x: plenty sharp under the panel's gradient, a third the download.
-        sizes="(max-width: 600px) 260px, (max-width: 900px) 100vw, 60vw"
+        sizes="(max-width: 600px) 260px, 100vw"
         alt=""
         decoding="async"
         fetchPriority="high"
         onLoad={() => setState("ready")}
         onError={() => setState("failed")}
       />
+      {sharp && <img className={`tonight-sharp ${sharpReady ? "ready" : ""}`} src={sharp} alt="" decoding="async" onLoad={() => setSharpReady(true)} onError={() => setSharp("")} />}
     </>
   );
 }
@@ -60,6 +89,9 @@ const SORT_LABELS: Record<SortMode, string> = {
 };
 
 /** Tonight's pick: whatever is due, else the best-reviewed released title, else anything. */
+/** How big the hero's title can be: the longer the name, the smaller, so it always shows whole. */
+const titleSize = (title: string) => (title.length > 44 ? "xs" : title.length > 26 ? "s" : title.length > 15 ? "m" : "l");
+
 function pickTonight(queue: Movie[], skip: number): { movie?: Movie; place: number; due: Movie[] } {
   const released = queue.filter((movie) => !isUnreleased(movie));
   const due = sortMovies(released.filter((movie) => isDueNow(movie)), "reminder");
@@ -85,6 +117,8 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   const sort: SortMode = settings.sort ?? (readLegacySort() || "added");
   const [skip, setSkip] = useState(0);
   const [limit, setLimit] = useState(PAGE);
+  const gridRef = useRef<HTMLDivElement>(null);
+  useSwap(gridRef, `${kind}:${sort}`);
 
   const queue = useMemo(() => library.movies.filter((movie) => !movie.watched), [library.movies]);
   const dueToday = queue.filter((movie) => isDueNow(movie)).length;
@@ -137,7 +171,10 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   return (
     <>
       {!sync.connected ? (
-        <Landing />
+        // Dark while it loads, so the light theme's paper doesn't flash before it.
+        <Suspense fallback={<div className="landing landing-loading" />}><Landing /></Suspense>
+      ) : tonight ? (
+        <h1 className="visually-hidden">What are we watching?</h1>
       ) : (
         <PageHeader
           title="What are we watching?"
@@ -147,29 +184,29 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
 
       {sync.connected && tonight && (
         <section className="band tonight">
-          <div className="wrap tonight-grid">
-            <div
-              className={`tonight-art ${!tonightBackdrop && safeImage(tonight.poster) ? "poster-only" : ""}`}
-              style={!tonightBackdrop && safeImage(tonight.poster) ? { ["--art" as string]: `url(${safeImage(upscale(tonight.poster, "w342"))})` } : undefined}
-            >
-              {tonightBackdrop && <Backdrop key={tonightBackdrop} src={tonightBackdrop} />}
-              <Poster src={upscale(tonight.poster, "w342")} title={tonight.title} className="tonight-poster" />
-            </div>
+          <div
+            className={`tonight-media ${!tonightBackdrop && safeImage(tonight.poster) ? "poster-only" : ""}`}
+            style={!tonightBackdrop && safeImage(tonight.poster) ? { ["--art" as string]: `url(${safeImage(upscale(tonight.poster, "w342"))})` } : undefined}
+            aria-hidden="true"
+          >
+            {tonightBackdrop && <Backdrop key={tonightBackdrop} src={tonightBackdrop} movie={tonight} />}
+          </div>
+          <div className="wrap tonight-inner">
             <div className="tonight-text" key={tonight.id}>
-              {/* On a phone this sits over the backdrop, so the pick takes one screen, not two. */}
+              {/* The pick sits over the picture, so a phone's first screen is the pick and its buttons. */}
               <button type="button" className="tonight-heading" onClick={() => onOpen(tonight.id)} aria-label={`${displayTitle(tonight)}, details`}>
                 <span className={`tonight-when ${tonightDue ? "due" : ""}`}>
                   {!tonightDue ? "Tonight's pick" : Number(tonight.remindAt) <= Date.now() ? "Due now" : `Due ${formatReminder(Number(tonight.remindAt))}`}
                   {tonightDue && pick.due.length > 1 && ` · ${pick.place} of ${pick.due.length}`}
                 </span>
-                <h2>{displayTitle(tonight)}</h2>
+                <h2 data-size={titleSize(displayTitle(tonight))}>{displayTitle(tonight)}</h2>
                 <span className="tonight-meta">
                   {[tonight.mediaType, tonight.year, formatRuntime(tonight.runtimeMinutes), formatRating(tonight.rating) ? `★ ${formatRating(tonight.rating)}` : ""].filter(Boolean).join(" · ")}
                 </span>
               </button>
               {tonight.tagline && <p className="tonight-tagline">{tonight.tagline}</p>}
               <div className="button-row tonight-actions" onClickCapture={(event) => pop((event.target as Element).closest(".button"))}>
-                <button type="button" className="button button-lime" onClick={() => actions.toggleWatched(tonight.id)}>
+                <button type="button" className="button button-green" onClick={() => actions.toggleWatched(tonight.id)}>
                   <Icon name="eye" size={16} /> Watched it
                 </button>
                 <button type="button" className="button button-outline-light" onClick={() => onOpen(tonight.id)}>Details</button>
@@ -185,6 +222,12 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                 )}
               </div>
             </div>
+            <Poster key={`poster-${tonight.id}`} src={upscale(tonight.poster, "w342")} title={tonight.title} className="tonight-poster" />
+            <ul className="tonight-stats" aria-label="Your queue">
+              {dueToday > 0 && <li className="stat due"><b>{dueToday}</b><span>due today</span></li>}
+              <li className="stat"><b>{queue.length}</b><span>in your queue</span></li>
+              {library.movies.length > queue.length && <li className="stat"><b>{library.movies.length - queue.length}</b><span>watched</span></li>}
+            </ul>
           </div>
         </section>
       )}
@@ -202,7 +245,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                   {alsoDue.map((movie) => (
                     <li key={movie.id}>
                       <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
-                        <Poster src={movie.poster} title={movie.title} className="radar-poster" />
+                        <Poster src={upscale(movie.poster, "w185")} retina={upscale(movie.poster, "w342")} title={movie.title} className="radar-poster" />
                         <span className="radar-text">
                           <span className="radar-when tone-due">{cardLine(movie)}</span>
                           <span className="radar-title">{displayTitle(movie)}</span>
@@ -222,7 +265,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                   return (
                     <li key={movie.id}>
                       <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
-                        <Poster src={movie.poster} title={movie.title} className="radar-poster" />
+                        <Poster src={upscale(movie.poster, "w185")} retina={upscale(movie.poster, "w342")} title={movie.title} className="radar-poster" />
                         <span className="radar-text">
                           <span className={`radar-when tone-${tone}`}>{label}</span>
                           <span className="radar-title">{displayTitle(movie)}</span>
@@ -243,7 +286,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                 {radar.map(({ movie, at }) => (
                   <li key={movie.id}>
                     <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
-                      <Poster src={movie.poster} title={movie.title} className="radar-poster" />
+                      <Poster src={upscale(movie.poster, "w185")} retina={upscale(movie.poster, "w342")} title={movie.title} className="radar-poster" />
                       <span className="radar-text">
                         <span className="radar-when">
                           {hasActiveReminder(movie)
@@ -284,7 +327,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
           {skipped > 0 && visible.length > 0 && <p className="muted small-print queue-note">The {skipped} shown above aren't repeated here.</p>}
           {visible.length ? (
             <>
-              <div className="grid">
+              <div className="grid" ref={gridRef}>
                 {visible.slice(0, limit).map((movie, index) => <TitleCard key={movie.id} movie={movie} onOpen={onOpen} priority={index < 6} />)}
               </div>
               {visible.length > limit && (

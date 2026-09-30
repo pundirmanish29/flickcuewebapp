@@ -39,6 +39,57 @@ export function upscale(url: string | undefined, size: string): string {
   return url.replace(/(image\.tmdb\.org\/t\/p\/)(w\d+|original)/, `$1${size}`);
 }
 
+export interface BackdropChoice {
+  file_path?: unknown;
+  width?: unknown;
+  aspect_ratio?: unknown;
+  vote_average?: unknown;
+}
+
+const SHARP_WIDTH = 1920;
+const filePathOf = (value: unknown): string => (typeof value === "string" && /^\/[\w-]+\.(?:jpg|png)$/i.test(value) ? value : "");
+
+/**
+ * The picture to put behind a title on a big or sharp screen, from its list of
+ * backdrops: its own when that is at least 1920 px wide, else the best-rated wide
+ * one that is, else its own if it's the only one there is. "" when there is nothing.
+ */
+export function pickSharpBackdrop(backdrops: BackdropChoice[], ownPath: string): string {
+  const list = backdrops.map((item) => ({
+    path: filePathOf(item.file_path),
+    width: Number(item.width) || 0,
+    ratio: Number(item.aspect_ratio) || 0,
+    votes: Number(item.vote_average) || 0
+  })).filter((item) => item.path);
+  const own = list.find((item) => item.path === ownPath);
+  if (own && own.width >= SHARP_WIDTH) return own.path;
+  const better = list
+    .filter((item) => item.width >= SHARP_WIDTH && item.ratio > 1.6 && item.ratio < 1.95)
+    .sort((a, b) => b.votes - a.votes)[0];
+  return better?.path ?? (own ? own.path : "");
+}
+
+const sharpBackdrops = new Map<string, Promise<string>>();
+
+/** The original-size copy of the sharpest backdrop for a title (see pickSharpBackdrop); "" when the title service can't say. */
+export function fetchSharpBackdrop(movie: Pick<Movie, "tmdbId" | "tmdbType" | "backdrop">): Promise<string> {
+  const type = movie.tmdbType === "tv" ? "tv" : "movie";
+  const id = safeTmdbId(movie.tmdbId);
+  if (!id) return Promise.resolve("");
+  const key = `${type}:${id}`;
+  const cached = sharpBackdrops.get(key);
+  if (cached) return cached;
+  const ownPath = /\/t\/p\/(?:w\d+|original)(\/[^/?#]+)$/.exec(movie.backdrop || "")?.[1] ?? "";
+  const request = tmdbGet(`${type}/${id}/images`, { include_image_language: "en,null" })
+    .then((data) => posterUrl(pickSharpBackdrop(Array.isArray(data?.backdrops) ? data.backdrops : [], ownPath), "original"))
+    .catch(() => {
+      sharpBackdrops.delete(key);
+      return "";
+    });
+  sharpBackdrops.set(key, request);
+  return request;
+}
+
 function toCandidate(item: any, defaultType?: "movie" | "tv"): Candidate {
   const tmdbType = (item.media_type || defaultType) === "tv" ? "tv" : "movie";
   const name = item.title || item.name || "Untitled";

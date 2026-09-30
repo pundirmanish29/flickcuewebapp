@@ -14,6 +14,7 @@ const PATHS = {
   clock: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z", "M12 7v5l3 2"],
   trash: ["M4 7h16", "M9 7V4.5h6V7", "M6.5 7l1 13h9l1-13", "M10 11v5.5", "M14 11v5.5"],
   plus: ["M12 5v14", "M5 12h14"],
+  pause: ["M9 5v14", "M15 5v14"],
   back: ["M19 12H5", "m11 18-6-6 6-6"],
   chevron: ["m6 9 6 6 6-6"],
   sun: ["M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z", "M12 2.5v2", "M12 19.5v2", "M4.6 4.6l1.4 1.4", "M18 18l1.4 1.4", "M2.5 12h2", "M19.5 12h2", "M4.6 19.4 6 18", "M18 6l1.4-1.4"],
@@ -56,6 +57,25 @@ export function Icon({ name, size = 18, className }: { name: IconName; size?: nu
     >
       {PATHS[name].map((d) => <path key={d} d={d} />)}
     </svg>
+  );
+}
+
+/** The FlickCue extension's own icon, for the buttons that mean it. */
+export function ExtensionIcon({ size = 22 }: { size?: number }) {
+  return <img className="ext-icon" src="./flickcue-extension-icon.png" alt="" width={size} height={size} decoding="async" />;
+}
+
+/** Google's "G", in its own colours, on a white disc so it reads on any button. */
+export function GoogleIcon({ size = 22 }: { size?: number }) {
+  return (
+    <span className="g-icon" style={{ width: size, height: size }} aria-hidden="true">
+      <svg viewBox="0 0 48 48" width={Math.round(size * 0.64)} height={Math.round(size * 0.64)}>
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+      </svg>
+    </span>
   );
 }
 

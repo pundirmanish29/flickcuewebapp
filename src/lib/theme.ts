@@ -3,6 +3,7 @@
 // applied as <html data-theme> before the page paints (see index.html).
 
 import { useSyncExternalStore } from "react";
+import { transition } from "./motion";
 
 export type ThemeChoice = "system" | "light" | "dark";
 
@@ -32,8 +33,11 @@ export function setThemeChoice(choice: ThemeChoice) {
   } catch {
     // Without storage the choice lasts for this page only.
   }
-  if (choice === "system") delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = choice;
+  // The page cross-fades to the other theme rather than flipping in a frame.
+  transition(() => {
+    if (choice === "system") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = choice;
+  });
   window.dispatchEvent(new Event(EVENT));
 }
 

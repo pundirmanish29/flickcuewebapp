@@ -357,6 +357,18 @@ export async function connect() {
   }
 }
 
+/**
+ * "Pick up from the extension": signs in with the FlickCue extension's Google session and syncs.
+ * False when the extension has no session to lend (it isn't signed in), so the page can say so.
+ * Someone who signed out here and now asks for it again is asking to be signed in, so that choice is undone.
+ */
+export async function connectWithExtension(): Promise<boolean> {
+  setExtensionSignInOff(false);
+  if (!(await adoptExtensionSession())) return false;
+  await sync();
+  return true;
+}
+
 /** Only the credentials go. The local list and the Drive copy both stay. */
 export async function disconnect() {
   const token = getStoredToken();

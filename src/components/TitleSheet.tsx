@@ -297,7 +297,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
       aria-labelledby="sheet-title"
     >
       <div className="sheet-inner" ref={inner}>
-        <div className={`sheet-hero ${playing ? "playing" : ""}`} style={backdrop ? { backgroundImage: `url(${backdrop})` } : undefined}>
+        <div className={`sheet-hero ${playing ? "playing" : ""}`} style={backdrop ? { backgroundImage: `url(${backdrop})`, ["--hero-hi" as string]: `url(${upscale(backdrop, "original")})` } : undefined}>
           {playing && details?.trailerKey ? (
             <iframe
               className="sheet-trailer"

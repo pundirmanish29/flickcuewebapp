@@ -9,6 +9,7 @@ import * as actions from "../lib/actions";
 import { pickSeeds, savedKeys } from "../lib/discover";
 import { onIntent, takeIntent } from "../lib/discoverIntent";
 import { findExisting } from "../lib/editor";
+import { useSwap } from "../lib/motion";
 import { displayTitle } from "../lib/rules";
 import { useAppState } from "../lib/store";
 import { browseStream, COMING_SOON, HIDDEN_GEMS, streamChoices, TALK_OF_THE_TOWN, type StreamChoice } from "../lib/shelves";
@@ -167,7 +168,7 @@ function Results({ items, onOpen, showtimes = false, ranked = false, compact = f
 }
 
 /** A sideways row of titles, with arrows for a mouse. */
-function Row({ title, heading, bare = false, items, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true, compact = false }: {
+function Row({ title, heading, bare = false, items, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true, compact = false, swapKey }: {
   title: string;
   /** What the heading shows in place of the plain title, such as a menu. */
   heading?: ReactNode;
@@ -182,8 +183,11 @@ function Row({ title, heading, bare = false, items, onOpen, onSeeAll, ranked = f
   reasons?: boolean;
   /** Two lines under each poster, no summary. */
   compact?: boolean;
+  /** Changes when the row switches to another list, so it settles in again. */
+  swapKey?: string;
 }) {
   const row = useRef<HTMLDivElement>(null);
+  useSwap(row, swapKey);
   const id = useId();
   const scroll = (direction: number) => row.current?.scrollBy({ left: direction * row.current.clientWidth * 0.85, behavior: "smooth" });
   return (
@@ -278,6 +282,7 @@ function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved:
       onSeeAll={() => onSeeAll(mode === "now" ? IN_CINEMAS.id : "upcoming")}
       showtimes={mode === "now"}
       compact
+      swapKey={mode}
     />
   );
 }

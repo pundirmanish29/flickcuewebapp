@@ -3,7 +3,7 @@ import { getStoredToken } from "../lib/auth";
 import { letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import { connect, disconnect, sync, useAppState } from "../lib/store";
 import { AccountPrefs } from "./HeaderPrefs";
-import { Icon } from "./Icon";
+import { ExtensionIcon, Icon } from "./Icon";
 import { Popover } from "./ReminderMenu";
 
 export function timeAgo(time: number) {
@@ -31,12 +31,18 @@ export function AccountMenu() {
   const expired = state.status === "needs-auth";
   const failed = state.status === "error";
   const syncing = state.status === "syncing";
-  const label = expired ? "Resume sync" : syncing ? "Syncing" : state.held ? "Sync paused" : failed ? "Sync failed" : "Synced";
-  const status = expired
-    ? "Sync paused. Your changes are saved on this device."
-    : syncing ? "Syncing…" : state.held ? `${state.error} Open Settings to decide.` : failed ? state.error || "Sync failed." : `Synced ${timeAgo(state.lastSyncAt)}`;
+  const held = Boolean(state.held);
+  // The ring on the avatar and the state tile take one colour: green in step, blue while working, orange when it needs a look.
+  const tone = expired || failed || held ? "warn" : syncing ? "busy" : "ok";
+  const label = expired ? "Resume sync" : syncing ? "Syncing" : held ? "Sync paused" : failed ? "Sync failed" : "Synced";
+  const pillLabel = expired ? "Paused" : label;
+  const headline = expired ? "Sync is paused" : syncing ? "Syncing…" : held ? "Sync paused" : failed ? "Sync failed" : `Synced ${timeAgo(state.lastSyncAt)}`;
+  const detail = expired
+    ? "Your changes are safe on this device."
+    : held ? `${state.error} Open Settings to decide.` : failed ? state.error || "Sync failed." : "The same list on the web, in Chrome and on Android.";
   const viaExtension = getStoredToken()?.source === "extension";
   const titles = library.movies.length;
+  const watched = library.movies.filter((movie) => movie.watched).length;
   const lb = settings.letterboxd;
   const lbStats = letterboxdStats(library.movies);
   const lbLine = [
@@ -44,86 +50,104 @@ export function AccountMenu() {
     lbStats.liked && `${lbStats.liked} liked`,
     lbStats.reviewed && `${lbStats.reviewed} review${lbStats.reviewed === 1 ? "" : "s"}`
   ].filter(Boolean).join(" · ");
+  const initials = (state.account?.name || state.account?.email || "?").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <div className="account-menu">
       <button
         ref={trigger}
         type="button"
-        className={`sync-pill ${expired || failed ? "warn" : ""}`}
+        className={`sync-pill state-${tone}`}
         aria-haspopup={expired ? undefined : "dialog"}
         aria-expanded={expired ? undefined : open}
         aria-label={`Account. ${label}`}
         // Paused, the pill resumes sync in one tap; Google's sign-in needs the tap anyway.
         onClick={() => (expired ? void connect() : setOpen((value) => !value))}
       >
-        {state.account?.photo
-          ? <img src={state.account.photo} alt="" referrerPolicy="no-referrer" />
-          : <span className={`dot ${expired || failed ? "dot-warn" : "dot-on"}`} />}
-        <span className={syncing ? "spin" : ""}><Icon name="sync" size={14} /></span>
-        <span className="sync-label">{label}</span>
+        {/* The avatar alone while all is well; a small tick on it when sync is working or needs a look. */}
+        <span className="pill-av">
+          {state.account?.photo
+            ? <img src={state.account.photo} alt="" referrerPolicy="no-referrer" />
+            : <span className="dot" />}
+          {tone !== "ok" && (
+            <span className="pill-tick" aria-hidden="true">
+              {syncing ? <span className="spin"><Icon name="sync" size={9} /></span> : <Icon name="pause" size={9} />}
+            </span>
+          )}
+        </span>
+        <span className="sync-label">{pillLabel}</span>
       </button>
 
       <Popover open={open} onClose={close} label="Account" anchor={trigger}>
-        <div className="account">
-          {state.account?.photo && <img src={state.account.photo} alt="" referrerPolicy="no-referrer" />}
-          <div>
-            <b>{state.account?.name || "Google account"}</b>
-            {state.account?.email && <span className="muted">{state.account.email}</span>}
+        <div className="am">
+          <div className={`am-who state-${tone}`}>
+            {state.account?.photo
+              ? <img src={state.account.photo} alt="" referrerPolicy="no-referrer" />
+              : <span className="am-initials" aria-hidden="true">{initials}</span>}
+            <div>
+              <b>{state.account?.name || "Google account"}</b>
+              {state.account?.email && <span>{state.account.email}</span>}
+            </div>
           </div>
-        </div>
-        <p className={`account-status ${expired || failed ? "error" : "muted"}`}>
-          <span className={`dot ${expired || failed ? "dot-warn" : "dot-on"}`} /> {status}
-        </p>
-        <p className="account-meta muted">
-          {titles} title{titles === 1 ? "" : "s"} in your Google Drive
-          {viaExtension ? " · signed in through the FlickCue extension" : ""}
-        </p>
-        <div className="account-letterboxd">
+          {viaExtension && <p className="am-chip"><ExtensionIcon size={16} /> Signed in through the extension</p>}
+
+          <div className={`am-tile state-${tone}`} role="status">
+            <div className="am-tile-text">
+              <b><span className="am-dot" aria-hidden="true" />{headline}</b>
+              <span>{detail}</span>
+            </div>
+            {expired ? (
+              <button type="button" className="button button-orange small" onClick={() => connect()}>Resume</button>
+            ) : (
+              <button type="button" className="am-sync" aria-label="Sync now" title="Sync now" disabled={syncing} onClick={() => void sync()}>
+                <span className={syncing ? "spin" : ""}><Icon name="sync" size={16} /></span>
+              </button>
+            )}
+          </div>
+
+          <ul className="am-nums" aria-label="Your list">
+            <li><b>{titles}</b><span>title{titles === 1 ? "" : "s"}</span></li>
+            <li><b>{watched}</b><span>watched</span></li>
+            <li><b>{titles - watched}</b><span>in queue</span></li>
+          </ul>
+
           {lb ? (
-            <a className="account-lb-link" href={letterboxdProfileUrl(lb)} target="_blank" rel="noreferrer" onClick={close}>
-              <span className="account-lb-icon" aria-hidden="true"><Icon name="star" size={15} /></span>
-              <span className="account-lb-text">
+            <a className="am-lb" href={letterboxdProfileUrl(lb)} target="_blank" rel="noreferrer" onClick={close}>
+              <span className="am-lb-icon" aria-hidden="true"><Icon name="star" size={15} /></span>
+              <span className="am-lb-text">
                 <b>Letterboxd · {lb}</b>
                 <span>{lbLine || "Your public profile"}</span>
               </span>
               <Icon name="external" size={15} />
             </a>
           ) : (
-            <a className="account-lb-link" href="#/settings" onClick={close}>
-              <span className="account-lb-icon" aria-hidden="true"><Icon name="star" size={15} /></span>
-              <span className="account-lb-text">
+            <a className="am-lb" href="#/settings" onClick={close}>
+              <span className="am-lb-icon" aria-hidden="true"><Icon name="star" size={15} /></span>
+              <span className="am-lb-text">
                 <b>Link your Letterboxd</b>
                 <span>{lbLine ? `${lbLine} from Letterboxd in your list` : "Show your profile here"}</span>
               </span>
               <Icon name="plus" size={15} />
             </a>
           )}
-        </div>
-        <AccountPrefs />
-        <div className="account-actions">
-          {expired ? (
-            <button type="button" className="account-item" onClick={() => connect()}>
-              <Icon name="sync" size={16} /> Resume sync
+
+          <AccountPrefs />
+
+          <div className="am-actions">
+            <a className="am-item" href="#/settings" onClick={close}>
+              <Icon name="gear" size={16} /> Settings
+            </a>
+            <button
+              type="button"
+              className="am-item danger"
+              onClick={() => {
+                close();
+                void disconnect();
+              }}
+            >
+              <Icon name="signOut" size={16} /> Sign out
             </button>
-          ) : (
-            <button type="button" className="account-item" disabled={syncing} onClick={() => void sync()}>
-              <span className={syncing ? "spin" : ""}><Icon name="sync" size={16} /></span> {syncing ? "Syncing…" : "Sync now"}
-            </button>
-          )}
-          <a className="account-item" href="#/settings" onClick={close}>
-            <Icon name="gear" size={16} /> Settings
-          </a>
-          <button
-            type="button"
-            className="account-item danger"
-            onClick={() => {
-              close();
-              void disconnect();
-            }}
-          >
-            <Icon name="signOut" size={16} /> Sign out
-          </button>
+          </div>
         </div>
       </Popover>
     </div>

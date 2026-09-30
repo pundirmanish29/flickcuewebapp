@@ -8,10 +8,14 @@ import { TitleSheet } from "./components/TitleSheet";
 import { closePreview, usePreview } from "./lib/preview";
 import { ToastHost } from "./components/Toast";
 import { ContactReveal } from "./components/ContactReveal";
+import { canAskExtension } from "./lib/auth";
+import { EXTENSION_URL } from "./lib/config";
+import { onPhone } from "./lib/device";
 import { displayTitle } from "./lib/rules";
 import { connect, getState, startBackgroundSync, useAppState } from "./lib/store";
 import { DiscoverPage } from "./pages/DiscoverPage";
 import { NotificationBell, NotificationsPage } from "./pages/NotificationsPage";
+import { PageLabel, directionBetween } from "./components/PageLabel";
 import { buildNotifications } from "./lib/notifications";
 import { hasIntent, onIntent, takeIntent } from "./lib/discoverIntent";
 import { openTitle as openWithMotion, transition, transitionRunning } from "./lib/motion";
@@ -31,6 +35,16 @@ const SEARCHABLE = new Set<Route>(["queue", "discover", "watched"]);
 // progress" link, say), kept for this tab and opened once signing in has
 // brought the list. Opened straight away, it would find nothing and close.
 const PENDING_TITLE_KEY = "flickcue.pendingTitle";
+
+// The phone's dock: where you go, icons only. The bell stays in the top bar, beside the account.
+const DOCK: { route: Route; label: string; icon: IconName }[] = [
+  { route: "queue", label: "Queue", icon: "queue" },
+  { route: "discover", label: "Discover", icon: "compass" },
+  { route: "watched", label: "Watched", icon: "eye" },
+  { route: "settings", label: "Settings", icon: "gear" }
+];
+// What the phone header says about where you are.
+const PAGE_LABELS: Record<Route, string> = { queue: "Queue", discover: "Discover", watched: "Watched", settings: "Settings", notifications: "Notifications" };
 
 const NAV: { route: Route; label: string; icon: IconName }[] = [
   { route: "queue", label: "Queue", icon: "queue" },
@@ -56,7 +70,7 @@ function useHashRoute() {
     const onChange = () => {
       const next = parseHash();
       if (next.route !== current.current.route && !next.titleId && !current.current.titleId && !transitionRunning()) {
-        transition(() => flushSync(() => setValue(next)));
+        transition(() => flushSync(() => setValue(next)), "page", directionBetween(current.current.route, next.route));
       } else setValue(next);
     };
     window.addEventListener("hashchange", onChange);
@@ -146,7 +160,7 @@ function SyncIndicator() {
   }
   if (!state.connected) {
     return (
-      <button type="button" className="button button-lime header-sign-in" onClick={() => void connect()}>Sign in</button>
+      <button type="button" className="button button-light header-sign-in" onClick={() => void connect()}>Sign in</button>
     );
   }
   return <AccountMenu />;
@@ -245,6 +259,7 @@ export default function App() {
   };
 
   const queueCount = library.movies.filter((movie) => !movie.watched).length;
+  const activeDock = DOCK.findIndex((item) => item.route === route);
 
   const openTitle = useCallback((id: string) => {
     openWithMotion(() => { location.hash = `#/title/${encodeURIComponent(id)}`; });
@@ -265,6 +280,7 @@ export default function App() {
             <Logo />
             <span className="brand-name">FLICKCUE</span>
           </a>
+          {sync.connected && <PageLabel route={route} text={PAGE_LABELS[route]} />}
           {sync.connected && (
             <nav className="top-nav" aria-label="Main">
               {NAV.map((item) => (
@@ -319,21 +335,8 @@ export default function App() {
               )}
             </label>
           )}
-          {SEARCHABLE.has(route) && sync.connected && (
-            <button
-              type="button"
-              className="header-icon search-toggle"
-              aria-label={route === "discover" ? "Search films and shows" : "Search your titles"}
-              onClick={() => {
-                // Opened and focused in the same tap, so phones raise the keyboard.
-                flushSync(() => setSearchOpen(true));
-                searchInput.current?.focus();
-              }}
-            >
-              <Icon name="search" size={21} />
-            </button>
-          )}
-          <ThemeToggle />
+          {/* The theme switch lives in the account menu once signed in. */}
+          {!sync.connected && <ThemeToggle />}
           {sync.connected && <NotificationBell current={route === "notifications"} />}
           <SyncIndicator />
         </div>
@@ -342,16 +345,24 @@ export default function App() {
       {/* A sign-in lasts about an hour and can only be renewed by the person, so say so plainly, with the button. */}
       {sync.connected && sync.status === "needs-auth" && (
         <div className="sync-banner" role="status">
-          <span>Sync is paused. Your changes are safe on this device.</span>
-          <button type="button" className="button button-lime" onClick={() => void connect()}>Resume sync</button>
+          <div className="sync-notice">
+            <span className="notice-icon" aria-hidden="true"><Icon name="pause" size={18} /></span>
+            <div className="notice-text">
+              <b>Sync is paused</b>
+              <span>Your changes are safe on this device.</span>
+            </div>
+            <button type="button" className="button button-orange" onClick={() => void connect()}>Resume sync</button>
+          </div>
         </div>
       )}
 
       <main id="main" tabIndex={-1}>
         {connecting && (
           <div className="wrap signing-in" role="status">
-            <span className="spin"><Icon name="sync" size={20} /></span>
+            <span className="loader-dots" aria-hidden="true"><i /><i /><i /></span>
             <p>Signing you in…</p>
+            <small>Picking up your list from Google Drive</small>
+            <span className="loader-lines" aria-hidden="true"><i /><i /><i /></span>
           </div>
         )}
         {!connecting && route === "queue" && <QueuePage onOpen={openTitle} query={query} />}
@@ -363,22 +374,51 @@ export default function App() {
 
       <footer className={`site-footer ${sync.connected ? "with-bottom-nav" : ""}`}>
         <div className="wrap footer-inner">
-          <span className="brand"><Logo size={8} /> <span className="brand-name">FLICKCUE</span></span>
-          <span className="muted">One watchlist on the web, in Chrome and, soon, on Android.</span>
-          <a className="muted footer-link" href="./privacy.html">Privacy</a>
-          <ContactReveal label="Contact" className="muted footer-link" />
+          <div className="footer-top">
+            <span className="brand"><Logo size={9} /> <span className="brand-name">FLICKCUE</span></span>
+            <span className="footer-tag">One watchlist. Everywhere.</span>
+            <nav className="footer-links" aria-label="Footer">
+              <a className="footer-link" href="./privacy.html">Privacy</a>
+              <ContactReveal label="Contact" className="footer-link" />
+              {/* Not offered to a phone, or to someone who already has it. */}
+              {!onPhone() && !canAskExtension() && <a className="footer-link" href={EXTENSION_URL} target="_blank" rel="noreferrer">Chrome extension</a>}
+              <span className="footer-chip">Android soon</span>
+            </nav>
+          </div>
+          <div className="footer-fine">
+            <span>Your list lives in your own Google Drive.</span>
+            <span>Not affiliated with any streaming service.</span>
+          </div>
         </div>
       </footer>
 
+      {/* The phone's dock: icons only. The highlight glides to the chosen one (CSS, from --i), the icon springs, and the header names the page. */}
       {sync.connected && (
-        <nav className="bottom-nav" aria-label="Main" style={{ gridTemplateColumns: `repeat(${NAV.length}, 1fr)` }}>
-          {NAV.map((item) => (
-            <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined}>
-              <Icon name={item.icon} size={20} />
-              <span>{item.label}</span>
-            </a>
-          ))}
-        </nav>
+        <div className="dock">
+          <nav className="dock-bar" aria-label="Main" style={{ ["--i" as string]: Math.max(activeDock, 0), ["--n" as string]: DOCK.length }}>
+            <span className="dock-hl" aria-hidden="true" data-none={activeDock < 0} />
+            {DOCK.map((item) => (
+              <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined} title={item.label}>
+                <Icon name={item.icon} size={27} />
+                <span className="visually-hidden">{item.label}</span>
+              </a>
+            ))}
+          </nav>
+          {SEARCHABLE.has(route) && (
+            <button
+              type="button"
+              className="dock-search"
+              aria-label={route === "discover" ? "Search films and shows" : "Search your titles"}
+              onClick={() => {
+                // Opened and focused in the same tap, so phones raise the keyboard.
+                flushSync(() => setSearchOpen(true));
+                searchInput.current?.focus();
+              }}
+            >
+              <Icon name="search" size={25} />
+            </button>
+          )}
+        </div>
       )}
 
       {/* A title opened from "More like this" sits over the saved one; closing it goes back. */}
