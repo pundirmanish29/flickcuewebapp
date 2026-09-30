@@ -134,6 +134,8 @@ a { color: inherit; }
   background: var(--lime); color: var(--on-accent); font-weight: 700; text-decoration: none;
 }
 .skip-link:focus { top: 12px; }
+.skip-link-second:focus { top: 60px; }
+#main:focus, #titles:focus { outline: none; }
 
 .wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 var(--gutter); }
 
@@ -1139,7 +1141,7 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
 .site-footer { background: var(--night); color: #fff; padding: 28px 0; }
 .footer-inner { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; font-size: 14px; }
 .site-footer .muted { color: var(--dark-muted); }
-.footer-link { text-decoration: none; }
+.footer-link { text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
 .footer-link:hover { color: #fff; }
 /* Contact: a button until clicked, then the address and a Copy button. */
 .contact-reveal { display: inline-flex; align-items: baseline; gap: 10px; }
@@ -1225,8 +1227,8 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   .queue-titles { padding-top: 28px; }
   .queue-titles .toolbar { grid-template-columns: 1fr auto; margin-bottom: 16px; }
   .queue-titles .segmented { grid-column: 1 / -1; grid-row: 2; display: flex; }
-  .queue-titles .segmented button { flex: 1; min-height: 36px; height: 36px; font-size: 14px; }
-  .queue-titles .select select { min-height: 36px; height: 36px; padding: 0 30px 0 12px; font-size: 13px; background-position: right 12px center; }
+  .queue-titles .segmented button { flex: 1; min-height: 44px; height: 44px; font-size: 14px; }
+  .queue-titles .select select { min-height: 44px; height: 44px; padding: 0 30px 0 12px; font-size: 13px; background-position: right 12px center; }
   /* Discover: smaller shelf posters, lighter chips and filters. */
   .cinema-row { grid-auto-columns: 128px; gap: 12px; }
   .cinema-shelf-head { margin-bottom: 10px; }
@@ -1236,8 +1238,8 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   .candidate-card .meta, .candidate-reason, .candidate-overview { font-size: 12px; }
   .candidate-quick { width: 36px; height: 36px; right: 6px; bottom: 6px; }
   .discover-toolbar { margin: 12px 0 16px; }
-  .category, .titles .toolbar .segmented button { min-height: 36px; height: 36px; padding: 0 14px; font-size: 14px; }
-  .titles .toolbar .button.small { height: 36px; min-height: 36px; font-size: 14px; }
+  .category, .titles .toolbar .segmented button { min-height: 44px; height: 44px; padding: 0 14px; font-size: 14px; }
+  .titles .toolbar .button.small { height: 44px; min-height: 44px; font-size: 14px; }
   /* A narrow card's popover would run off the screen: it rises from the bottom instead. */
   .candidate-card .popover {
     position: fixed; top: auto; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 40;
@@ -1414,6 +1416,7 @@ html[data-transition="title"] .site-header, html[data-transition="title"] .botto
   position: absolute; right: 8px; top: 8px; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0;
   border: 0; border-radius: 50%; background: var(--lime); color: var(--on-accent); cursor: pointer; transition: transform 160ms ease;
 }
+.tonight-watched::after { content: ""; position: absolute; inset: -6px; }
 .tonight-watched:hover { transform: scale(1.08); }
 .tonight-watched:active { transform: scale(0.92); }
 @media (max-width: 600px) { .tonight-card { width: 210px; } }
@@ -1449,7 +1452,7 @@ html[data-transition="title"] .site-header, html[data-transition="title"] .botto
 .genre-browse .genre-browse-sub { margin-top: 26px; }
 .genre-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
-.cinema-shelf-title .segmented button { height: 36px; padding: 0 18px; font-size: 15px; }
+.cinema-shelf-title .segmented button { height: 44px; padding: 0 18px; font-size: 15px; }
 
 /* "On Netflix": the row's heading is the menu that changes what the row shows. */
 .stream-picker { position: relative; display: inline-flex; align-items: center; }

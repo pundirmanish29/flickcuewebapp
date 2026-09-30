@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardLine, shortDay, showsToRefresh, smartQuotes, watchedGroups, watchingShows, yourTake } from "./rules";
+import { cardLine, importDays, shortDay, showsToRefresh, smartQuotes, watchedGroups, watchingShows, yourTake } from "./rules";
 import type { Movie } from "./types";
 
 describe("short day labels", () => {
@@ -65,6 +65,16 @@ describe("watched page", () => {
     ]);
     expect(groups[1].label).toMatch(/2025/);
     expect(groups[0].label).not.toMatch(/2026/);
+  });
+
+  it("puts a long Letterboxd import in its own group, not in the month it ran", () => {
+    const day = at(2026, 8, 14);
+    const imported = Array.from({ length: 45 }, (_, index) => seen(`lb${index}`, { origin: "letterboxd", createdAt: day + index * 5000, watchedAt: day + index * 5000 + 200000 }));
+    const groups = watchedGroups([...imported, seen("real", { watchedAt: at(2026, 8, 20) })], now);
+    expect(groups.map((group) => [group.key, group.movies.length])).toEqual([["2026-8", 1], ["undated", 45]]);
+    expect(importDays(imported).size).toBe(1);
+    // A handful of Letterboxd titles logged on one day is just a day of viewing.
+    expect(importDays(imported.slice(0, 5)).size).toBe(0);
   });
 
   it("takes your own stars and heart over Letterboxd's", () => {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { TitleCard } from "../components/TitleCard";
-import { knownWatchedAt, matchesKind, matchesSearch, watchedGroups } from "../lib/rules";
+import { importDays, knownWatchedAt, matchesKind, matchesSearch, watchedGroups } from "../lib/rules";
 import { PageHeader } from "../components/PageHeader";
 import { useAppState } from "../lib/store";
 import type { KindFilter } from "../lib/types";
@@ -16,11 +16,12 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     const yearStart = new Date(now.getFullYear(), 0, 1).getTime();
+    const imports = importDays(watched);
     const minutes = watched.reduce((sum, movie) => sum + (Number(movie.runtimeMinutes) || 0), 0);
     return {
       // Only real viewing dates count, so a Letterboxd import doesn't read as a binge.
-      month: watched.filter((movie) => knownWatchedAt(movie) >= monthStart).length,
-      year: watched.filter((movie) => knownWatchedAt(movie) >= yearStart).length,
+      month: watched.filter((movie) => knownWatchedAt(movie, imports) >= monthStart).length,
+      year: watched.filter((movie) => knownWatchedAt(movie, imports) >= yearStart).length,
       hours: Math.round(minutes / 60)
     };
   }, [watched]);

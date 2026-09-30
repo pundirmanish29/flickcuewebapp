@@ -194,11 +194,34 @@ export function reminderText(movie: Movie, now = Date.now()): string {
  * created from Letterboxd and marked watched in the same minute carries that
  * stamp, not a viewing date (the extension now uses diary dates instead).
  */
-export function knownWatchedAt(movie: Movie): number {
+export function knownWatchedAt(movie: Movie, importDays?: ReadonlySet<string>): number {
   const at = Number(movie.watchedAt) || 0;
   if (!at) return 0;
   const stampedOnImport = movie.origin === "letterboxd" && Math.abs(at - (Number(movie.createdAt) || 0)) < 60 * 1000;
-  return stampedOnImport ? 0 : at;
+  if (stampedOnImport) return 0;
+  // An import that ran for more than a minute stamps a whole day; see importDays.
+  if (importDays?.has(dayKey(at)) && movie.origin === "letterboxd" && dayKey(at) === dayKey(Number(movie.createdAt) || 0)) return 0;
+  return at;
+}
+
+const dayKey = (time: number) => localIsoDate(time);
+
+/** How many Letterboxd titles stamped on one day make it an import, not a day of viewing. */
+const IMPORT_DAY_MIN = 40;
+
+/**
+ * The days on which a Letterboxd import stamped its titles as watched: a day with
+ * dozens of them, each created that same day, is an import running, not 500 films
+ * seen in a day. Their dates aren't real viewing dates.
+ */
+export function importDays(movies: readonly Movie[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const movie of movies) {
+    const at = Number(movie.watchedAt) || 0;
+    if (!movie.watched || !at || movie.origin !== "letterboxd" || dayKey(at) !== dayKey(Number(movie.createdAt) || 0)) continue;
+    counts.set(dayKey(at), (counts.get(dayKey(at)) ?? 0) + 1);
+  }
+  return new Set([...counts].filter(([, count]) => count >= IMPORT_DAY_MIN).map(([day]) => day));
 }
 
 /** A score out of 10 with one decimal ("7.0", "8.4"), or "" when there isn't one. */
@@ -492,12 +515,13 @@ export interface WatchedGroup {
  * with no real date (a Letterboxd import that didn't carry one) at the end.
  */
 export function watchedGroups(movies: Movie[], now = Date.now()): WatchedGroup[] {
-  const dated = movies.filter((movie) => knownWatchedAt(movie) > 0).sort((a, b) => knownWatchedAt(b) - knownWatchedAt(a));
-  const undated = movies.filter((movie) => !knownWatchedAt(movie)).sort((a, b) => Number(b.createdAt ?? 0) - Number(a.createdAt ?? 0));
+  const imports = importDays(movies);
+  const dated = movies.filter((movie) => knownWatchedAt(movie, imports) > 0).sort((a, b) => knownWatchedAt(b, imports) - knownWatchedAt(a, imports));
+  const undated = movies.filter((movie) => !knownWatchedAt(movie, imports)).sort((a, b) => Number(b.createdAt ?? 0) - Number(a.createdAt ?? 0));
   const groups: WatchedGroup[] = [];
   const thisYear = new Date(now).getFullYear();
   for (const movie of dated) {
-    const date = new Date(knownWatchedAt(movie));
+    const date = new Date(knownWatchedAt(movie, imports));
     const key = `${date.getFullYear()}-${date.getMonth()}`;
     let group = groups.at(-1);
     if (!group || group.key !== key) {
@@ -507,7 +531,7 @@ export function watchedGroups(movies: Movie[], now = Date.now()): WatchedGroup[]
     }
     group.movies.push(movie);
   }
-  if (undated.length) groups.push({ key: "undated", label: "Date not recorded", movies: undated });
+  if (undated.length) groups.push({ key: "undated", label: "Imported or undated", movies: undated });
   return groups;
 }
 

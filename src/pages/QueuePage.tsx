@@ -206,7 +206,7 @@ function pickTonight(queue: Movie[], skip: number): { movie?: Movie; place: numb
 }
 
 type QueueFilter = KindFilter | "airing";
-const PAGE = 40;
+const PAGE = 30;
 
 /** A show that's on air now: new episodes coming, or one you're partway through. */
 const isAiring = (movie: Movie) => {
@@ -398,7 +398,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
         </section>
       )}
 
-      {sync.connected && <section className="paper titles queue-titles" id="titles">
+      {sync.connected && <section className="paper titles queue-titles" id="titles" tabIndex={-1}>
         <div className="wrap">
           <div className="toolbar">
             <h2 className="section-title">Queue <span className="count">{matches.length}</span></h2>

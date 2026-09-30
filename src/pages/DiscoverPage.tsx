@@ -240,7 +240,7 @@ const readStream = (): string => {
  * The top of Discover: what's in cinemas now or coming soon, as ordinary posters.
  * The two lists share one row, switched by the pair of buttons that is its heading.
  */
-function CinemaRow({ region, onOpen, onSeeAll }: { region: string; onOpen: (id: string) => void; onSeeAll: (list: string) => void }) {
+function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved: Set<string>; onOpen: (id: string) => void; onSeeAll: (list: string) => void }) {
   const [mode, setMode] = useState<"now" | "soon">("now");
   const [lists, setLists] = useState<Record<"now" | "soon", Candidate[] | null>>({ now: null, soon: null });
 
@@ -258,7 +258,10 @@ function CinemaRow({ region, onOpen, onSeeAll }: { region: string; onOpen: (id: 
     };
   }, [region]);
 
-  const items = lists[mode]?.slice(0, 12) ?? null;
+  // Films you haven't saved come first: the row is for finding something, and the rest follow, ticked.
+  const items = lists[mode]
+    ? [...lists[mode]!.filter((item) => !saved.has(item.key)), ...lists[mode]!.filter((item) => saved.has(item.key))].slice(0, 12)
+    : null;
   if (lists.now && lists.soon && !lists.now.length && !lists.soon.length) return null;
   return (
     <Row
@@ -519,7 +522,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
           {/* Discover: the cinema first, then streaming, then more picks; every other list is at the bottom. */}
           {root && (
             <>
-              <CinemaRow region={region} onOpen={onOpen} onSeeAll={setList} />
+              <CinemaRow region={region} saved={saved} onOpen={onOpen} onSeeAll={setList} />
               <StreamingRow region={region} streams={streams} saved={saved} onOpen={onOpen} onSeeAll={setList} />
               {forYou && load.state === "loading" && <Row title="For you" items={null} onOpen={onOpen} compact />}
               {forYouRow && forYouRow.items.length > 0 && <Row title={forYouRow.title} items={forYouRow.items} onOpen={onOpen} compact />}

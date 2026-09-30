@@ -21,6 +21,9 @@ import { WatchedPage } from "./pages/WatchedPage";
 
 type Route = "queue" | "discover" | "watched" | "settings" | "notifications";
 
+const SITE_TITLE = "FlickCue — One watchlist. Everywhere.";
+const PAGE_TITLES: Record<Route, string> = { queue: "Queue", discover: "Discover", watched: "Watched", settings: "Settings", notifications: "Notifications" };
+
 const AUTHENTICATED_ROUTES = new Set<Route>(["discover", "watched", "settings", "notifications"]);
 // Pages whose lists the header search filters (Discover searches everything).
 const SEARCHABLE = new Set<Route>(["queue", "discover", "watched"]);
@@ -222,6 +225,25 @@ export default function App() {
     window.scrollTo({ top: 0 });
   }, [route]);
 
+  // The tab, history and screen readers name where you are: the page, or the title that's open.
+  const openMovie = titleId ? library.movies.find((movie) => movie.id === titleId) : undefined;
+  useEffect(() => {
+    if (!sync.connected) {
+      document.title = SITE_TITLE;
+      return;
+    }
+    const name = openMovie ? displayTitle(openMovie) : PAGE_TITLES[route];
+    document.title = `${name} · FlickCue`;
+  }, [sync.connected, route, openMovie?.id, openMovie?.title]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A skip link's own #fragment would be read as a route here, so it moves focus instead.
+  const skipTo = (id: string) => (event: React.MouseEvent) => {
+    event.preventDefault();
+    const target = document.getElementById(id);
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: "start" });
+  };
+
   const queueCount = library.movies.filter((movie) => !movie.watched).length;
 
   const openTitle = useCallback((id: string) => {
@@ -235,7 +257,8 @@ export default function App() {
 
   return (
     <>
-      <a className="skip-link" href="#main">Skip to content</a>
+      <a className="skip-link" href="#main" onClick={skipTo("main")}>Skip to content</a>
+      {sync.connected && route === "queue" && <a className="skip-link skip-link-second" href="#titles" onClick={skipTo("titles")}>Skip to your queue</a>}
       <header className="site-header">
         <div className={`wrap header-inner ${searching ? "is-searching" : ""}`}>
           <a className="brand" href="#/" aria-label="FlickCue home">
@@ -316,7 +339,7 @@ export default function App() {
         </div>
       </header>
 
-      <main id="main">
+      <main id="main" tabIndex={-1}>
         {connecting && (
           <div className="wrap signing-in" role="status">
             <span className="spin"><Icon name="sync" size={20} /></span>
