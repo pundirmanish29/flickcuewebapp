@@ -158,7 +158,7 @@ const STEPS = [
     image: <img src="./flickcue-extension-04.webp" alt="The FlickCue save card on a film page, with a Want to watch button" width={1280} height={800} loading="lazy" decoding="async" />
   },
   {
-    word: "Remember it.", dot: "var(--orange)", text: "One list, kept in your own Google Drive, the same on the web, in Chrome and on Android.",
+    word: "Remember it.", dot: "var(--orange)", text: "One list, kept in your own Google Drive, the same on the web and in Chrome, and soon on Android.",
     image: <Shot name="queue" alt="The FlickCue queue: tonight's pick, what's due and the shows you're watching" />
   },
   {

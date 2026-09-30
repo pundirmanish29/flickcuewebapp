@@ -74,10 +74,10 @@
       </div>
 
       <h2>What is stored in your browser</h2>
-      <p>The web app keeps your list, your settings and a few things about this device in your browser's local storage, so it works before you sign in and offline. That includes your streaming region, city, Letterboxd username, theme and sort; whether alerts are on; which notifications you've seen or dismissed; and sync status. Once you sign in, a short-lived Google access token (about an hour) is kept there too. Clearing site data for flickcue.in removes all of it.</p>
+      <p>The web app keeps a local copy of your list, your settings and a few things about this device in your browser's local storage. Your list can keep working offline after you sign in. When signed out, the site shows its homepage; Queue, Discover, Watched and Settings require Google sign-in. Local storage also includes your streaming region, city, Letterboxd username, theme and sort; whether alerts are on; which notifications you've seen or dismissed; and sync status. Once you sign in, a short-lived Google access token (about an hour) is kept there too. Clearing site data for flickcue.in removes all of it.</p>
 
       <h2>Google sign-in and Google Drive</h2>
-      <p>Signing in with Google is optional. It's used only to keep your list and settings in step between your devices and FlickCue's other apps. FlickCue asks for one permission, <code>drive.appdata</code>, which gives it a private app folder in your Drive that only FlickCue can open. It keeps two files there:</p>
+      <p>Google sign-in is required to use the web app's list and features. It keeps your list and settings in step between your devices and FlickCue's other apps. FlickCue asks for one permission, <code>drive.appdata</code>, which gives it a private app folder in your Drive that only FlickCue can open. It keeps two files there:</p>
       <ul>
         <li><code>flickcue-watchlist.json</code>: your list, shared with the extension and the Android app.</li>
         <li><code>flickcue-settings.json</code>: the web app's settings (streaming region, city, Letterboxd username, theme and Queue sort), so they follow you between browsers.</li>
