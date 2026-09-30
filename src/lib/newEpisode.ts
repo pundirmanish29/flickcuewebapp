@@ -1,7 +1,7 @@
 // The latest episode of a followed show that has aired and hasn't been watched
 // or put away: the title sheet keeps it in front until one of those happens.
 
-import { isStartedShow, localIsoDate, readerDate } from "./rules";
+import { getShowSchedule, isStartedShow, localIsoDate, readerDate } from "./rules";
 import type { Movie } from "./types";
 
 export interface AiredEpisode {
@@ -52,4 +52,34 @@ export function newEpisodeFor(
   if (movie.personal?.episodes?.includes(`${last.season}:${last.episode}`)) return null;
   if (dismissed.includes(episodeKey(movie.id, last.season, last.episode))) return null;
   return last;
+}
+
+export interface TonightEntry {
+  movie: Movie;
+  season: number;
+  episode: number;
+  /** "today": airs today; "out": it has aired today and isn't ticked off. */
+  state: "today" | "out";
+}
+
+/**
+ * Episodes of followed shows airing today on the reader's calendar, and ones
+ * that came out today and haven't been watched or put away, alphabetically.
+ */
+export function airingToday(movies: readonly Movie[], dismissed: readonly string[], now = Date.now()): TonightEntry[] {
+  const today = localIsoDate(now);
+  const entries: TonightEntry[] = [];
+  for (const movie of movies) {
+    if (!isStartedShow(movie)) continue;
+    const schedule = getShowSchedule(movie);
+    const seen = new Set(movie.personal?.episodes ?? []);
+    const candidates: [{ date: string; season: number; episode: number } | null | undefined, "today" | "out"][] = [[schedule?.next, "today"], [schedule?.last, "out"]];
+    for (const [air, state] of candidates) {
+      if (!air || air.date !== today) continue;
+      if (seen.has(`${air.season}:${air.episode}`) || dismissed.includes(episodeKey(movie.id, air.season, air.episode))) continue;
+      entries.push({ movie, season: air.season, episode: air.episode, state });
+      break;
+    }
+  }
+  return entries.sort((a, b) => a.movie.title.localeCompare(b.movie.title));
 }

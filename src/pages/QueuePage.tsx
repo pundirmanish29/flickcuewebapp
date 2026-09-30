@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
 import { TitleCard } from "../components/TitleCard";
+import { TonightStrip } from "../components/TonightStrip";
+import { airingToday, readDismissed } from "../lib/newEpisode";
 import * as actions from "../lib/actions";
 import {
   cardLine, displayTitle, formatRating, getShowStatus, isShow, shortDay, seasonProgress, watchingShows, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
@@ -254,6 +256,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   const tonightBackdrop = safeImage(tonight?.backdrop) || (fetchedBackdrop.id === tonight?.id ? fetchedBackdrop.url : "");
 
   const watching = useMemo(() => watchingShows(library.movies), [library.movies, settings.region]);
+  const onTonight = useMemo(() => airingToday(library.movies, readDismissed()), [library.movies, settings.region]);
   useShowScheduleRefresh(library.movies, settings.region || "IN", sync.connected);
 
   // The rows above are shortcuts into the queue; the grid doesn't repeat them, unless searching.
@@ -321,6 +324,8 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
           </div>
         </section>
       )}
+
+      {sync.connected && <TonightStrip entries={onTonight} onOpen={onOpen} />}
 
       {sync.connected && (alsoDue.length > 0 || watching.length > 0 || radar.length > 0) && (
         // Side by side on a wide screen: each row is short, and a band each would be mostly empty.

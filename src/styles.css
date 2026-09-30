@@ -1402,3 +1402,30 @@ html[data-transition="title"] .site-header, html[data-transition="title"] .botto
   .episode-item { grid-template-columns: minmax(96px, 36%) 1fr auto; gap: 12px; }
   .season-rail li { width: 124px; }
 }
+
+/* ---- On tonight: today's episodes of the shows you follow ---- */
+.tonight-strip { padding-bottom: 8px; }
+.tonight-list { display: flex; gap: 16px; margin: 14px 0 0; padding: 0 0 8px; list-style: none; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+.tonight-list::-webkit-scrollbar { display: none; }
+.tonight-card { position: relative; flex: 0 0 auto; width: 240px; scroll-snap-align: start; }
+.tonight-card-open { display: flex; flex-direction: column; gap: 8px; width: 100%; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.tonight-card-still { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--paper-deep); box-shadow: inset 0 0 0 1px var(--rule); }
+.tonight-card-still img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 240ms ease; }
+.tonight-card-open:hover .tonight-card-still img { transform: scale(1.03); }
+.tonight-card-still.no-still { display: flex; align-items: center; justify-content: center; }
+.tonight-card-poster { height: 100%; width: auto; aspect-ratio: 2 / 3; }
+.tonight-tag {
+  position: absolute; left: 8px; top: 8px; padding: 3px 8px; border-radius: 6px; background: var(--lime); color: var(--on-accent);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.tonight-tag.today { background: rgba(11, 13, 15, 0.78); color: var(--lime); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.tonight-card-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tonight-card-text b { font-size: 15px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tonight-card-text span { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tonight-watched {
+  position: absolute; right: 8px; top: 8px; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0;
+  border: 0; border-radius: 50%; background: var(--lime); color: var(--on-accent); cursor: pointer; transition: transform 160ms ease;
+}
+.tonight-watched:hover { transform: scale(1.08); }
+.tonight-watched:active { transform: scale(0.92); }
+@media (max-width: 600px) { .tonight-card { width: 210px; } }
