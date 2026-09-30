@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
+import { Landing } from "../components/Landing";
 import { TitleCard } from "../components/TitleCard";
 import { TonightStrip } from "../components/TonightStrip";
 import { airingToday, readDismissed } from "../lib/newEpisode";
@@ -8,10 +9,9 @@ import * as actions from "../lib/actions";
 import {
   cardLine, displayTitle, formatRating, getShowStatus, isShow, shortDay, seasonProgress, watchingShows, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
 } from "../lib/rules";
-import { connect, updateSettings, useAppState } from "../lib/store";
+import { updateSettings, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
 import { fetchDetails, upscale } from "../lib/tmdb";
-import { EXTENSION_URL } from "../lib/config";
 import { safeImage } from "../lib/safe";
 import { pop } from "../lib/motion";
 import { useShowScheduleRefresh } from "../lib/showSync";
@@ -58,142 +58,6 @@ const SORT_LABELS: Record<SortMode, string> = {
   rating: "Best reviewed",
   shortest: "Shortest first"
 };
-
-// Empty until the Android app has a public listing; the homepage then says "coming soon".
-const ANDROID_URL = "";
-
-/** A phone or tablet, where the Chrome extension can't be installed. */
-const onPhone = () => typeof navigator !== "undefined" && /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
-
-/** A screenshot of the web app: the phone-shaped one on narrow screens. */
-function Shot({ name, alt, eager = false }: { name: string; alt: string; eager?: boolean }) {
-  return (
-    <picture>
-      <source media="(max-width: 700px)" srcSet={`./home-${name}-phone.webp`} width={780} height={1688} />
-      <img
-        src={`./home-${name}-desktop.webp`}
-        alt={alt}
-        width={1600}
-        height={1000}
-        loading={eager ? "eager" : "lazy"}
-        decoding="async"
-        {...(eager ? { fetchPriority: "high" as const } : {})}
-      />
-    </picture>
-  );
-}
-
-const FEATURES = [
-  {
-    shot: "title",
-    alt: "FlickCue title details for Slow Horses: next episode tomorrow, where to watch, and episode progress",
-    title: "Know what's next",
-    text: "Mark a show as Watching and FlickCue keeps up with it: the next episode and when it airs, the ones you've seen, and where to stream it in your country."
-  },
-  {
-    shot: "discover",
-    alt: "FlickCue Discover: this week's top 10 shows and what's in cinemas",
-    title: "Find something good",
-    text: "This week's top 10, what's in cinemas near you, and picks based on what you've saved. Search a film, a show or a director."
-  },
-  {
-    shot: "alerts",
-    alt: "FlickCue notifications: reminders due and new seasons out",
-    title: "Get a nudge on time",
-    text: "Set a reminder for tonight, the weekend or release day, and hear when a new season or episode of something you watch is out."
-  }
-] as const;
-
-function PrivacyLine() {
-  return <p className="home-privacy">Your list lives in your own Google Drive. FlickCue can't see anything else in it, and there's no account with us.</p>;
-}
-
-function HomeActions({ large = true }: { large?: boolean }) {
-  const phone = onPhone();
-  const size = large ? " large" : "";
-  return (
-    <>
-      <div className="button-row">
-        <button type="button" className={`button button-ink${size}`} onClick={() => void connect()}>Sign in with Google</button>
-        {!phone && (
-          <a className={`button button-quiet${size}`} href={EXTENSION_URL} target="_blank" rel="noreferrer">
-            <Icon name="plus" size={17} /> Add to Chrome
-          </a>
-        )}
-      </div>
-      {phone && (
-        <p className="home-extension-note">
-          On your computer? <a href={EXTENSION_URL} target="_blank" rel="noreferrer">Add FlickCue to Chrome</a> to save from any page.
-        </p>
-      )}
-    </>
-  );
-}
-
-function MarketingHome() {
-  return (
-    <div className="home">
-      <section className="home-hero">
-        <div className="wrap">
-          <p className="eyebrow">Web app · Chrome extension · Android soon</p>
-          <h1 className="display">One watchlist.<em>Everywhere.</em></h1>
-          <p className="lede">Save films and shows, see what's next for the ones you're watching, and get a nudge when it's time to watch.</p>
-          <HomeActions />
-          <PrivacyLine />
-          <figure className="demo-frame hero-shot">
-            <Shot name="queue" alt="The FlickCue queue: tonight's pick, what's due and the shows you're watching" eager />
-          </figure>
-        </div>
-      </section>
-
-      <section className="home-section" aria-labelledby="features-title">
-        <div className="wrap">
-          <p className="eyebrow">What you get</p>
-          <h2 id="features-title" className="home-h2">From “that looks good” to movie night.</h2>
-          <div className="features">
-            {FEATURES.map((feature) => (
-              <article key={feature.shot} className="feature">
-                <div className="feature-text">
-                  <h3>{feature.title}</h3>
-                  <p>{feature.text}</p>
-                </div>
-                <figure className="demo-frame feature-shot"><Shot name={feature.shot} alt={feature.alt} /></figure>
-              </article>
-            ))}
-            <article className="feature">
-              <div className="feature-text">
-                <h3>Save it from any page</h3>
-                <p>With the FlickCue Chrome extension, one click on a review, trailer or streaming page adds the film or show to your list.</p>
-                <p><a href={EXTENSION_URL} target="_blank" rel="noreferrer">Add to Chrome</a></p>
-              </div>
-              <figure className="demo-frame feature-shot">
-                <img src="./flickcue-extension-04.webp" alt="The FlickCue save card on a film page, with a Want to watch button" width={1280} height={800} loading="lazy" decoding="async" />
-              </figure>
-            </article>
-          </div>
-          <ul className="home-extras">
-            <li>Where to stream it, for your country</li>
-            <li>Your ratings, with Letterboxd's</li>
-            <li>Tick off episodes as you go</li>
-            <li>One list on every device</li>
-          </ul>
-        </div>
-      </section>
-
-      <section className="home-section home-cta" aria-labelledby="cta-title">
-        <div className="wrap home-cta-inner">
-          <h2 id="cta-title" className="home-h2">Your next great watch deserves better than a screenshot.</h2>
-          <HomeActions />
-          <PrivacyLine />
-          <p className="home-note">
-            {ANDROID_URL ? <a href={ANDROID_URL} target="_blank" rel="noreferrer">Get the Android app</a> : "Android app coming soon"}
-            {" · "}<a href="./privacy.html">Privacy</a>
-          </p>
-        </div>
-      </section>
-    </div>
-  );
-}
 
 /** Tonight's pick: whatever is due, else the best-reviewed released title, else anything. */
 function pickTonight(queue: Movie[], skip: number): { movie?: Movie; place: number; due: Movie[] } {
@@ -273,7 +137,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   return (
     <>
       {!sync.connected ? (
-        <MarketingHome />
+        <Landing />
       ) : (
         <PageHeader
           title="What are we watching?"
