@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="How the FlickCue web app handles your data: your watchlist and settings stay in your browser and your own Google Drive." />
+    <meta name="description" content="How the FlickCue web app and browser extension handle your data: your watchlist and settings stay in your browser and your own Google Drive." />
     <meta name="theme-color" content="#0b0d0f" />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <link rel="canonical" href="https://flickcue.in/privacy.html" />
@@ -33,6 +33,12 @@
       .back:hover { background: rgba(255, 255, 255, 0.08); }
       main { max-width: 720px; margin: 0 auto; padding: 48px clamp(16px, 4vw, 24px) 88px; }
       h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; letter-spacing: -0.035em; margin: 0 0 8px; font-weight: 800; }
+      h3 { font-size: 18px; letter-spacing: -0.01em; margin: 32px 0 6px; }
+      h4 { font-size: 16px; margin: 24px 0 4px; }
+      .table { overflow-x: auto; margin: 16px 0; }
+      table { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.5; }
+      th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+      th { font-weight: 700; }
       h2 { font-size: 21px; letter-spacing: -0.015em; margin: 40px 0 8px; padding-top: 24px; border-top: 1px solid var(--rule); }
       .muted { color: var(--muted); font-size: 15px; }
       .summary { margin: 24px 0 0; padding: 18px 22px; border-radius: 16px; background: var(--surface); border: 1px solid var(--rule); }
@@ -55,9 +61,9 @@
 
     <main>
       <h1>Privacy Policy</h1>
-      <p class="muted">Last updated 29 September 2026</p>
+      <p class="muted">Last updated 30 September 2026</p>
 
-      <p>This page covers the FlickCue <strong>web app</strong> at flickcue.in. The FlickCue browser extension has <a href="https://github.com/pundirmanish29/flickcue/blob/main/PRIVACY.md">its own privacy policy</a>. The three FlickCue apps (web, extension and Android) share one list, kept in your own Google Drive.</p>
+      <p>This page covers the FlickCue <strong>web app</strong> at flickcue.in and the FlickCue <strong>browser extension</strong> for Chrome, Edge and Firefox, which has <a href="#extension">its own part below</a>. The three FlickCue apps (web, extension and Android) share one list, kept in your own Google Drive.</p>
 
       <div class="summary">
         <ul>
@@ -103,6 +109,160 @@
         <li><strong>On one device:</strong> clear site data for flickcue.in in your browser settings. Signing out removes FlickCue's access on that device but leaves your list and settings in your Drive.</li>
         <li><strong>Everywhere:</strong> in Google Drive, go to Settings, then Manage apps, find FlickCue and choose "Delete hidden app data". That removes both files. Then remove FlickCue from your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.</li>
       </ul>
+
+      <h2 id="extension">The browser extension</h2>
+
+      <p>FlickCue saves films and shows you want to watch and reminds you about them. This part describes exactly what the extension does with data, written against what the code actually does rather than in general terms.</p>
+
+      <p><strong>There is no analytics, no telemetry, no advertising, and no account with the developer.</strong> Everything below is either kept on your own device, sent directly from your browser to a service you can identify by name, or relayed to one through FlickCue's small proxy server, which keeps no log of what passes through it (see "Routed via FlickCue's proxy" below).</p>
+
+      <h3>What is stored on your device</h3>
+
+      <p>Held in the browser's extension storage, readable only by FlickCue:</p>
+
+      <ul>
+      <li>The titles you save, with the media type, year, rating and poster image URL that a film database returned for them.</li>
+      <li>Your reminder times, and whether you have marked something watched.</li>
+      <li>The page a title was saved from, a saved note, viewing status, and episode checkmarks - plus anything the FlickCue Android app keeps on the same title (such as Interested, your rating, like and review), which the extension stores and syncs unchanged.</li>
+      <li>Your excluded scanning sites and whether on-page cards are quiet.</li>
+      <li>A record of titles you deleted, kept for 90 days so a deletion is not undone the next time your devices sync.</li>
+      <li>Your settings, including your selected streaming region. The streaming region is a country code used only to show availability for the region you choose; FlickCue does not determine your physical or precise location.</li>
+      <li>If you connect Google sync, the connection state needed to keep the feature working. This may include OAuth access and refresh tokens, the identifier of FlickCue's private Drive file, and the email address of the connected Google account.</li>
+      </ul>
+
+      <p>Removing the extension deletes all of this.</p>
+
+      <h3>What leaves your device</h3>
+
+      <h4>Page scanning</h4>
+
+      <p>The extension reads the page you are on to work out whether it is about a film or a show. It looks at the page title, headings, image labels, structured metadata, and the address. <strong>This reading happens entirely on your device.</strong> The full page contents and address are not sent to film databases. A discovery address is stored when you save a title; it follows that title into your own Drive account if sync is enabled, or into a backup you explicitly export. If online matching is enabled, only a candidate title or identifier derived from the page may be sent to the services listed below.</p>
+
+      <h4>Film database lookups</h4>
+
+      <p>When online matching is on, a short candidate title — for example <code>The Odyssey (2026)</code> — is sent so the extension can confirm the title is real and fetch its poster, synopsis, rating and streaming availability. Where that request goes:</p>
+
+      <div class="table"><table>
+      <thead><tr><th>Service</th><th>What is sent</th><th>Routed via</th></tr></thead>
+      <tbody>
+      <tr><td><a href="https://www.themoviedb.org/privacy-policy">TMDB</a></td><td>Candidate title, or an IMDb/TMDB id read from the page</td><td>FlickCue's proxy</td></tr>
+      <tr><td><a href="https://anilist.co/terms">AniList</a></td><td>Candidate title</td><td>Directly from your browser</td></tr>
+      <tr><td><a href="https://www.tvmaze.com/privacy">TVmaze</a></td><td>Candidate title</td><td>Directly from your browser</td></tr>
+      <tr><td><a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy">Wikidata</a></td><td>Candidate title</td><td>Directly from your browser</td></tr>
+      <tr><td><a href="https://mdblist.com/">MDBList</a></td><td>Confirmed TMDB id</td><td>FlickCue's proxy</td></tr>
+      <tr><td><a href="https://www.omdbapi.com/">OMDb</a></td><td>The confirmed IMDb id when known, otherwise the confirmed title and year</td><td>FlickCue's proxy</td></tr>
+      <tr><td><a href="https://fanart.tv/">Fanart.tv</a></td><td>Confirmed TMDB/TheTVDB id</td><td>Always via FlickCue's proxy</td></tr>
+      </tbody>
+      </table></div>
+
+      <p>Only the candidate title or an identifier is sent to any of these. The page's address and your private notes are not.</p>
+
+      <p><strong>Directly from your browser</strong> means exactly that: no FlickCue server sits in the middle, and each request carries your IP address to that service under its own privacy policy, linked above.</p>
+
+      <p><strong>Routed via FlickCue's proxy</strong> applies to services that need a shared API key: rather than bundling that key inside the extension (readable by anyone who inspects it), FlickCue operates a small proxy server that holds those keys and forwards your request to the real service, unmodified. That proxy does not log or store request contents — it relays the request and forwards the response, nothing more. To prevent abuse of the shared keys it applies a per-minute rate limit keyed by your IP address, using Cloudflare's built-in rate limiting, which holds only a short-lived request count and is never linked to your saved titles or account. If you'd rather nothing pass through any FlickCue-operated server, turn online matching off.</p>
+
+      <p>MDBList ratings come through the proxy. FlickCue reads the <code>tomatoes</code> critic score and the <code>popcorn</code> audience score from the response. It does not scrape or connect directly to Rotten Tomatoes.</p>
+
+      <p>OMDb ratings work out of the box via the shared proxy key (1,000 requests/day across all FlickCue users, not per person). FlickCue reads the <code>imdbRating</code>, <code>imdbVotes</code> and <code>imdbID</code> fields from the response to show an IMDb score. It does not scrape or connect directly to IMDb.</p>
+
+      <p><strong>You can switch this off.</strong> With online matching disabled, no title ever leaves your device, and the extension only suggests on pages that identify themselves as a film or show in their own metadata.</p>
+
+      <h4>AI title guess (last resort only)</h4>
+
+      <p>On a page the pattern-based scan above cannot make sense of, FlickCue sends the page's <code>&lt;title&gt;</code> and a short excerpt of its visible text (up to 2,000 characters) to an AI model, asking only "which single film or show, if any, is this page about" — nothing else is asked, and the reply is discarded if the page isn't about one specific title. This step only runs when every regular database lookup above has already come back empty for that page.</p>
+
+      <p>One of four providers handles this, tried in order and stopped at the first one that answers, so a busy or exhausted quota on one doesn't stop the feature working. All four are called through FlickCue's own proxy (see the film database lookups section above for what that means and does not mean — no logging of what's sent, only a per-minute rate limit), never directly from your browser, since this step relies on shared keys with no personal-key alternative:</p>
+
+      <div class="table"><table>
+      <thead><tr><th>Service</th><th>What is sent</th></tr></thead>
+      <tbody>
+      <tr><td><a href="https://ai.google.dev/gemini-api/terms">Google (Gemini)</a></td><td>Page title and a text excerpt</td></tr>
+      <tr><td><a href="https://mistral.ai/terms/">Mistral</a></td><td>Page title and a text excerpt</td></tr>
+      <tr><td><a href="https://groq.com/privacy-policy/">Groq</a></td><td>Page title and a text excerpt</td></tr>
+      <tr><td><a href="https://openrouter.ai/privacy">OpenRouter</a></td><td>Page title and a text excerpt, and OpenRouter may itself route the request to one of several underlying model providers</td></tr>
+      </tbody>
+      </table></div>
+
+      <p>This is a wider excerpt of the page than the film-database lookups above receive (which only ever get a short candidate title), so private notes still never leave your device, but this step can send more of the page's own visible text than the rest of online matching does. It is covered by the same <strong>online matching</strong> toggle: turning that off stops this along with everything else in this section.</p>
+
+      <h4>Google sync</h4>
+
+      <p>Google sync is off until you turn it on and is optional.</p>
+
+      <p>When enabled, your saved list—including attached notes, the pages titles were saved from and episode progress—is written to your own Google Drive, in the hidden application-data folder reserved for this extension. The extension requests one scope, <code>drive.appdata</code>, which grants access to that folder alone. <strong>It cannot read, list or modify any other file in your Drive</strong>, and it never requests one that could.</p>
+
+      <p>FlickCue also reads the email address reported by Google Drive for the connected account. It uses that address only to label the active account in the popup, so you can tell which account is being synchronized. The address is stored locally in the extension, is not written into the synchronized watchlist, and is never sent to the developer.</p>
+
+      <p>Google supplies OAuth tokens that authorize this limited Drive access. FlickCue or the browser keeps those tokens locally as needed to maintain the connection. On Chrome, sign-in and token refresh happen entirely through the browser's own Google integration and never pass through any FlickCue server. On Edge, Firefox and Brave, completing sign-in and refreshing an expired token both require a step Google's OAuth process calls a client secret; rather than storing that secret inside the extension, FlickCue's proxy holds it and performs that one step on the extension's behalf — the proxy sees only the one-time authorization code (or refresh token) needed to complete that step, forwards it to Google, and returns the resulting access token; it does not log or retain it. Once obtained, all ongoing Drive reads and writes (the appdata folder itself) go directly from your browser to Google, on every browser, same as always.</p>
+
+      <p>The list is stored in your Google account, under your control, governed by <a href="https://policies.google.com/privacy">Google's privacy policy</a>. Signing out removes the stored token; the copy in your Drive stays until you delete it.</p>
+
+      <h4>Letterboxd profiles</h4>
+
+      <p>Nothing is read from Letterboxd until you add a profile in Settings → Letterboxd, and adding one is optional. You can add up to ten <strong>public</strong> profiles: one marked as yours, and others you follow — a friend's, say, or a critic's. For each one you choose what comes across, and you can change or remove it at any time.</p>
+
+      <p>FlickCue requests only the pages a profile's choices need, directly from letterboxd.com — the same pages anyone can already see by visiting that profile in a browser, signed out. It does so when you look a profile up while adding it, once an hour after that, and whenever you press "Sync" on it:</p>
+
+      <div class="table"><table>
+      <thead><tr><th>Page</th><th>What FlickCue reads from it</th><th>Read for</th></tr></thead>
+      <tbody>
+      <tr><td><code>/watchlist/</code></td><td>Title and year of each film on the watchlist</td><td>Any profile that brings in its watchlist</td></tr>
+      <tr><td><code>/films/</code></td><td>Title, year, star rating and whether it was liked</td><td>Your profile, if it brings in watched films; a followed profile, if it brings in the films they loved</td></tr>
+      <tr><td><code>/reviews/</code></td><td>The same, plus the text of published reviews</td><td>Your profile only, if it brings in reviews</td></tr>
+      <tr><td><code>/films/diary/</code></td><td>The date each viewing was logged</td><td>Your profile only, if it brings in diary dates</td></tr>
+      <tr><td>The profile page (<code>/&lt;username&gt;/</code>)</td><td>Display name, avatar image and the number of films logged</td><td>Every profile, so Settings can show whose it is</td></tr>
+      </tbody>
+      </table></div>
+
+      <p>Looking a profile up while adding it reads its profile, watchlist and films pages whatever you go on to choose, to show whose it is and how many films it has.</p>
+
+      <p>No Letterboxd account, password or sign-in is involved; FlickCue never authenticates with Letterboxd, and reads nothing that is not already public on the profile.</p>
+
+      <p><strong>Your own profile.</strong> Titles from it are saved to your FlickCue library so you can browse them under its Letterboxd tab. Watchlist titles arrive in your queue; if you choose to bring in watched films, titles you have already logged arrive marked watched — dated by when your diary says you watched them, if you bring in diary dates — so they do not appear in your queue. Adding it can therefore add several hundred titles at once, depending on the size of your Letterboxd history; when Letterboxd shows the number, the add button says it before you confirm.</p>
+
+      <p>If you bring them in, your rating, like and the first 600 characters of your published review for a title are stored alongside that title on your device, so the Letterboxd tab can show them. Like the rest of your saved list, that travels to your own Google Drive if you have sync enabled, and to any backup you export yourself. Resolving a title also sends its candidate title to TMDB, under the same terms as the film database lookups above; review text is never sent to TMDB or anywhere else.</p>
+
+      <p><strong>Profiles you follow.</strong> Their titles are not added to your library. They go on a separate shelf in the Letterboxd tab — the film's title, year, poster, and that person's rating and like — which stays on this device: it is not part of Drive sync or exported backups. A title reaches your library only when you add it from the shelf yourself, and then it is saved like any title you save, filed under a "From @username" collection.</p>
+
+      <p>The list of profiles you have added, and each profile's display name, avatar image and counts, are also kept only on this device, outside Drive sync and backups.</p>
+
+      <p><strong>Removing a profile</strong> stops all requests for it and deletes its shelf and cached details. Removing your own profile asks whether to keep the titles it brought in or to delete the ones you haven't changed since (no notes, tags, collections, progress, reminders or corrections); either way, nothing you have changed is deleted.</p>
+
+      <p>A profile set to private shows nothing. Removing every profile stops all requests to letterboxd.com.</p>
+
+      <h3>What is never collected</h3>
+
+      <ul>
+      <li>Your browsing history.</li>
+      <li>The full contents of pages you visit. Page scanning is local; online matching sends a candidate title or identifier and, only when nothing else identifies a page, its title and up to 2,000 characters of its visible text to an AI provider, as described above.</li>
+      <li>Contacts, payment information, health information, personal communications, or precise location.</li>
+      <li>Anything sold, shared or transferred to a third party for advertising.</li>
+      </ul>
+
+      <h3>Backups</h3>
+
+      <p>Exported backups contain your private title data and no settings. Imports add missing titles without overwriting current entries. Excluded sites turn off scanning there; the extension still retains its installed host permissions, which you can manage separately in your browser settings.</p>
+
+      <h3>Permissions and why each is needed</h3>
+
+      <ul>
+      <li><strong>Access to websites</strong> — to read the page you are on and detect a title. Used on the page only; nothing is sent to the developer.</li>
+      <li><strong>Access to letterboxd.com</strong> — to read the public pages of the Letterboxd profiles you add in Settings, only once you add one.</li>
+      <li><strong>Access to FlickCue's own proxy server</strong> — to reach the shared TMDB, MDBList, OMDb, Fanart.tv and AI-provider keys described above, and to complete Google sign-in on Edge, Firefox and Brave, without those keys or that one-time authorization step being embedded in the extension itself.</li>
+      <li><strong>Storage</strong> — to keep your list, settings, reminders, cached metadata and, if you enable Google sync, its connection state on your device.</li>
+      <li><strong>Alarms</strong> — to fire your reminders, and to run Drive sync and Letterboxd sync on their own schedule.</li>
+      <li><strong>Identity</strong> — to sign in to Google, only if you enable sync.</li>
+      </ul>
+
+      <p>FlickCue does not request the browsing-history permission.</p>
+
+      <h3>Data retention and removal</h3>
+
+      <p>Local extension data remains on your device until you remove it. Deleting a title removes it immediately, leaving only a dated marker for 90 days so the deletion propagates to your other browsers.</p>
+
+      <p>If Google sync is enabled, a copy of the watchlist remains in your private Google Drive application-data folder. Signing out clears FlickCue's locally stored connection information, including the connected email address and OAuth tokens, but does not delete that Drive copy. Uninstalling the extension removes its local data but does not delete the Drive copy either.</p>
+
+      <p>To remove everything: uninstall the extension, and if you used Google sync, revoke its access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> and delete the app data from your Drive. </p>
 
       <h2>Children</h2>
       <p>FlickCue isn't directed at children under 13 and doesn't knowingly collect their information.</p>
