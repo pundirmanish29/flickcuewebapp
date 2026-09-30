@@ -1139,6 +1139,13 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
 .site-footer .muted { color: var(--dark-muted); }
 .footer-link { text-decoration: none; }
 .footer-link:hover { color: #fff; }
+/* Contact: a button until clicked, then the address and a Copy button. */
+.contact-reveal { display: inline-flex; align-items: baseline; gap: 10px; }
+.contact-address { user-select: all; }
+.about-links .link-button.inline { color: var(--ink); font-weight: inherit; }
+.site-footer .link-button.inline { color: inherit; font-weight: inherit; }
+.site-footer .contact-reveal-toggle { text-decoration: none; }
+.site-footer .contact-reveal-toggle:hover { color: #fff; }
 
 .bottom-nav { display: none; }
 
