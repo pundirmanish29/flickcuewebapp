@@ -10,7 +10,7 @@ import {
 } from "../lib/rules";
 import { updateSettings, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
-import { fetchDetails, fetchSharpBackdrop, upscale } from "../lib/tmdb";
+import { fetchDetails, fetchSharpBackdrop, findBackdropByName, upscale } from "../lib/tmdb";
 import { safeImage } from "../lib/safe";
 import { pop, useSwap } from "../lib/motion";
 import { useShowScheduleRefresh } from "../lib/showSync";
@@ -142,12 +142,16 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
 
   // A saved backdrop from elsewhere (fanart.tv, say) isn't one we load; TMDB's own stands in for it, without rewriting the saved title.
   const [fetchedBackdrop, setFetchedBackdrop] = useState<{ id: string; url: string }>({ id: "", url: "" });
-  const needsBackdrop = Boolean(tonight && !safeImage(tonight.backdrop) && tonight.tmdbId);
+  // A title saved without a TMDB id (some saves from other apps) is looked up by its name and year, so its hero isn't left as a blurred poster.
+  const needsBackdrop = Boolean(tonight && !safeImage(tonight.backdrop));
   useEffect(() => {
     if (!tonight || !needsBackdrop) return;
     let current = true;
-    fetchDetails(tonight, settings.region || "IN")
-      .then((details) => { if (current) setFetchedBackdrop({ id: tonight.id, url: safeImage(details.backdrop) }); })
+    const found = tonight.tmdbId
+      ? fetchDetails(tonight, settings.region || "IN").then((details) => details.backdrop)
+      : findBackdropByName(tonight);
+    found
+      .then((url) => { if (current) setFetchedBackdrop({ id: tonight.id, url: safeImage(url) }); })
       .catch(() => {});
     return () => { current = false; };
   }, [tonight?.id, tonight?.tmdbId, tonight?.tmdbType, needsBackdrop, settings.region]);
