@@ -39,7 +39,8 @@ export function AccountMenu() {
   const headline = expired ? "Sync is paused" : syncing ? "Syncing…" : held ? "Sync paused" : failed ? "Sync failed" : `Synced ${timeAgo(state.lastSyncAt)}`;
   const detail = expired
     ? "Your changes are safe on this device."
-    : held ? `${state.error} Open Settings to decide.` : failed ? state.error || "Sync failed." : "The same list on the web, in Chrome and on Android.";
+    : held ? `${state.error} Open Settings to decide.` : failed ? state.error || "Sync failed."
+    : syncing ? "Checking Google Drive for changes…" : "Up to date on the web, in Chrome and on Android.";
   const viaExtension = getStoredToken()?.source === "extension";
   const titles = library.movies.length;
   const watched = library.movies.filter((movie) => movie.watched).length;

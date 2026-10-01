@@ -16,11 +16,25 @@ export class DriveError extends Error {
   }
 }
 
+/** How long Drive may stay silent before a request is given up on, so a stalled connection can't leave sync on "Syncing…" for good. */
+export const DRIVE_TIMEOUT = 30_000;
+
 async function driveFetch(url: string, token: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(url, {
-    ...init,
-    headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` }
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DRIVE_TIMEOUT);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` }
+    });
+  } catch (error) {
+    if (controller.signal.aborted) throw new DriveError("Google Drive took too long to answer. Check your connection and sync again.", 0);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     throw new DriveError(`Drive request failed (${response.status}). ${detail.slice(0, 200)}`, response.status);

@@ -5,7 +5,7 @@ import { PROXY_BASE_URL } from "./config";
 import { dedupeProviders } from "./providers";
 import { safeTmdbId } from "./safe";
 import { bestKnownWork, blendRecommendations, matchPerson, rankSearchResults, recommendationRows, splitYear, type Seed } from "./discover";
-import { isUnreleased } from "./rules";
+import { isShow, isUnreleased } from "./rules";
 import type { Candidate, Movie, Season } from "./types";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p";
@@ -87,6 +87,43 @@ export function fetchSharpBackdrop(movie: Pick<Movie, "tmdbId" | "tmdbType" | "b
       return "";
     });
   sharpBackdrops.set(key, request);
+  return request;
+}
+
+const plainName = (title: string) => title.replace(/\s*\(\d{4}\)\s*$/, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+
+/**
+ * Which search result is this saved title? The same kind (film or show) with the
+ * same name, then the nearest year, and never one more than a year off. Undefined
+ * when nothing fits well enough to put its picture behind someone's own title.
+ */
+export function pickBackdropMatch(titles: Candidate[], movie: Pick<Movie, "title" | "year" | "tmdbType" | "mediaType">): Candidate | undefined {
+  const kind = isShow(movie) ? "tv" : "movie";
+  const name = plainName(movie.title);
+  const year = /^\d{4}$/.test(movie.year ?? "") ? Number(movie.year) : 0;
+  const gap = (item: Candidate) => (year && /^\d{4}$/.test(item.year) ? Math.abs(Number(item.year) - year) : 0);
+  return titles
+    .filter((item) => item.tmdbType === kind && item.backdrop && plainName(item.title) === name && gap(item) <= 1)
+    .sort((a, b) => gap(a) - gap(b))[0];
+}
+
+const backdropLookups = new Map<string, Promise<string>>();
+
+/**
+ * A backdrop for a saved title that carries no TMDB id (so fetchDetails can't be asked), found by
+ * its name and year. "" when the title service can't place it. The saved title is never changed.
+ */
+export function findBackdropByName(movie: Pick<Movie, "id" | "title" | "year" | "tmdbType" | "mediaType">): Promise<string> {
+  const cached = backdropLookups.get(movie.id);
+  if (cached) return cached;
+  const name = movie.title.replace(/\s*\(\d{4}\)\s*$/, "").trim();
+  const request = searchTitles(movie.year ? `${name} ${movie.year}` : name)
+    .then((found) => pickBackdropMatch(found.titles, movie)?.backdrop ?? "")
+    .catch(() => {
+      backdropLookups.delete(movie.id);
+      return "";
+    });
+  backdropLookups.set(movie.id, request);
   return request;
 }
 
