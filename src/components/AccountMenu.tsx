@@ -68,7 +68,7 @@ export function AccountMenu() {
         <span className="pill-av">
           {state.account?.photo
             ? <img src={state.account.photo} alt="" referrerPolicy="no-referrer" />
-            : <span className="dot" />}
+            : <span className="dot" aria-hidden="true">{state.account ? initials : ""}</span>}
           {tone !== "ok" && (
             <span className="pill-tick" aria-hidden="true">
               {syncing ? <span className="spin"><Icon name="sync" size={9} /></span> : <Icon name="pause" size={9} />}
