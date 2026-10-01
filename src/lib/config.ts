@@ -6,6 +6,12 @@ const EXTENSION_WEB_CLIENT_ID = "57933203348-qa13rc5t35ju120ccbhteehjmtafpvpv.ap
 
 export const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim() || EXTENSION_WEB_CLIENT_ID;
 export const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+// Asked for only when someone turns on "Add reminders to Google Calendar": it reaches only the calendar this app
+// makes for itself (and events on it), never the rest of their calendars.
+// The Calendar mirror ships dark: nothing about it shows or runs unless the site is built with VITE_CALENDAR_MIRROR=1
+// (for people on the Google project's test-user list, until the Calendar permission is approved).
+export const CALENDAR_MIRROR_ENABLED = (import.meta.env.VITE_CALENDAR_MIRROR as string | undefined)?.trim() === "1";
+export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
 // The FlickCue extension, asked for its Google session so someone signed in
 // there arrives signed in here. The Chrome Web Store build first, then the
 // unpacked one, whose id is pinned by the "key" in its manifest.

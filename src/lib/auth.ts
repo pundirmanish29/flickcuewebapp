@@ -3,13 +3,15 @@
 // short-lived access token (about an hour) and asks Google for a new one when
 // it runs out. After the first consent that is a popup that closes by itself.
 
-import { EXTENSION_IDS, GOOGLE_CLIENT_ID, GOOGLE_SCOPE } from "./config";
+import { CALENDAR_SCOPE, EXTENSION_IDS, GOOGLE_CLIENT_ID, GOOGLE_SCOPE } from "./config";
 import { letterboxdHandle } from "./letterboxd";
 import type { Account } from "./drive";
 
 interface TokenResponse {
   access_token?: string;
   expires_in?: number | string;
+  /** The permissions actually granted, space-separated: a person can untick one at Google's consent screen. */
+  scope?: string;
   error?: string;
   error_description?: string;
 }
@@ -45,6 +47,9 @@ declare global {
 }
 
 const TOKEN_KEY = "flickcue.googleToken";
+// A second slot, written only when the granted permissions include Calendar. Renewing sync silently from the
+// extension replaces the first slot with a Drive-only token; this one is never touched by that.
+const CALENDAR_TOKEN_KEY = "flickcue.calendarToken";
 const EXPIRY_MARGIN = 60 * 1000;
 
 let scriptPromise: Promise<void> | null = null;
@@ -72,11 +77,18 @@ export interface StoredToken {
   expiresAt: number;
   /** "extension" when the FlickCue extension lent it; that one is never revoked here. */
   source?: "google" | "extension";
+  /** What Google said this token may do, when it said. */
+  scope?: string;
 }
 
-export function getStoredToken(): StoredToken | null {
+/** Whether a granted-permissions string includes the Calendar permission. */
+export function grantsCalendar(scope: string | undefined): boolean {
+  return Boolean(scope) && scope!.split(/\s+/).includes(CALENDAR_SCOPE);
+}
+
+function readSlot(key: string): StoredToken | null {
   try {
-    const token = JSON.parse(localStorage.getItem(TOKEN_KEY) || "null") as StoredToken | null;
+    const token = JSON.parse(localStorage.getItem(key) || "null") as StoredToken | null;
     if (token?.accessToken && token.expiresAt - EXPIRY_MARGIN > Date.now()) return token;
   } catch {
     // Unreadable storage just means signing in again.
@@ -84,13 +96,31 @@ export function getStoredToken(): StoredToken | null {
   return null;
 }
 
-export function storeToken(token: StoredToken | null) {
+function writeSlot(key: string, token: StoredToken | null) {
   try {
-    if (token) localStorage.setItem(TOKEN_KEY, JSON.stringify(token));
-    else localStorage.removeItem(TOKEN_KEY);
+    if (token) localStorage.setItem(key, JSON.stringify(token));
+    else localStorage.removeItem(key);
   } catch {
     // Private windows can refuse storage; the token then lasts for this page only.
   }
+}
+
+/** The token that may use Calendar, if there is a live one. Never the extension's. */
+export function getCalendarToken(): StoredToken | null {
+  const token = readSlot(CALENDAR_TOKEN_KEY);
+  return token && grantsCalendar(token.scope) ? token : null;
+}
+
+export function storeCalendarToken(token: StoredToken | null) {
+  writeSlot(CALENDAR_TOKEN_KEY, token);
+}
+
+export function getStoredToken(): StoredToken | null {
+  return readSlot(TOKEN_KEY);
+}
+
+export function storeToken(token: StoredToken | null) {
+  writeSlot(TOKEN_KEY, token);
 }
 
 function describeError(code: string | undefined, fallback?: string): string {
@@ -108,11 +138,11 @@ function describeError(code: string | undefined, fallback?: string): string {
  * picker and consent screen; an empty prompt reuses an earlier grant and only
  * flashes a popup. Must be called from a click, or the popup is blocked.
  */
-export function requestToken({ consent = false, hint = "" } = {}): Promise<StoredToken> {
+export function requestToken({ consent = false, hint = "", calendar = false } = {}): Promise<StoredToken> {
   // With the script already loaded, Google's window opens inside the tap itself. Waiting for a download first
   // lets some phones' browsers (Safari's, notably) treat the window as unasked-for and block it.
-  if (window.google?.accounts?.oauth2) return openGoogleWindow(consent, hint);
-  return loadScript().then(() => openGoogleWindow(consent, hint));
+  if (window.google?.accounts?.oauth2) return openGoogleWindow(consent, hint, calendar);
+  return loadScript().then(() => openGoogleWindow(consent, hint, calendar));
 }
 
 /**
@@ -125,13 +155,14 @@ export function preloadGoogleSignIn() {
   });
 }
 
-function openGoogleWindow(consent: boolean, hint: string): Promise<StoredToken> {
+function openGoogleWindow(consent: boolean, hint: string, calendar: boolean): Promise<StoredToken> {
   const oauth2 = window.google!.accounts.oauth2;
 
   return new Promise((resolve, reject) => {
     const client = oauth2.initTokenClient({
       client_id: GOOGLE_CLIENT_ID,
-      scope: GOOGLE_SCOPE,
+      // One window, one token: with Calendar on, both permissions are asked for together.
+      scope: calendar ? `${GOOGLE_SCOPE} ${CALENDAR_SCOPE}` : GOOGLE_SCOPE,
       callback: (response) => {
         if (response.error || !response.access_token) {
           reject(new Error(describeError(response.error, response.error_description)));
@@ -140,9 +171,12 @@ function openGoogleWindow(consent: boolean, hint: string): Promise<StoredToken> 
         const token: StoredToken = {
           accessToken: response.access_token,
           expiresAt: Date.now() + Number(response.expires_in ?? 3600) * 1000,
-          source: "google"
+          source: "google",
+          ...(response.scope ? { scope: response.scope } : {})
         };
         storeToken(token);
+        // Only what Google says was granted counts: Calendar can be unticked at the consent screen.
+        if (grantsCalendar(token.scope)) storeCalendarToken(token);
         resolve(token);
       },
       error_callback: (error) => reject(new Error(describeError(error.type, error.message)))
@@ -153,6 +187,7 @@ function openGoogleWindow(consent: boolean, hint: string): Promise<StoredToken> 
 
 export function forgetToken() {
   storeToken(null);
+  storeCalendarToken(null);
 }
 
 export async function revokeToken(token: string) {

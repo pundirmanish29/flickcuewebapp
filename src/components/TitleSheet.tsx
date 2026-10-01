@@ -4,12 +4,14 @@ import { findExisting } from "../lib/editor";
 import {
   displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, readerDate, reminderText, seasonProgress, smartQuotes
 } from "../lib/rules";
+import { CALENDAR_MIRROR_ENABLED } from "../lib/config";
 import { useAppState } from "../lib/store";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { FilmShowtimes } from "./Showtimes";
 import { cinemaKey, fetchDetails, genreIdFor, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
 import type { Candidate, Movie } from "../lib/types";
 import { CandidateCard } from "./CandidateCard";
+import { CalendarMark } from "./CalendarMark";
 import { Icon } from "./Icon";
 import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
@@ -373,7 +375,10 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
                   {"sub" in headline && headline.sub && <span className="sheet-status-sub"> {headline.sub}</span>}
                 </p>
               ) : (status || reminderActive || unreleased || movie.watched) && (
-                <p className={`sheet-status ${status ? `tone-${status.tone}` : ""}`}>{status ? status.text : reminderText(movie)}</p>
+                <p className={`sheet-status ${status ? `tone-${status.tone}` : ""}`}>
+                  {status ? status.text : reminderText(movie)}
+                  {reminderActive && <CalendarMark movie={movie} label />}
+                </p>
               )}
               {facts && <p className="sheet-facts">{facts}</p>}
               {/* Where to watch sits with the title, in the space beside the poster. */}
@@ -450,6 +455,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
                 } : undefined}
                 noneLabel="Clear reminder"
               />
+              {CALENDAR_MIRROR_ENABLED && settings.calendarMirror && <p className="muted small-print">This reminder also goes on your Google Calendar.</p>}
             </div>
           )}
           </>

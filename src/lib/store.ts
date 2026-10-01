@@ -4,7 +4,9 @@
 // through the editor functions, which is what keeps every edit sync-safe.
 
 import { useSyncExternalStore } from "react";
-import { canAskExtension, getStoredToken, forgetToken, requestExtensionSession, requestToken, revokeToken, storeToken } from "./auth";
+import { canAskExtension, getCalendarToken, getStoredToken, forgetToken, grantsCalendar, requestExtensionSession, requestToken, revokeToken, storeCalendarToken, storeToken } from "./auth";
+import { createCalendarMirror, type CalendarState, type PersistedCalendar } from "./calendarMirror";
+import { CALENDAR_MIRROR_ENABLED } from "./config";
 import { needsConfirmation, newRemovals } from "./syncGuard";
 import { DriveError, fetchAccount, fileVersion, findRemoteFileId, findSettingsFileId, readRemote, readRemoteSettings, writeRemote, writeRemoteSettings, type Account } from "./drive";
 import { readSynced, settingsDirection, SYNCED_KEYS, type SyncedSettings } from "./settingsSync";
@@ -18,6 +20,7 @@ import type { LibraryDocument, SortMode } from "./types";
 const LIBRARY_KEY = "flickcue.library";
 const SYNC_KEY = "flickcue.sync";
 const SETTINGS_KEY = "flickcue.settings";
+const CALENDAR_STATE_KEY = "flickcue.calendarState";
 // Set when someone signs out here, so the extension's session isn't picked up
 // again on the next visit; signing in here clears it.
 const EXTENSION_OFF_KEY = "flickcue.extensionSignInOff";
@@ -55,6 +58,10 @@ export interface Settings {
   sort?: SortMode;
   /** The language TMDB titles and overviews come in, synced like the rest. */
   language?: string;
+  /** Reminders are mirrored into the FlickCue calendar in Google Calendar; off until switched on. Synced. */
+  calendarMirror?: boolean;
+  /** Google's id of the FlickCue calendar once it exists. Synced, so another device uses it instead of making a second. */
+  calendarId?: string;
   /** When a synced setting last changed here, or was taken from Drive; 0 for never. */
   settingsUpdatedAt?: number;
 }
@@ -63,6 +70,8 @@ export interface AppState {
   library: LibraryDocument;
   sync: SyncState;
   settings: Settings;
+  /** Where mirroring reminders into Google Calendar stands; "off" unless switched on (and the site is built with it). */
+  calendar: CalendarState;
 }
 
 function read<T>(key: string, fallback: T): T {
@@ -128,7 +137,8 @@ function initialState(onLoad = true): AppState {
       status: stored.connected ? (getStoredToken() ? "idle" : "needs-auth") : onLoad && willAskExtension() ? "connecting" : "local",
       error: ""
     },
-    settings
+    settings,
+    calendar: { status: "off", message: "", held: 0, mirrored: [], declined: false }
   };
 }
 
@@ -162,6 +172,8 @@ function patchSync(patch: Partial<SyncState>) {
 function setLibrary(library: LibraryDocument) {
   write(LIBRARY_KEY, library);
   setState({ library });
+  // Every change to the reminders passes through here, whether made here, merged from Drive, imported or restored.
+  calendarMirror.schedule();
 }
 
 export function subscribe(listener: () => void) {
@@ -202,6 +214,100 @@ export function updateSettings(patch: Partial<Settings>, fromDrive = false) {
   }
 }
 
+// A Drive sync has succeeded in this page session: only then is the library known to be whole enough to compare
+// the calendar with (an empty library before the first sync would otherwise look like "delete everything").
+let syncedOnce = false;
+
+const calendarMirror = createCalendarMirror({
+  getLibrary: () => state.library,
+  // Off entirely unless this build has the feature, whatever another device's synced switch says.
+  getSettings: () => ({ calendarMirror: CALENDAR_MIRROR_ENABLED && Boolean(state.settings.calendarMirror), calendarId: state.settings.calendarId ?? "" }),
+  setSettings: (patch) => updateSettings(patch),
+  syncReady: () => syncedOnce && !state.sync.held,
+  account: () => state.sync.account?.email ?? "",
+  getToken: getCalendarToken,
+  dropToken: () => storeCalendarToken(null),
+  load: () => {
+    try {
+      return JSON.parse(localStorage.getItem(CALENDAR_STATE_KEY) || "null") as PersistedCalendar | null;
+    } catch {
+      return null;
+    }
+  },
+  save: (value) => {
+    try {
+      if (value) localStorage.setItem(CALENDAR_STATE_KEY, JSON.stringify(value));
+      else localStorage.removeItem(CALENDAR_STATE_KEY);
+    } catch {
+      // Storage refused: the mirror works for this visit and looks again next time.
+    }
+  },
+  onState: (calendar) => setState({ calendar }),
+  now: () => Date.now(),
+  timeZone: () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+});
+calendarMirror.restore();
+
+/**
+ * Turns on "Add reminders to Google Calendar". Must be called from a tap: Google's window opens right here, asking
+ * for Drive and Calendar together.
+ */
+export async function enableCalendar() {
+  if (!CALENDAR_MIRROR_ENABLED) return;
+  const asked = requestToken({ consent: true, hint: state.sync.account?.email, calendar: true });
+  try {
+    const token = await asked;
+    if (!grantsCalendar(token.scope)) {
+      calendarMirror.declined();
+      return;
+    }
+    updateSettings({ calendarMirror: true });
+    await calendarMirror.started();
+  } catch (error) {
+    calendarMirror.notice(error instanceof Error ? error.message : "Google Calendar couldn't be connected.");
+  }
+}
+
+/** Gets a live Calendar permission again (the sign-in lasts about an hour). Call it from a tap. */
+export async function reconnectCalendar() {
+  if (!CALENDAR_MIRROR_ENABLED) return;
+  const asked = requestToken({ consent: calendarMirror.getState().declined, hint: state.sync.account?.email, calendar: true });
+  try {
+    const token = await asked;
+    if (!grantsCalendar(token.scope)) {
+      calendarMirror.declined();
+      return;
+    }
+    await calendarMirror.started();
+  } catch (error) {
+    calendarMirror.notice(error instanceof Error ? error.message : "Google Calendar couldn't be connected.");
+  }
+}
+
+/**
+ * Turns the mirror off and deletes the FlickCue calendar. Deleting it needs a live permission, so without one this
+ * asks Google first (call it from a tap). `removed` is false when the calendar had to be left.
+ */
+export async function disableCalendar(): Promise<{ removed: boolean }> {
+  if (!getCalendarToken()) await requestToken({ hint: state.sync.account?.email, calendar: true }).catch(() => null);
+  return calendarMirror.stop();
+}
+
+/** The ids of the events on the calendar, for a title to show it is there. Changes only when the calendar does. */
+export function useCalendarMirrored(): string[] {
+  return useSyncExternalStore(subscribe, () => state.calendar.mirrored, () => state.calendar.mirrored);
+}
+
+/** Looks at the calendar again now (after a failure it could not get past on its own). */
+export function retryCalendar() {
+  return calendarMirror.run();
+}
+
+/** Goes ahead with the deletes that were held for being too many. */
+export function confirmCalendarDeletes() {
+  return calendarMirror.run({ allowBulkDelete: true });
+}
+
 /** The light/dark choice: applied now, and synced like the other settings. */
 export function chooseTheme(choice: ThemeChoice) {
   setThemeChoice(choice);
@@ -209,8 +315,11 @@ export function chooseTheme(choice: ThemeChoice) {
 }
 
 function syncedSettings(): SyncedSettings {
-  const { region, city, letterboxd, letterboxdUnlinked, sort, language } = state.settings;
-  return { region, city, letterboxd, letterboxdUnlinked, theme: getThemeChoice(), sort: sort ?? "added", language: language ?? "en-US" };
+  const { region, city, letterboxd, letterboxdUnlinked, sort, language, calendarMirror, calendarId } = state.settings;
+  return {
+    region, city, letterboxd, letterboxdUnlinked, theme: getThemeChoice(), sort: sort ?? "added", language: language ?? "en-US",
+    calendarMirror: calendarMirror ?? false, calendarId: calendarId ?? ""
+  };
 }
 
 /** Settings sync: whichever side changed last wins. Its failure never fails the list's sync. */
@@ -330,6 +439,9 @@ async function runSync() {
 
     await syncSettings(token.accessToken);
     patchSync({ fileId: nextFileId, account: account ?? state.sync.account, lastSyncAt: Date.now(), status: "idle", error: "" });
+    syncedOnce = true;
+    // Soon, not after the usual wait for a burst of edits: this is the moment the library is known to be whole.
+    calendarMirror.schedule(300);
   } catch (error) {
     if (error instanceof DriveError && error.status === 401) {
       forgetToken();
@@ -349,7 +461,10 @@ async function runSync() {
 export async function connect() {
   setExtensionSignInOff(false);
   try {
-    await requestToken({ consent: !state.sync.connected, hint: state.sync.account?.email });
+    // With the Calendar mirror on, Resume asks for Calendar too, so the hourly sign-in stays one window.
+    const wantCalendar = CALENDAR_MIRROR_ENABLED && Boolean(state.settings.calendarMirror) && !calendarMirror.getState().declined;
+    const token = await requestToken({ consent: !state.sync.connected, hint: state.sync.account?.email, calendar: wantCalendar });
+    if (wantCalendar && !grantsCalendar(token.scope)) calendarMirror.declined();
     patchSync({ connected: true, status: "idle", error: "" });
     await sync();
   } catch (error) {
@@ -377,6 +492,9 @@ export async function disconnect() {
   if (token && token.source !== "extension") await revokeToken(token.accessToken);
   else forgetToken();
   setExtensionSignInOff(true);
+  // This device forgets the calendar; the calendar itself and the synced switch stay, so signing back in resumes.
+  syncedOnce = false;
+  calendarMirror.reset();
   patchSync({ connected: false, fileId: "", settingsFileId: "", account: null, lastSyncAt: 0, status: "local", error: "" });
 }
 
@@ -447,7 +565,7 @@ export function startBackgroundSync() {
   // Another tab of this app edited the library or signed in.
   window.addEventListener("storage", (event) => {
     if (event.key === LIBRARY_KEY || event.key === SYNC_KEY || event.key === SETTINGS_KEY) {
-      state = initialState(false);
+      state = { ...initialState(false), calendar: state.calendar };
       emit();
     }
   });
