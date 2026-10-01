@@ -999,13 +999,18 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   transform-origin: top right; animation: menu-in 420ms var(--ease-out);
 }
 @keyframes menu-in { from { opacity: 0; transform: translateY(-6px) scale(0.96); } }
-@media (max-width: 900px) { .account-menu .popover { max-height: calc(100svh - var(--header) - 24px - 80px - env(safe-area-inset-bottom)); } }
+/* The menu starts 68px down and the tab bar (70px + a 10px gap) is 80px of the bottom: stop 8px short of it. */
+@media (max-width: 900px) { .account-menu .popover { max-height: calc(100svh - var(--header) - 92px - env(safe-area-inset-bottom)); } }
 .am-who { display: flex; align-items: center; gap: 12px; }
 .am-who img, .am-initials { flex: none; width: 48px; height: 48px; border-radius: 50%; box-shadow: 0 0 0 3px var(--ring, var(--green)), 0 0 0 6px rgb(255 255 255 / 0.05); }
 .am-initials { display: grid; place-items: center; background: #363a41; font-size: 15px; font-weight: 800; }
 .am-who > div { flex: 1; min-width: 0; }
 .am-who b { display: block; font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
 .am-who > div > span { display: block; overflow: hidden; color: var(--muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+/* The one line that says where sync stands and when it last ran; orange or blue when it is not simply in step. */
+.am-who .am-status { margin-top: 1px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.am-who.state-busy .am-status { color: var(--blue); }
+.am-who.state-warn .am-status { color: var(--orange); }
 .am-chip { display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 0; padding: 4px 10px 4px 5px; border-radius: var(--r-pill); background: rgb(255 255 255 / 0.07); color: var(--ink-soft); font-size: 11.5px; }
 .am-sync {
   position: relative; flex: none; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgb(255 255 255 / 0.1); color: #fff; cursor: pointer;
@@ -1079,7 +1084,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .am-row select option:checked { background: rgb(255 255 255 / 0.12); font-weight: 700; }
   .am-row select option::checkmark { color: var(--lime); }
 }
-.am-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.am-actions { display: grid; gap: 14px; margin-top: 12px; }
+.am-signout { display: grid; gap: 8px; }
+.am-fine { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.35; text-align: center; }
 .am-item {
   position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 46px; padding: 0 10px; border: 0; border-radius: 14px; background: rgb(255 255 255 / 0.06);
   color: var(--ink); font: inherit; font-size: 14.5px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background-color var(--dur-fast) ease;
