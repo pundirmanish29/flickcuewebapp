@@ -32,18 +32,17 @@ export function AccountMenu() {
   const failed = state.status === "error";
   const syncing = state.status === "syncing";
   const held = Boolean(state.held);
-  // The ring on the avatar and the state tile take one colour: green in step, blue while working, orange when it needs a look.
+  // The ring on the avatar and the sync button's dot take one colour: green in step, blue while working, orange when it needs a look.
   const tone = expired || failed || held ? "warn" : syncing ? "busy" : "ok";
   const label = expired ? "Resume sync" : syncing ? "Syncing" : held ? "Sync paused" : failed ? "Sync failed" : "Synced";
   const pillLabel = expired ? "Paused" : label;
-  const headline = expired ? "Sync is paused" : syncing ? "Syncing…" : held ? "Sync paused" : failed ? "Sync failed" : `Synced ${timeAgo(state.lastSyncAt)}`;
-  const detail = expired
-    ? "Your changes are safe on this device."
+  // The sync button carries the state beside the profile; words appear below it only when sync has something to say.
+  const syncTitle = expired ? "Resume sync" : syncing ? "Syncing…" : held ? "Sync paused" : failed ? "Sync failed. Sync again" : `Synced ${timeAgo(state.lastSyncAt)}. Sync now`;
+  const note = expired
+    ? "Sync is paused. Your changes are safe on this device."
     : held ? `${state.error} Open Settings to decide.` : failed ? state.error || "Sync failed."
-    : syncing ? "Checking Google Drive for changes…" : "Up to date on the web, in Chrome and on Android.";
+    : syncing ? "Checking Google Drive for changes…" : "";
   const viaExtension = getStoredToken()?.source === "extension";
-  const titles = library.movies.length;
-  const watched = library.movies.filter((movie) => movie.watched).length;
   const lb = settings.letterboxd;
   const lbStats = letterboxdStats(library.movies);
   const lbLine = [
@@ -89,28 +88,20 @@ export function AccountMenu() {
               <b>{state.account?.name || "Google account"}</b>
               {state.account?.email && <span>{state.account.email}</span>}
             </div>
+            <button type="button" className="am-sync" aria-label={syncTitle} title={syncTitle} disabled={syncing} onClick={() => (expired ? void connect() : void sync())}>
+              <span className={syncing ? "spin" : ""}><Icon name="sync" size={18} /></span>
+            </button>
           </div>
           {viaExtension && <p className="am-chip"><ExtensionIcon size={16} /> Signed in through the extension</p>}
 
-          <div className={`am-tile state-${tone}`} role="status">
-            <div className="am-tile-text">
-              <b><span className="am-dot" aria-hidden="true" />{headline}</b>
-              <span>{detail}</span>
+          {note && (
+            <div className={`am-note state-${tone}`} role="status">
+              <span>{note}</span>
+              {(expired || failed) && (
+                <button type="button" onClick={() => (expired ? void connect() : void sync())}>{expired ? "Resume" : "Retry"}</button>
+              )}
             </div>
-            {expired ? (
-              <button type="button" className="button button-orange small" onClick={() => connect()}>Resume</button>
-            ) : (
-              <button type="button" className="am-sync" aria-label="Sync now" title="Sync now" disabled={syncing} onClick={() => void sync()}>
-                <span className={syncing ? "spin" : ""}><Icon name="sync" size={16} /></span>
-              </button>
-            )}
-          </div>
-
-          <ul className="am-nums" aria-label="Your list">
-            <li><b>{titles}</b><span>title{titles === 1 ? "" : "s"}</span></li>
-            <li><b>{watched}</b><span>watched</span></li>
-            <li><b>{titles - watched}</b><span>in queue</span></li>
-          </ul>
+          )}
 
           {lb ? (
             <a className="am-lb" href={letterboxdProfileUrl(lb)} target="_blank" rel="noreferrer" onClick={close}>
