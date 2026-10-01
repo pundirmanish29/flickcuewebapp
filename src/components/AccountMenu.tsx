@@ -21,6 +21,14 @@ export function AccountMenu() {
   const close = useCallback(() => setOpen(false), []);
   const trigger = useRef<HTMLButtonElement>(null);
 
+  // "Synced 3 min ago" is read while the menu is open, so it is redrawn now and then rather than left to go stale.
+  const [, redraw] = useState(0);
+  useEffect(() => {
+    if (!open) return;
+    const timer = setInterval(() => redraw((n) => n + 1), 30000);
+    return () => clearInterval(timer);
+  }, [open]);
+
   // Moving to another page closes it, whichever way the page changed.
   useEffect(() => {
     if (!open) return;
@@ -34,14 +42,15 @@ export function AccountMenu() {
   const held = Boolean(state.held);
   // The ring on the avatar and the sync button's dot take one colour: green in step, blue while working, orange when it needs a look.
   const tone = expired || failed || held ? "warn" : syncing ? "busy" : "ok";
-  const label = expired ? "Resume sync" : syncing ? "Syncing" : held ? "Sync paused" : failed ? "Sync failed" : "Synced";
+  const label = expired || held ? "Sync paused" : syncing ? "Syncing" : failed ? "Sync failed" : "Synced";
   const pillLabel = expired ? "Paused" : label;
-  // The sync button carries the state beside the profile; words appear below it only when sync has something to say.
-  const syncTitle = expired ? "Resume sync" : syncing ? "Syncing…" : held ? "Sync paused" : failed ? "Sync failed. Sync again" : `Synced ${timeAgo(state.lastSyncAt)}. Sync now`;
+  // One line under the email always says where sync stands and when it last ran, so nothing below it moves when a sync starts or ends.
+  const status = expired || held ? "Sync paused" : syncing ? "Syncing…" : failed ? "Sync failed" : state.lastSyncAt ? `Synced ${timeAgo(state.lastSyncAt)}` : "Not synced yet";
+  const syncTitle = expired ? "Resume sync" : syncing ? "Syncing…" : held ? "Sync paused" : failed ? "Sync failed. Sync again" : `${status}. Sync now`;
+  // Words below the profile only when there is something to do or understand.
   const note = expired
-    ? "Sync is paused. Your changes are safe on this device."
-    : held ? `${state.error} Open Settings to decide.` : failed ? state.error || "Sync failed."
-    : syncing ? "Checking Google Drive for changes…" : "";
+    ? "Google's sign-in lasts about an hour. Your changes are safe on this device."
+    : held ? `${state.error} Open Settings to decide.` : failed ? state.error || "Sync failed." : "";
   const viaExtension = getStoredToken()?.source === "extension";
   const lb = settings.letterboxd;
   const lbStats = letterboxdStats(library.movies);
@@ -58,11 +67,11 @@ export function AccountMenu() {
         ref={trigger}
         type="button"
         className={`sync-pill state-${tone}`}
-        aria-haspopup={expired ? undefined : "dialog"}
-        aria-expanded={expired ? undefined : open}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         aria-label={`Account. ${label}`}
-        // Paused, the pill resumes sync in one tap; Google's sign-in needs the tap anyway.
-        onClick={() => (expired ? void connect() : setOpen((value) => !value))}
+        // Always the menu, even when paused: Settings and Sign out stay reachable, and Resume is inside it (and in the banner).
+        onClick={() => setOpen((value) => !value)}
       >
         {/* The avatar alone while all is well; a small tick on it when sync is working or needs a look. */}
         <span className="pill-av">
@@ -87,6 +96,7 @@ export function AccountMenu() {
             <div>
               <b>{state.account?.name || "Google account"}</b>
               {state.account?.email && <span>{state.account.email}</span>}
+              <span className="am-status" role="status">{status}</span>
             </div>
             <button type="button" className="am-sync" aria-label={syncTitle} title={syncTitle} disabled={syncing} onClick={() => (expired ? void connect() : void sync())}>
               <span className={syncing ? "spin" : ""}><Icon name="sync" size={18} /></span>
@@ -98,7 +108,7 @@ export function AccountMenu() {
             <div className={`am-note state-${tone}`} role="status">
               <span>{note}</span>
               {(expired || failed) && (
-                <button type="button" onClick={() => (expired ? void connect() : void sync())}>{expired ? "Resume" : "Retry"}</button>
+                <button type="button" onClick={() => (expired ? void connect() : void sync())}>{expired ? "Resume sync" : "Retry"}</button>
               )}
             </div>
           )}
@@ -129,16 +139,20 @@ export function AccountMenu() {
             <a className="am-item" href="#/settings" onClick={close}>
               <Icon name="gear" size={16} /> Settings
             </a>
-            <button
-              type="button"
-              className="am-item danger"
-              onClick={() => {
-                close();
-                void disconnect();
-              }}
-            >
-              <Icon name="signOut" size={16} /> Sign out
-            </button>
+            <div className="am-signout">
+              <button
+                type="button"
+                className="am-item danger"
+                aria-describedby="am-signout-note"
+                onClick={() => {
+                  close();
+                  void disconnect();
+                }}
+              >
+                <Icon name="signOut" size={16} /> Sign out
+              </button>
+              <p id="am-signout-note" className="am-fine">Your list stays in your Google Drive.</p>
+            </div>
           </div>
         </div>
       </Popover>
