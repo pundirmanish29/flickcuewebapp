@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
+import { CalendarMark } from "../components/CalendarMark";
 import { Poster } from "../components/Poster";
 import { TitleCard } from "../components/TitleCard";
 import { TonightStrip } from "../components/TonightStrip";
@@ -251,7 +252,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                       <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
                         <Poster src={upscale(movie.poster, "w185")} retina={upscale(movie.poster, "w342")} title={movie.title} className="radar-poster" />
                         <span className="radar-text">
-                          <span className="radar-when tone-due">{cardLine(movie)}</span>
+                          <span className="radar-when tone-due">{cardLine(movie)}<CalendarMark movie={movie} /></span>
                           <span className="radar-title">{displayTitle(movie)}</span>
                         </span>
                       </button>
@@ -294,7 +295,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                       <span className="radar-text">
                         <span className="radar-when">
                           {hasActiveReminder(movie)
-                            ? <><Icon name="clock" size={11} /> {shortDay(at)}</>
+                            ? <><Icon name="clock" size={11} /> {shortDay(at)}<CalendarMark movie={movie} /></>
                             : `Out ${shortDay(at, Date.now(), false).replace(/^(Today|Tomorrow)$/, (day) => day.toLowerCase())}`}
                         </span>
                         <span className="radar-title">{displayTitle(movie)}</span>

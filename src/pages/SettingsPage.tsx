@@ -4,11 +4,11 @@ import { GoogleIcon, Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
 import * as actions from "../lib/actions";
 import { toast } from "../components/Toast";
-import { chooseTheme, confirmHeldRemoval, connect, disconnect, importLibrary, keepHeldTitles, restoreVersion, sync, updateSettings, useAppState } from "../lib/store";
+import { chooseTheme, confirmCalendarDeletes, confirmHeldRemoval, connect, disableCalendar, disconnect, enableCalendar, importLibrary, keepHeldTitles, reconnectCalendar, restoreVersion, retryCalendar, sync, updateSettings, useAppState } from "../lib/store";
 import { getStoredToken } from "../lib/auth";
 import { listRevisions, readRevision, type Revision } from "../lib/drive";
 import { INDIAN_CITIES } from "../lib/cinemas";
-import { EXTENSION_URL } from "../lib/config";
+import { CALENDAR_MIRROR_ENABLED, EXTENSION_URL } from "../lib/config";
 import { ContactReveal } from "../components/ContactReveal";
 import { alertSupport } from "../lib/alerts";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
@@ -216,6 +216,82 @@ function Notifications() {
   );
 }
 
+/** Reminders mirrored into a calendar of their own in Google Calendar, so they alert with FlickCue closed. */
+function GoogleCalendar() {
+  const { settings, sync: syncState, calendar } = useAppState();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [left, setLeft] = useState("");
+  if (!CALENDAR_MIRROR_ENABLED || !syncState.connected) return null;
+
+  const on = Boolean(settings.calendarMirror);
+  const count = calendar.mirrored.length;
+  const turnOff = async () => {
+    setBusy(true);
+    const { removed } = await disableCalendar();
+    setBusy(false);
+    setConfirming(false);
+    setLeft(removed ? "" : "Turned off. FlickCue couldn't reach Google to delete the calendar, so it's still in Google Calendar. You can delete it there.");
+  };
+
+  return (
+    <article className="card" id="calendar">
+      <h2>Google Calendar</h2>
+      <label className="toggle">
+        <span>
+          <b>Add reminders to Google Calendar</b>
+          <small>FlickCue keeps a calendar of its own for them, so your other events stay untouched. Google Calendar then alerts you at the reminder time, even when FlickCue is closed.</small>
+        </span>
+        <input
+          type="checkbox"
+          role="switch"
+          checked={on}
+          disabled={busy}
+          onChange={(event) => {
+            setLeft("");
+            if (event.target.checked) void enableCalendar();
+            else setConfirming(true);
+          }}
+        />
+      </label>
+
+      {on && !confirming && (
+        <div className="calendar-state" role="status">
+          {calendar.status === "ok" ? (
+            <p className="muted small-print">{count === 0 ? "Connected. Reminders you set will show up on it." : `${count} upcoming reminder${count === 1 ? "" : "s"} on your calendar.`}</p>
+          ) : calendar.status === "syncing" ? (
+            <p className="muted small-print">Updating your calendar…</p>
+          ) : calendar.status === "pending" && !calendar.message ? (
+            <p className="muted small-print">Waiting for your list to sync first.</p>
+          ) : (
+            <p className="note">{calendar.message}</p>
+          )}
+          {calendar.status === "pending" && calendar.message && <button type="button" className="button button-ink" onClick={() => void reconnectCalendar()}>Reconnect Google Calendar</button>}
+          {calendar.status === "needs-permission" && <button type="button" className="button button-ink" onClick={() => void reconnectCalendar()}>Allow Google Calendar</button>}
+          {calendar.status === "held" && <button type="button" className="button button-ink" onClick={() => void confirmCalendarDeletes()}>Remove them from the calendar</button>}
+          {calendar.status === "error" && <button type="button" className="button button-ink" onClick={() => void retryCalendar()}>Try again</button>}
+        </div>
+      )}
+
+      {confirming && (
+        <div className="danger-zone">
+          <p><b>Turn off and delete the FlickCue calendar?</b> Every reminder on it is removed from Google Calendar, and so is anything you added to it yourself. Your reminders in FlickCue stay as they are.</p>
+          <div className="button-row">
+            <button type="button" className="button button-danger" disabled={busy} onClick={() => void turnOff()}>{busy ? "Deleting…" : "Delete calendar and turn off"}</button>
+            <button type="button" className="button button-quiet" disabled={busy} onClick={() => setConfirming(false)}>Keep it on</button>
+          </div>
+        </div>
+      )}
+
+      {/* With the switch off, what is left to say: that Calendar wasn't allowed, a closed Google window, or a calendar left behind. */}
+      {!on && (calendar.message || left) && <p className="note" role="status">{calendar.message || left}</p>}
+      <p className="muted small-print">
+        On a phone, make sure the FlickCue calendar is ticked in the Google Calendar app. Reminders changed in the extension or the Android app reach the calendar the next time you open FlickCue on the web.
+      </p>
+    </article>
+  );
+}
+
 function RegionAndCity() {
   const { settings } = useAppState();
   const [cityText, setCityText] = useState(settings.city);
@@ -401,6 +477,7 @@ export function SettingsPage() {
           <Account />
           <Appearance />
           <Notifications />
+          <GoogleCalendar />
           <RegionAndCity />
           <Letterboxd />
           <Backup />

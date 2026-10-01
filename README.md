@@ -33,7 +33,9 @@ Vite + React + TypeScript, no backend. It builds to static files.
   hours watched.
 - **Settings**: Google sign-in and sync, streaming region (default `IN`),
   browser notifications for reminders while the tab is
-  open, and JSON backup export/import (import merges, it doesn't overwrite).
+  open, an optional switch that puts reminders on a calendar of their own in
+  Google Calendar (so they alert with FlickCue closed; see below), and JSON
+  backup export/import (import merges, it doesn't overwrite).
 
 Signed out, the site is just the homepage; the Queue, Discover, Watched and Settings
 need sign-in. A list already kept in `localStorage` on this device is merged into Drive
@@ -74,7 +76,7 @@ npm run build      # dist/
 ### 1. Google sign-in
 
 Sign-in uses Google Identity Services' token flow with the `drive.appdata` scope
-only. It uses no client secret and stores no refresh token. By default it uses the
+only (the optional Calendar switch asks for one more, see below). It uses no client secret and stores no refresh token. By default it uses the
 extension's **Web application** OAuth client (`DEFAULT_WEB_CLIENT_ID` in the
 extension's `drive-sync.js`). The web app has to use a client from the **same
 Google Cloud project**, or it would see a different app-data folder and a different
@@ -88,6 +90,25 @@ In Google Cloud Console → APIs & Services → Credentials → that client, add
 
 To use a different client from the same project, set `VITE_GOOGLE_CLIENT_ID` (see
 `.env.example`).
+
+### Optional: reminders in Google Calendar
+
+The Calendar switch in Settings is off in a normal build: nothing about it shows or
+runs. To try it, build with `VITE_CALENDAR_MIRROR=1` (see `.env.example`). It also needs,
+in the same Google Cloud project as the sign-in client:
+
+- the **Google Calendar API** enabled (APIs & Services → Library); without it Google
+  answers `accessNotConfigured` and the app says Calendar "isn't switched on yet";
+- the scope `https://www.googleapis.com/auth/calendar.app.created` on the OAuth consent
+  screen (Data access). That scope lets the app make one calendar of its own, named
+  FlickCue, and manage events on it only. Check there whether Google lists it as
+  sensitive: if so, the app needs OAuth verification before anyone but the listed
+  test users can grant it (and while the app is in Testing, consent lapses after 7 days);
+- the privacy page (`public/privacy.html`) live on the site, since it describes the
+  permission.
+
+The calendar's id and the on/off switch sync between devices through
+`flickcue-settings.json`; the access token stays on the device.
 
 Google access tokens last about an hour. When one expires the app shows
 **Reconnect**. After the first consent, reconnecting is a popup that closes by

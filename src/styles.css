@@ -897,6 +897,15 @@ a { color: inherit; }
 .restore-item { min-height: 36px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper-surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .restore-item:hover { border-color: var(--ink); }
 .restore-preview p { margin: 8px 0 12px; }
+/* A title whose reminder is really on the person's Google Calendar. */
+.on-calendar { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; vertical-align: -1px; }
+.on-calendar svg { flex: none; }
+/* In the title sheet it sits under the reminder time, lined up with it. */
+.sheet-status .on-calendar { display: flex; margin: 3px 0 0; font-size: 0.9em; font-weight: 600; color: var(--ink-soft); }
+/* The status of the calendar mirror in Settings, with the button for it when there is one. */
+.calendar-state { display: grid; justify-items: start; gap: 10px; margin-top: 12px; }
+.calendar-state p { margin: 0; }
+.calendar-state .note { margin: 0; }
 .danger-zone { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--rule); }
 .danger-zone p { margin: 0 0 12px; }
 .danger-link { color: var(--red); font-size: 14px; }
