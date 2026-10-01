@@ -108,8 +108,24 @@ function describeError(code: string | undefined, fallback?: string): string {
  * picker and consent screen; an empty prompt reuses an earlier grant and only
  * flashes a popup. Must be called from a click, or the popup is blocked.
  */
-export async function requestToken({ consent = false, hint = "" } = {}): Promise<StoredToken> {
-  await loadScript();
+export function requestToken({ consent = false, hint = "" } = {}): Promise<StoredToken> {
+  // With the script already loaded, Google's window opens inside the tap itself. Waiting for a download first
+  // lets some phones' browsers (Safari's, notably) treat the window as unasked-for and block it.
+  if (window.google?.accounts?.oauth2) return openGoogleWindow(consent, hint);
+  return loadScript().then(() => openGoogleWindow(consent, hint));
+}
+
+/**
+ * Fetches Google's sign-in script ahead of the tap that needs it, so that tap can open the window at once.
+ * Only the script is fetched: nothing is asked of Google until someone signs in.
+ */
+export function preloadGoogleSignIn() {
+  loadScript().catch(() => {
+    // Offline or blocked: the tap itself says so.
+  });
+}
+
+function openGoogleWindow(consent: boolean, hint: string): Promise<StoredToken> {
   const oauth2 = window.google!.accounts.oauth2;
 
   return new Promise((resolve, reject) => {

@@ -8,7 +8,7 @@ import { TitleSheet } from "./components/TitleSheet";
 import { closePreview, usePreview } from "./lib/preview";
 import { ToastHost } from "./components/Toast";
 import { ContactReveal } from "./components/ContactReveal";
-import { canAskExtension } from "./lib/auth";
+import { canAskExtension, preloadGoogleSignIn } from "./lib/auth";
 import { EXTENSION_URL } from "./lib/config";
 import { onPhone } from "./lib/device";
 import { displayTitle } from "./lib/rules";
@@ -166,6 +166,23 @@ function SyncIndicator() {
   return <AccountMenu />;
 }
 
+/** The wait while a first sign-in picks the list up from Drive; after a few seconds it says it is still going, so nobody reloads mid-way. */
+function SigningIn() {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), 8000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div className="wrap signing-in" role="status">
+      <span className="loader-dots" aria-hidden="true"><i /><i /><i /></span>
+      <p>Signing you in…</p>
+      <small>{slow ? "Still working. A long list can take a moment, so there's no need to reload." : "Picking up your list from Google Drive"}</small>
+      <span className="loader-lines" aria-hidden="true"><i /><i /><i /></span>
+    </div>
+  );
+}
+
 export default function App() {
   const requestedRoute = useHashRoute();
   const { library, sync } = useAppState();
@@ -188,6 +205,16 @@ export default function App() {
   const titleId = titleWaitsForSignIn ? "" : requestedRoute.titleId;
 
   useEffect(() => startBackgroundSync(), []);
+
+  // Google's sign-in script is fetched while the page sits idle, so the first tap on Sign in or Resume opens its window at once.
+  const needsSignIn = !sync.connected || sync.status === "needs-auth";
+  useEffect(() => {
+    if (!needsSignIn) return;
+    const idle = window.requestIdleCallback
+      ? (callback: () => void) => { const id = window.requestIdleCallback(callback, { timeout: 2500 }); return () => window.cancelIdleCallback(id); }
+      : (callback: () => void) => { const id = window.setTimeout(callback, 1200); return () => window.clearTimeout(id); };
+    return idle(preloadGoogleSignIn);
+  }, [needsSignIn]);
   useReminderNotifications();
 
   useEffect(() => {
@@ -357,14 +384,7 @@ export default function App() {
       )}
 
       <main id="main" tabIndex={-1}>
-        {connecting && (
-          <div className="wrap signing-in" role="status">
-            <span className="loader-dots" aria-hidden="true"><i /><i /><i /></span>
-            <p>Signing you in…</p>
-            <small>Picking up your list from Google Drive</small>
-            <span className="loader-lines" aria-hidden="true"><i /><i /><i /></span>
-          </div>
-        )}
+        {connecting && <SigningIn />}
         {!connecting && route === "queue" && <QueuePage onOpen={openTitle} query={query} />}
         {route === "discover" && <DiscoverPage onOpen={openTitle} query={query} />}
         {route === "watched" && <WatchedPage onOpen={openTitle} query={query} />}
