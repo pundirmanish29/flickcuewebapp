@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardLine, importDays, shortDay, showsToRefresh, smartQuotes, watchedGroups, watchingShows, yourTake } from "./rules";
+import { cardLine, episodesAired, importDays, shortDay, showsToRefresh, smartQuotes, watchedGroups, watchingShows, yourTake } from "./rules";
 import type { Movie } from "./types";
 
 describe("short day labels", () => {
@@ -97,5 +97,25 @@ describe("card line", () => {
     expect(cardLine(film({ remindAt: new Date(2026, 9, 1, 20, 0).getTime() }), now)).toMatch(/^Reminder \S+$/);
     expect(cardLine(film({ releaseDate: "2026-09-30" }), now)).toBe("Out tomorrow");
     expect(cardLine(film({ releaseDate: "2027-12-18" }), now)).toMatch(/^Out Dec 2027$/);
+  });
+});
+
+describe("which of a season's episodes have aired", () => {
+  const today = "2026-10-06";
+  it("goes by each episode's date", () => {
+    expect(episodesAired([{ airDate: "2026-09-29" }, { airDate: "2026-10-06" }, { airDate: "2026-10-13" }], today)).toEqual([true, true, false]);
+  });
+
+  it("doesn't count an undated episode at the end of a running season as aired", () => {
+    // Ted Lasso S4: E10 had no date until close to release, and "Mark all" ticked it.
+    expect(episodesAired([{ airDate: "2026-09-22" }, { airDate: "2026-09-29" }, {}], today)).toEqual([true, true, false]);
+  });
+
+  it("counts an undated episode before one that has aired", () => {
+    expect(episodesAired([{ airDate: "2026-09-22" }, {}, { airDate: "2026-10-06" }, {}], today)).toEqual([true, true, true, false]);
+  });
+
+  it("counts every episode of an old season with no dates at all", () => {
+    expect(episodesAired([{}, {}, { airDate: "" }], today)).toEqual([true, true, true]);
   });
 });
