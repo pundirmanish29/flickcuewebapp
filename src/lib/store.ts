@@ -255,12 +255,22 @@ const calendarMirror = createCalendarMirror({
 calendarMirror.restore();
 
 /**
+ * Asks Google in a window: the long-lived sign-in when this build has it (one grant for Drive and, when asked,
+ * Calendar), otherwise the one-hour token sign-in. Call it from a tap, and call it first: the window opens right here.
+ */
+function askGoogle({ consent, calendar }: { consent: boolean; calendar: boolean }) {
+  return LONG_SIGNIN_ENABLED
+    ? signInForLong(state.sync.account?.email, calendar)
+    : requestToken({ consent, hint: state.sync.account?.email, calendar });
+}
+
+/**
  * Turns on "Add reminders to Google Calendar". Must be called from a tap: Google's window opens right here, asking
  * for Drive and Calendar together.
  */
 export async function enableCalendar() {
   if (!CALENDAR_MIRROR_ENABLED) return;
-  const asked = requestToken({ consent: true, hint: state.sync.account?.email, calendar: true });
+  const asked = askGoogle({ consent: true, calendar: true });
   try {
     const token = await asked;
     if (!grantsCalendar(token.scope)) {
@@ -277,7 +287,7 @@ export async function enableCalendar() {
 /** Gets a live Calendar permission again (the sign-in lasts about an hour). Call it from a tap. */
 export async function reconnectCalendar() {
   if (!CALENDAR_MIRROR_ENABLED) return;
-  const asked = requestToken({ consent: calendarMirror.getState().declined, hint: state.sync.account?.email, calendar: true });
+  const asked = askGoogle({ consent: calendarMirror.getState().declined, calendar: true });
   try {
     const token = await asked;
     if (!grantsCalendar(token.scope)) {
@@ -295,7 +305,8 @@ export async function reconnectCalendar() {
  * asks Google first (call it from a tap). `removed` is false when the calendar had to be left.
  */
 export async function disableCalendar(): Promise<{ removed: boolean }> {
-  if (!getCalendarToken()) await requestToken({ hint: state.sync.account?.email, calendar: true }).catch(() => null);
+  if (!getCalendarToken() && LONG_SIGNIN_ENABLED && getGrant()) await renewAccess();
+  if (!getCalendarToken()) await askGoogle({ consent: false, calendar: true }).catch(() => null);
   return calendarMirror.stop();
 }
 
