@@ -347,6 +347,13 @@ export function Landing() {
             {ANDROID_URL ? <a href={ANDROID_URL} target="_blank" rel="noreferrer">Get the Android app</a> : "Android app coming soon"}
             {" · "}<a href="./privacy.html">Privacy</a>
           </p>
+          <nav className="l-cta-note l-guides" aria-label="Guides">
+            <a href="./guides/movie-watchlist-app/">Watchlist app</a>
+            <a href="./guides/movie-release-reminders/">Release reminders</a>
+            <a href="./guides/save-movies-from-any-page/">Save from any page</a>
+            <a href="./guides/where-to-watch-and-cinema-showtimes/">Where to watch</a>
+            <a href="./guides/watchlist-without-an-account/">No account</a>
+          </nav>
         </div>
       </section>
 
