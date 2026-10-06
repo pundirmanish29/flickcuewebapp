@@ -221,6 +221,7 @@ const BROWSE_LISTS: { id: string; title: string }[] = [
   { id: "trending-shows", title: "Top 10 shows" },
   { id: "now-playing", title: "In cinemas" },
   { id: "upcoming", title: "Coming soon" },
+  { id: "to-rent", title: "New to rent" },
   { id: "hidden-gems", title: "Hidden gems" },
   { id: "popular-films", title: "Popular films" },
   { id: "top-films", title: "Top rated films" },
@@ -231,6 +232,8 @@ const BROWSE_LISTS: { id: string; title: string }[] = [
 const EXPLORE_LISTS = ["trending-shows", "hidden-gems", "popular-films", "top-films", "popular-shows", "top-shows"];
 /** Lists whose cards say why: a date, a rating. */
 const LABELLED_LISTS: Record<string, DiscoverCategory> = { upcoming: COMING_SOON, "hidden-gems": HIDDEN_GEMS };
+
+const NEW_TO_RENT = DISCOVER_CATEGORIES.find((category) => category.id === "to-rent")!;
 
 const readStream = (): string => {
   try {
@@ -354,6 +357,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const [kind, setKind] = useState<KindFilter>("all");
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [trending, setTrending] = useState<Candidate[] | null>(null);
+  const [rentals, setRentals] = useState<Candidate[] | null>(null);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [manual, setManual] = useState(false);
@@ -388,11 +392,12 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   // A search starts clean: a half-filled "add by hand" form closes.
   useEffect(() => setManual(false), [searching]);
 
-  // What's trending is a row of its own on the page.
+  // What's trending, and what's just out to rent, are rows of their own on the page.
   useEffect(() => {
     if (!root) return;
     let live = true;
     browse(TALK_OF_THE_TOWN, 1, region).then(({ items }) => live && setTrending(items)).catch(() => live && setTrending([]));
+    browse(NEW_TO_RENT, 1, region).then(({ items }) => live && setRentals(items)).catch(() => live && setRentals([]));
     return () => {
       live = false;
     };
@@ -454,6 +459,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const fresh = (items: Candidate[]) => items.filter((item) => !saved.has(item.key)).slice(0, 10);
   const forYouRow = picks[0] ? { title: `Because you saved ${picks[0].because}`, items: fresh(picks[0].items) } : null;
   const trendingItems = trending ? fresh(trending) : null;
+  const rentalItems = rentals ? fresh(rentals) : null;
 
   const listTitle = genre
     ? GENRES_LIST.find((item) => item.id === genre)?.label ?? "Genre"
@@ -524,11 +530,14 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
             </div>
           )}
 
-          {/* Discover: the cinema first, then streaming, then more picks; every other list is at the bottom. */}
+          {/* Discover: the cinema first, then streaming and renting, then more picks; every other list is at the bottom. */}
           {root && (
             <>
               <CinemaRow region={region} saved={saved} onOpen={onOpen} onSeeAll={setList} />
               <StreamingRow region={region} streams={streams} saved={saved} onOpen={onOpen} onSeeAll={setList} />
+              {(!rentalItems || rentalItems.length > 0) && (
+                <Row title="New to rent" items={rentalItems} onOpen={onOpen} onSeeAll={() => setList(NEW_TO_RENT.id)} compact />
+              )}
               {forYou && load.state === "loading" && <Row title="For you" items={null} onOpen={onOpen} compact />}
               {forYouRow && forYouRow.items.length > 0 && <Row title={forYouRow.title} items={forYouRow.items} onOpen={onOpen} compact />}
               {(!trendingItems || trendingItems.length > 0) && (

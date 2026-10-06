@@ -246,6 +246,8 @@ export interface DiscoverCategory {
   type?: "movie" | "tv";
   /** Asked for the reader's region: what's in cinemas in India isn't what's in cinemas in the US. */
   regional?: boolean;
+  /** Filtered by what's on offer in the reader's region (watch_region), which TMDB needs for any watch-monetization filter. */
+  watchRegional?: boolean;
   /** A chart: shown numbered, saved titles kept in place. */
   ranked?: boolean;
   /** A few words on why each title is here, shown under its name ("New Movie"); empty says nothing. */
@@ -253,6 +255,9 @@ export interface DiscoverCategory {
 }
 
 const FOUR_YEARS_AGO = `${new Date().getFullYear() - 4}-01-01`;
+const isoDay = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const TODAY = isoDay(new Date());
+const SIX_MONTHS_AGO = isoDay(new Date(new Date().setMonth(new Date().getMonth() - 6)));
 
 /** The Android app's Discover lists, plus a few for finding something good. */
 export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
@@ -260,6 +265,11 @@ export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
   { id: "trending-shows", label: "Trending shows", path: "trending/tv/week", type: "tv", ranked: true },
   { id: "now-playing", label: "In cinemas", path: "movie/now_playing", type: "movie", regional: true },
   { id: "upcoming", label: "Coming soon", path: "movie/upcoming", type: "movie", regional: true },
+  {
+    id: "to-rent", label: "New to rent", path: "discover/movie", type: "movie", watchRegional: true,
+    // Films from the last six months that can be rented in the reader's region: most are just out of cinemas.
+    params: { with_watch_monetization_types: "rent", sort_by: "popularity.desc", "vote_count.gte": "10", "primary_release_date.gte": SIX_MONTHS_AGO, "primary_release_date.lte": TODAY }
+  },
   { id: "popular-films", label: "Popular films", path: "movie/popular", type: "movie" },
   { id: "top-films", label: "Top rated films", path: "movie/top_rated", type: "movie" },
   {
@@ -348,6 +358,7 @@ export const cinemaKey = (movie: { tmdbId?: string; tmdbType?: string }) =>
 export async function browse(category: DiscoverCategory, page = 1, region = ""): Promise<{ items: Candidate[]; more: boolean }> {
   const params: Record<string, string> = { include_adult: "false", page: String(page), ...(category.params ?? {}) };
   if (category.regional && /^[A-Z]{2}$/i.test(region)) params.region = region.toUpperCase();
+  if (category.watchRegional) params.watch_region = /^[A-Z]{2}$/i.test(region) ? region.toUpperCase() : "US";
   const data = await tmdbGet(category.path, params);
   const items = dedupe((data.results ?? [])
     .filter((item: any) => item.poster_path && (category.type || item.media_type === "movie" || item.media_type === "tv"))
