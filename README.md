@@ -94,7 +94,9 @@ To use a different client from the same project, set `VITE_GOOGLE_CLIENT_ID` (se
 ### Optional: reminders in Google Calendar
 
 The Calendar switch in Settings is off in a normal build: nothing about it shows or
-runs. To try it, build with `VITE_CALENDAR_MIRROR=1` (see `.env.example`). It also needs,
+runs. To try it, build with `VITE_CALENDAR_MIRROR=1` (see `.env.example`). On the deployed site, add a repository
+variable named `VITE_CALENDAR_MIRROR` with the value `1` (Settings, Secrets and variables, Actions, Variables) and run the
+deploy again; deleting the variable and redeploying turns it back off. It also needs,
 in the same Google Cloud project as the sign-in client:
 
 - the **Google Calendar API** enabled (APIs & Services → Library); without it Google

@@ -26,6 +26,10 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+        env:
+          # Off unless the repository has a variable of this name set to 1
+          # (Settings > Secrets and variables > Actions > Variables).
+          VITE_CALENDAR_MIRROR: ${{ vars.VITE_CALENDAR_MIRROR }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
