@@ -40,7 +40,7 @@ Success means saved titles actually get watched, and the list is the same on eve
 - **Stack:** Vite + React + TypeScript, no backend, built to static files and deployed to GitHub Pages at https://flickcue.in on every push to `main`. Routing is hash-based.
 - **Staying in sync:** the list format and merge rules must stay compatible with the extension and the Android app: the newest edit wins, removals leave 90-day tombstones, and fields this app doesn't know about are kept untouched (`src/lib/merge.ts`, `src/lib/editor.ts`).
 - **Title data:** all film and show data comes through FlickCue's own title service, a Cloudflare Worker proxy. The UI shows no TMDB branding (the owner's decision); the privacy policy still names TMDB as the data source.
-- **Google access:** tokens are short-lived (about an hour), with no refresh tokens and no client secret. When one expires the user sees Reconnect.
+- **Google access:** tokens are short-lived (about an hour), with no client secret. By default there is no refresh token and, when one expires, the user sees Reconnect. With the optional long-lived sign-in (`VITE_LONG_SIGNIN=1`, off until the title service allows it) the browser keeps a refresh token and renews access itself; the service stores nothing.
 - **Terminology:** Queue (saved, not yet watched), Watched, Discover, Reminder / Due now, Tonight's pick, On your radar, "Why I saved this" note, Add by hand.
 - **Undecided or planned:**
   - A **"You" profile page**, in the spirit of YouTube's "You" tab: profile, history, lists and settings in one place. Planned, not designed.

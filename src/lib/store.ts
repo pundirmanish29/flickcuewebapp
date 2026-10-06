@@ -6,7 +6,8 @@
 import { useSyncExternalStore } from "react";
 import { canAskExtension, getCalendarToken, getStoredToken, forgetToken, grantsCalendar, requestExtensionSession, requestToken, revokeToken, storeCalendarToken, storeToken } from "./auth";
 import { createCalendarMirror, type CalendarState, type PersistedCalendar } from "./calendarMirror";
-import { CALENDAR_MIRROR_ENABLED } from "./config";
+import { CALENDAR_MIRROR_ENABLED, LONG_SIGNIN_ENABLED } from "./config";
+import { getGrant, renewAccess, revokeGrant, signInForLong } from "./longSignin";
 import { needsConfirmation, newRemovals } from "./syncGuard";
 import { DriveError, fetchAccount, fileVersion, findRemoteFileId, findSettingsFileId, readRemote, readRemoteSettings, writeRemote, writeRemoteSettings, type Account } from "./drive";
 import { readSynced, settingsDirection, SYNCED_KEYS, type SyncedSettings } from "./settingsSync";
@@ -119,6 +120,11 @@ function applyRegionAndLanguage(settings: Settings) {
   setContentLanguage(settings.language ?? "en-US");
 }
 
+/** A long-lived grant (when the build has the feature) renews access by itself, so an expired access token is no pause. */
+function holdsGrant(): boolean {
+  return LONG_SIGNIN_ENABLED && Boolean(getGrant());
+}
+
 function initialState(onLoad = true): AppState {
   const library = read<LibraryDocument>(LIBRARY_KEY, { movies: [], deleted: [] });
   const stored = read<Partial<SyncState>>(SYNC_KEY, {});
@@ -134,7 +140,7 @@ function initialState(onLoad = true): AppState {
       settingsFileId: stored.settingsFileId ?? "",
       account: stored.account ?? null,
       lastSyncAt: stored.lastSyncAt ?? 0,
-      status: stored.connected ? (getStoredToken() ? "idle" : "needs-auth") : onLoad && willAskExtension() ? "connecting" : "local",
+      status: stored.connected ? (getStoredToken() || holdsGrant() ? "idle" : "needs-auth") : onLoad && willAskExtension() ? "connecting" : "local",
       error: ""
     },
     settings,
@@ -394,11 +400,19 @@ async function adoptExtensionSession(): Promise<boolean> {
   return true;
 }
 
-async function runSync() {
+async function runSync(retried = false) {
   if (!state.sync.connected) return;
-  // An expired token is renewed from the extension when it can be, so only
-  // someone without it is asked to reconnect.
-  const token = getStoredToken() ?? (await adoptExtensionSession() ? getStoredToken() : null);
+  // An expired token is renewed from the extension when it can be, then from a long-lived grant,
+  // so only someone with neither is asked to reconnect.
+  let token = getStoredToken() ?? (await adoptExtensionSession() ? getStoredToken() : null);
+  if (!token && LONG_SIGNIN_ENABLED) {
+    const renewal = await renewAccess();
+    if (renewal.ok) token = renewal.token;
+    else if (renewal.reason === "offline") {
+      patchSync({ status: "error", error: "Couldn't renew your sign-in just now. It will try again." });
+      return;
+    }
+  }
   if (!token) {
     patchSync({ status: "needs-auth", error: "" });
     return;
@@ -445,6 +459,8 @@ async function runSync() {
   } catch (error) {
     if (error instanceof DriveError && error.status === 401) {
       forgetToken();
+      // Google turned the token down before it ran out: with a grant, ask for another once before giving up.
+      if (!retried && holdsGrant()) return runSync(true);
       patchSync({ status: "needs-auth", error: "" });
       return;
     }
@@ -463,7 +479,10 @@ export async function connect() {
   try {
     // With the Calendar mirror on, Resume asks for Calendar too, so the hourly sign-in stays one window.
     const wantCalendar = CALENDAR_MIRROR_ENABLED && Boolean(state.settings.calendarMirror) && !calendarMirror.getState().declined;
-    const token = await requestToken({ consent: !state.sync.connected, hint: state.sync.account?.email, calendar: wantCalendar });
+    // A long-lived sign-in has no Calendar permission in it yet, so someone with Calendar on keeps the one-window sign-in.
+    const token = LONG_SIGNIN_ENABLED && !wantCalendar
+      ? await signInForLong(state.sync.account?.email)
+      : await requestToken({ consent: !state.sync.connected, hint: state.sync.account?.email, calendar: wantCalendar });
     if (wantCalendar && !grantsCalendar(token.scope)) calendarMirror.declined();
     patchSync({ connected: true, status: "idle", error: "" });
     await sync();
@@ -491,6 +510,8 @@ export async function disconnect() {
   // extension out too.
   if (token && token.source !== "extension") await revokeToken(token.accessToken);
   else forgetToken();
+  // A long-lived grant is voided at Google and forgotten here, even when the access token had already run out.
+  await revokeGrant();
   setExtensionSignInOff(true);
   // This device forgets the calendar; the calendar itself and the synced switch stay, so signing back in resumes.
   syncedOnce = false;

@@ -11,6 +11,9 @@ export const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 // The Calendar mirror ships dark: nothing about it shows or runs unless the site is built with VITE_CALENDAR_MIRROR=1
 // (for people on the Google project's test-user list, until the Calendar permission is approved).
 export const CALENDAR_MIRROR_ENABLED = (import.meta.env.VITE_CALENDAR_MIRROR as string | undefined)?.trim() === "1";
+// Long-lived sign-in ships dark too: nothing changes unless the site is built with VITE_LONG_SIGNIN=1, which should
+// only be set once the title service's /oauth routes accept this site (see README, "Staying signed in").
+export const LONG_SIGNIN_ENABLED = (import.meta.env.VITE_LONG_SIGNIN as string | undefined)?.trim() === "1";
 export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
 // The FlickCue extension, asked for its Google session so someone signed in
 // there arrives signed in here. The Chrome Web Store build first, then the

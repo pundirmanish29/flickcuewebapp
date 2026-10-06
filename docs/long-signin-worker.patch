@@ -1,0 +1,101 @@
+diff --git a/proxy/src/index.js b/proxy/src/index.js
+index 984a190..a503ad1 100644
+--- a/proxy/src/index.js
++++ b/proxy/src/index.js
+@@ -21,15 +21,16 @@ const EXTENSION_ORIGIN = /^(chrome|moz)-extension:\/\//;
+ // actually bound abuse.
+ //
+ // The FlickCue web app (flickcue.in, and its local dev server) is the one web
+-// page allowed in, and only on the routes it needs: title lookups. Every
+-// other route - AI, OAuth, ratings - stays extension-only.
++// page allowed in, and only on the routes it needs: title lookups, and the
++// OAuth swap that keeps a web sign-in alive past Google's one-hour token. Every
++// other route - AI, ratings - stays extension-only.
+ const WEB_APP_ORIGINS = new Set([
+   "https://flickcue.in",
+   "https://www.flickcue.in",
+   "http://localhost:5173",
+   "http://127.0.0.1:5173"
+ ]);
+-const WEB_APP_ROUTES = new Set(["tmdb"]);
++const WEB_APP_ROUTES = new Set(["tmdb", "oauth"]);
+ 
+ function isAllowedOrigin(origin) {
+   return EXTENSION_ORIGIN.test(origin) || WEB_APP_ORIGINS.has(origin);
+@@ -224,14 +225,21 @@ const routes = {
+     if (rest !== "token" && rest !== "refresh") return json({ error: "unknown oauth route" }, 404);
+ 
+     const incoming = await request.json().catch(() => ({}));
++    const origin = request.headers.get("Origin");
+     const body = new URLSearchParams({
+       client_id: env.OAUTH_CLIENT_ID,
+       client_secret: env.OAUTH_CLIENT_SECRET
+     });
+ 
+     if (rest === "token") {
++      // A web page's code was issued to its own origin, so that is the only redirect_uri it may present: the proxy
++      // isn't a general code exchanger for the client. The extension (no web origin) is unchanged.
++      if (origin && WEB_APP_ORIGINS.has(origin) && incoming.redirect_uri !== origin) {
++        return json({ error: "invalid_request", error_description: "redirect_uri must be this page's origin." }, 400, origin);
++      }
+       body.set("code", String(incoming.code ?? ""));
+-      body.set("code_verifier", String(incoming.code_verifier ?? ""));
++      // Google's popup flow has no PKCE verifier; an empty one is left out rather than sent.
++      if (incoming.code_verifier) body.set("code_verifier", String(incoming.code_verifier));
+       body.set("redirect_uri", String(incoming.redirect_uri ?? ""));
+       body.set("grant_type", "authorization_code");
+     } else {
+diff --git a/tests/proxy-oauth.test.js b/tests/proxy-oauth.test.js
+new file mode 100644
+index 0000000..0046066
+--- /dev/null
++++ b/tests/proxy-oauth.test.js
+@@ -0,0 +1,48 @@
++// The proxy's OAuth routes, as the extension and the web app call them.
++//
++//   node tests/proxy-oauth.test.js
++const results = [];
++const check = (name, pass) => results.push([name, Boolean(pass)]);
++
++(async () => {
++  const { default: worker } = await import("../proxy/src/index.js");
++  const env = { OAUTH_CLIENT_ID: "client-id", OAUTH_CLIENT_SECRET: "client-secret" };
++  const sent = [];
++  globalThis.fetch = async (url, init) => {
++    sent.push({ url: String(url), body: new URLSearchParams(init.body) });
++    return new Response(JSON.stringify({ access_token: "a", refresh_token: "r" }), { status: 200, headers: { "Content-Type": "application/json" } });
++  };
++  const call = (path, body, origin) => worker.fetch(new Request(`https://proxy.example/oauth/${path}`, {
++    method: "POST",
++    headers: { "Content-Type": "application/json", ...(origin ? { Origin: origin } : {}) },
++    body: JSON.stringify(body)
++  }), env);
++
++  // The web app: a Google popup code, no verifier, its own origin as redirect_uri.
++  let reply = await call("token", { code: "c1", redirect_uri: "https://flickcue.in" }, "https://flickcue.in");
++  check("the web app may exchange a code", reply.status === 200);
++  check("the secret is added by the proxy", sent.at(-1).body.get("client_secret") === "client-secret" && sent.at(-1).body.get("client_id") === "client-id");
++  check("an absent verifier is left out, not sent empty", !sent.at(-1).body.has("code_verifier"));
++  check("the grant type is authorization_code", sent.at(-1).body.get("grant_type") === "authorization_code");
++  check("CORS answers the web app", reply.headers.get("Access-Control-Allow-Origin") === "https://flickcue.in");
++
++  const before = sent.length;
++  reply = await call("token", { code: "c1", redirect_uri: "https://evil.example/cb" }, "https://flickcue.in");
++  check("a web page can't present another redirect_uri", reply.status === 400 && sent.length === before);
++
++  reply = await call("refresh", { refresh_token: "r1" }, "https://flickcue.in");
++  check("the web app may renew access", reply.status === 200 && sent.at(-1).body.get("grant_type") === "refresh_token" && sent.at(-1).body.get("refresh_token") === "r1");
++
++  reply = await call("refresh", { refresh_token: "r1" }, "https://evil.example");
++  check("another website is still refused", reply.status === 403);
++
++  // The extension: unchanged, verifier and redirect_uri pass through.
++  reply = await call("token", { code: "c2", code_verifier: "v", redirect_uri: "https://id.chromiumapp.org/" }, "chrome-extension://abc");
++  check("the extension's exchange still works", reply.status === 200 && sent.at(-1).body.get("code_verifier") === "v" && sent.at(-1).body.get("redirect_uri") === "https://id.chromiumapp.org/");
++  reply = await call("refresh", { refresh_token: "r2" });
++  check("a call with no Origin (the extension's service worker) still works", reply.status === 200);
++
++  const failed = results.filter(([, pass]) => !pass);
++  for (const [name, pass] of results) console.log(`${pass ? "ok  " : "FAIL"} ${name}`);
++  process.exit(failed.length ? 1 : 0);
++})().catch((error) => { console.error(error); process.exit(1); });

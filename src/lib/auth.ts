@@ -20,6 +20,17 @@ interface TokenClient {
   requestAccessToken(overrides?: { prompt?: string; login_hint?: string }): void;
 }
 
+interface CodeResponse {
+  code?: string;
+  scope?: string;
+  error?: string;
+  error_description?: string;
+}
+
+interface CodeClient {
+  requestCode(): void;
+}
+
 declare global {
   interface Window {
     // Present on a page only when an installed extension lists it in its
@@ -39,6 +50,14 @@ declare global {
             callback: (response: TokenResponse) => void;
             error_callback?: (error: { type: string; message?: string }) => void;
           }): TokenClient;
+          initCodeClient(config: {
+            client_id: string;
+            scope: string;
+            ux_mode: "popup";
+            login_hint?: string;
+            callback: (response: CodeResponse) => void;
+            error_callback?: (error: { type: string; message?: string }) => void;
+          }): CodeClient;
           revoke(token: string, done?: () => void): void;
         };
       };
@@ -182,6 +201,36 @@ function openGoogleWindow(consent: boolean, hint: string, calendar: boolean): Pr
       error_callback: (error) => reject(new Error(describeError(error.type, error.message)))
     });
     client.requestAccessToken({ prompt: consent ? "consent" : "", ...(hint ? { login_hint: hint } : {}) });
+  });
+}
+
+/**
+ * Asks Google for an authorization code, to be exchanged for a long-lived grant by the title service (the one place
+ * that holds the client secret). Like `requestToken`, the window opens inside the tap when the script is already loaded.
+ */
+export function requestCode({ hint = "" } = {}): Promise<{ code: string; scope: string }> {
+  if (window.google?.accounts?.oauth2) return openCodeWindow(hint);
+  return loadScript().then(() => openCodeWindow(hint));
+}
+
+function openCodeWindow(hint: string): Promise<{ code: string; scope: string }> {
+  const oauth2 = window.google!.accounts.oauth2;
+  return new Promise((resolve, reject) => {
+    const client = oauth2.initCodeClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: GOOGLE_SCOPE,
+      ux_mode: "popup",
+      ...(hint ? { login_hint: hint } : {}),
+      callback: (response) => {
+        if (response.error || !response.code) {
+          reject(new Error(describeError(response.error, response.error_description)));
+          return;
+        }
+        resolve({ code: response.code, scope: response.scope ?? "" });
+      },
+      error_callback: (error) => reject(new Error(describeError(error.type, error.message)))
+    });
+    client.requestCode();
   });
 }
 
