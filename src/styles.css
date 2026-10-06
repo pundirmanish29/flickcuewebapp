@@ -1442,6 +1442,8 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
 .site-footer .link-button.inline { color: inherit; font-weight: inherit; }
 .site-footer .contact-reveal-toggle { text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
 .site-footer .contact-reveal-toggle:hover { color: #fff; }
+/* Once revealed, the address shares .footer-link's 44px row: centre it there like the other links, not on the row's top baseline. */
+.site-footer .contact-reveal { align-items: center; }
 
 .dock { display: none; }
 
