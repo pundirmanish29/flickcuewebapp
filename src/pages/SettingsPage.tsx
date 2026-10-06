@@ -464,7 +464,8 @@ function About() {
         <li><a href="./privacy.html">Privacy</a></li>
         <li><ContactReveal label="Contact support" /></li>
       </ul>
-      <p className="muted small-print">Film and show data from TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.</p>
+      <p className="tmdb-credit"><img src="./tmdb-logo.svg" alt="TMDB" width="140" height="12" /></p>
+      <p className="muted small-print">This product uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB.</p>
       <p className="muted small-print">Version {__APP_VERSION__}</p>
     </article>
   );
