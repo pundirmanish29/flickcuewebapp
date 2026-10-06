@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { episodeKey, newEpisodeFor } from "./newEpisode";
+import { episodeKey, newEpisodeFor, upNextEpisode } from "./newEpisode";
 import type { Movie } from "./types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -35,5 +35,45 @@ describe("the new episode kept in front", () => {
   it("leaves shows that aren't being followed alone", () => {
     expect(newEpisodeFor(show({ personal: {} }), aired(-1), [])).toBeNull();
     expect(newEpisodeFor(show(), null, [])).toBeNull();
+  });
+});
+
+describe("the episode up next", () => {
+  // Slow Horses, season 6: E1 Sep 17, E2, E3 out; E4 airs in two days.
+  const followed = (episodes: string[]) => show({
+    personal: { status: "watching", episodes },
+    seasons: [{ number: 5, episodes: 6 }, { number: 6, episodes: 6 }]
+  });
+  const last = { season: 6, episode: 3, name: "Resurrection", date: isoDate(-5) };
+  const next = { season: 6, episode: 4, name: "Four", date: isoDate(2) };
+
+  it("is the latest aired episode for a reader who's up to it", () => {
+    expect(upNextEpisode(followed(["6:1", "6:2"]), last, next, [])).toMatchObject({ season: 6, episode: 3, state: "new" });
+  });
+
+  it("moves on to the next one to air once the latest is watched", () => {
+    expect(upNextEpisode(followed(["6:1", "6:2", "6:3"]), last, next, [])).toMatchObject({ season: 6, episode: 4, state: "upcoming", date: next.date });
+  });
+
+  it("moves on to the next one to air once the latest is put away", () => {
+    expect(upNextEpisode(followed(["6:1", "6:2"]), last, next, [episodeKey("s", 6, 3)])).toMatchObject({ episode: 4, state: "upcoming" });
+  });
+
+  it("is the one after the furthest watched while catching up", () => {
+    expect(upNextEpisode(followed(["6:1"]), last, next, [])).toMatchObject({ season: 6, episode: 2, state: "next" });
+    // Across a season's end.
+    expect(upNextEpisode(followed(["5:6"]), last, next, [])).toMatchObject({ season: 6, episode: 1, state: "next" });
+  });
+
+  it("skips a caught-up episode that was put away, to the latest", () => {
+    expect(upNextEpisode(followed(["6:1"]), last, next, [episodeKey("s", 6, 2)])).toMatchObject({ episode: 3, state: "new" });
+  });
+
+  it("is nothing when caught up with no date for the next", () => {
+    expect(upNextEpisode(followed(["6:1", "6:2", "6:3"]), last, null, [])).toBeNull();
+  });
+
+  it("leaves shows that aren't being followed alone", () => {
+    expect(upNextEpisode(show({ personal: {} }), last, next, [])).toBeNull();
   });
 });
