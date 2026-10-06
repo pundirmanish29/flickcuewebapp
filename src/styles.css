@@ -1429,7 +1429,10 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
 .footer-link { display: inline-flex; align-items: center; min-height: 44px; color: #c2c6ca; text-decoration: none; transition: color var(--dur-fast) ease; }
 .footer-link:hover { color: #fff; }
 .footer-chip { padding: 3px 9px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--dark-line); color: var(--dark-muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
-.footer-credit { flex-basis: 100%; }
+.footer-credit { flex-basis: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 6px; font-size: 13px; line-height: 1.45; color: rgb(255 255 255 / 0.8); }
+.footer-credit img { display: block; width: 140px; height: auto; }
+.tmdb-credit { margin: 14px 0 6px; }
+.tmdb-credit img { display: block; width: 140px; height: auto; }
 @media (max-width: 700px) { .footer-credit { padding-right: 60px; } }
 .footer-fine { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding-top: 12px; border-top: 1px solid var(--dark-line); color: var(--dark-muted); font-size: 12px; }
 /* Contact: a button until clicked, then the address and a Copy button. */

@@ -437,7 +437,10 @@ export default function App() {
           <div className="footer-fine">
             <span>Your list lives in your own Google Drive.</span>
             <span>Not affiliated with any streaming service.</span>
-            <span className="footer-credit">This product uses the TMDB API but is not endorsed or certified by TMDB.</span>
+            <div className="footer-credit">
+              <img src="./tmdb-logo.svg" alt="TMDB" width="140" height="12" />
+              <span>This product uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB.</span>
+            </div>
           </div>
         </div>
       </footer>
