@@ -74,6 +74,14 @@ describe("the guides", () => {
     expect(titles.size).toBe(guides.length);
   });
 
+  it("offer both stores", () => {
+    for (const path of guides) {
+      expect(read(path), path).toContain("https://addons.mozilla.org/en-US/firefox/addon/flickcue/");
+      expect(read(path), path).toContain("https://chromewebstore.google.com/detail/flickcue-watch-later/");
+    }
+    expect(read("index.html")).toContain("https://addons.mozilla.org/en-US/firefox/addon/flickcue/");
+  });
+
   it("link only to guides that exist", () => {
     for (const path of guides) {
       for (const [, slug] of read(path).matchAll(/href="\.\.\/([a-z-]+)\/"/g)) expect(byPath.has(`public/guides/${slug}/index.html`), `${path} -> ${slug}`).toBe(true);

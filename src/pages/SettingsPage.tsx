@@ -8,7 +8,7 @@ import { chooseTheme, confirmCalendarDeletes, confirmHeldRemoval, connect, disab
 import { getStoredToken } from "../lib/auth";
 import { listRevisions, readRevision, type Revision } from "../lib/drive";
 import { INDIAN_CITIES } from "../lib/cinemas";
-import { CALENDAR_MIRROR_ENABLED, EXTENSION_URL } from "../lib/config";
+import { CALENDAR_MIRROR_ENABLED, EXTENSION_URL, FIREFOX_EXTENSION_URL } from "../lib/config";
 import { ContactReveal } from "../components/ContactReveal";
 import { alertSupport } from "../lib/alerts";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
@@ -459,6 +459,7 @@ function About() {
       </p>
       <ul className="about-links">
         <li><a href={EXTENSION_URL} target="_blank" rel="noreferrer">Chrome extension <Icon name="external" size={13} /></a></li>
+        <li><a href={FIREFOX_EXTENSION_URL} target="_blank" rel="noreferrer">Firefox add-on <Icon name="external" size={13} /></a></li>
         <li><span className="muted">Android app · coming soon</span></li>
         <li><a href="./privacy.html">Privacy</a></li>
         <li><ContactReveal label="Contact support" /></li>
