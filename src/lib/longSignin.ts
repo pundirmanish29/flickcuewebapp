@@ -3,7 +3,7 @@
 // tokens and renews access when asked. The browser keeps only the long-lived refresh token, in this
 // device's storage; the service keeps nothing. Off unless the build sets VITE_LONG_SIGNIN=1.
 
-import { requestCode, storeToken, type StoredToken } from "./auth";
+import { grantsCalendar, requestCode, storeCalendarToken, storeToken, type StoredToken } from "./auth";
 import { PROXY_BASE_URL } from "./config";
 
 const GRANT_KEY = "flickcue.refreshGrant";
@@ -66,6 +66,12 @@ async function post(path: string, body: Record<string, string>): Promise<{ statu
   }
 }
 
+/** Stores a fresh access token where the rest of the app looks for it; the Calendar slot too, when Google says Calendar was granted. */
+function keepToken(token: StoredToken) {
+  storeToken(token);
+  if (grantsCalendar(token.scope)) storeCalendarToken(token);
+}
+
 function asToken(reply: TokenReply): StoredToken {
   return {
     accessToken: String(reply.access_token),
@@ -76,13 +82,13 @@ function asToken(reply: TokenReply): StoredToken {
 }
 
 /**
- * Sign-in with a long-lived grant: Google's window gives a code, the title service turns it into tokens, the
+ * Sign-in with a long-lived grant (Drive, and Calendar when asked): Google's window gives a code, the title service turns it into tokens, the
  * access token is stored as usual and the refresh token alongside. Must be called from a click.
  * With no refresh token in the reply (Google only sends one when it newly asks for offline access) any grant
  * already held is kept, and this sign-in lasts an hour like any other.
  */
-export async function signInForLong(hint = ""): Promise<StoredToken> {
-  const { code } = await requestCode({ hint });
+export async function signInForLong(hint = "", calendar = false): Promise<StoredToken> {
+  const { code } = await requestCode({ hint, calendar });
   let reply: { status: number; data: TokenReply };
   try {
     reply = await post("/oauth/token", { code, redirect_uri: location.origin });
@@ -93,7 +99,7 @@ export async function signInForLong(hint = ""): Promise<StoredToken> {
     throw new Error(reply.data.error_description || reply.data.error || "Couldn't finish signing in.");
   }
   const token = asToken(reply.data);
-  storeToken(token);
+  keepToken(token);
   if (reply.data.refresh_token) storeGrant(reply.data.refresh_token);
   return token;
 }
@@ -115,7 +121,7 @@ export async function renewAccess(): Promise<Renewal> {
   }
   if (reply.status === 200 && reply.data.access_token) {
     const token = asToken(reply.data);
-    storeToken(token);
+    keepToken(token);
     return { ok: true, token };
   }
   // Google says the grant is gone (removed at myaccount.google.com, unused for months, password change...).

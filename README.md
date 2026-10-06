@@ -130,8 +130,8 @@ access token as before plus a **refresh token** in this device's local storage
 - If Google says the grant is gone (access removed in the Google Account, unused for
   six months...) the usual **Resume sync** returns. If the service can't be reached the
   grant is kept and the sync is retried.
-- Someone who turns on Calendar reminders keeps the one-window token sign-in, because
-  the grant doesn't carry the Calendar permission yet.
+- With Calendar reminders on, the same window asks for Calendar too, so one grant keeps
+  both alive; if Calendar is unticked at Google's consent screen only Drive is kept.
 - Google sends a refresh token only when it newly asks for offline access. Someone who
   signed in before this feature may need to remove FlickCue at
   myaccount.google.com/permissions and sign in once more to get one; until then
