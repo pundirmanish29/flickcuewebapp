@@ -192,6 +192,11 @@ export default function App() {
   // On phones search is an icon until tapped; with text in it, it stays open.
   const [searchOpen, setSearchOpen] = useState(false);
   const searching = searchOpen || query !== "";
+  // Opened and focused in the same tap, so phones raise the keyboard.
+  const openSearch = () => {
+    flushSync(() => setSearchOpen(true));
+    searchInput.current?.focus();
+  };
   // While the extension is asked for its session, and then until the list
   // first arrives from Drive, the requested page (or title) is kept rather
   // than swapped for the signed-out homepage or an empty queue. A title opened
@@ -364,6 +369,16 @@ export default function App() {
           )}
           {/* The theme switch lives in the account menu once signed in. */}
           {!sync.connected && <ThemeToggle />}
+          {SEARCHABLE.has(route) && sync.connected && (
+            <button
+              type="button"
+              className="header-icon search-open"
+              aria-label={route === "discover" ? "Search films and shows" : "Search your titles"}
+              onClick={openSearch}
+            >
+              <Icon name="search" size={21} />
+            </button>
+          )}
           {sync.connected && <NotificationBell current={route === "notifications"} />}
           <SyncIndicator />
         </div>
@@ -412,7 +427,7 @@ export default function App() {
         </div>
       </footer>
 
-      {/* The phone's dock: icons only. The highlight glides to the chosen one (CSS, from --i), the icon springs, and the header names the page. */}
+      {/* The phone's dock: the four pages, icons only (search is the round button in the header, beside the bell). The highlight glides to the chosen one (CSS, from --i), the icon springs, and the header names the page. */}
       {sync.connected && (
         <div className="dock">
           <nav className="dock-bar" aria-label="Main" style={{ ["--i" as string]: Math.max(activeDock, 0), ["--n" as string]: DOCK.length }}>
@@ -424,20 +439,6 @@ export default function App() {
               </a>
             ))}
           </nav>
-          {SEARCHABLE.has(route) && (
-            <button
-              type="button"
-              className="dock-search"
-              aria-label={route === "discover" ? "Search films and shows" : "Search your titles"}
-              onClick={() => {
-                // Opened and focused in the same tap, so phones raise the keyboard.
-                flushSync(() => setSearchOpen(true));
-                searchInput.current?.focus();
-              }}
-            >
-              <Icon name="search" size={25} />
-            </button>
-          )}
         </div>
       )}
 
