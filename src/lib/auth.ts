@@ -208,17 +208,18 @@ function openGoogleWindow(consent: boolean, hint: string, calendar: boolean): Pr
  * Asks Google for an authorization code, to be exchanged for a long-lived grant by the title service (the one place
  * that holds the client secret). Like `requestToken`, the window opens inside the tap when the script is already loaded.
  */
-export function requestCode({ hint = "" } = {}): Promise<{ code: string; scope: string }> {
-  if (window.google?.accounts?.oauth2) return openCodeWindow(hint);
-  return loadScript().then(() => openCodeWindow(hint));
+export function requestCode({ hint = "", calendar = false } = {}): Promise<{ code: string; scope: string }> {
+  if (window.google?.accounts?.oauth2) return openCodeWindow(hint, calendar);
+  return loadScript().then(() => openCodeWindow(hint, calendar));
 }
 
-function openCodeWindow(hint: string): Promise<{ code: string; scope: string }> {
+function openCodeWindow(hint: string, calendar: boolean): Promise<{ code: string; scope: string }> {
   const oauth2 = window.google!.accounts.oauth2;
   return new Promise((resolve, reject) => {
     const client = oauth2.initCodeClient({
       client_id: GOOGLE_CLIENT_ID,
-      scope: GOOGLE_SCOPE,
+      // One window, one grant: with Calendar on, both permissions are asked for together.
+      scope: calendar ? `${GOOGLE_SCOPE} ${CALENDAR_SCOPE}` : GOOGLE_SCOPE,
       ux_mode: "popup",
       ...(hint ? { login_hint: hint } : {}),
       callback: (response) => {

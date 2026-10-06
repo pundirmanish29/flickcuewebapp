@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getStoredToken } from "./auth";
-import { PROXY_BASE_URL } from "./config";
+import { getCalendarToken, getStoredToken } from "./auth";
+import { CALENDAR_SCOPE, GOOGLE_SCOPE, PROXY_BASE_URL } from "./config";
 import { forgetGrant, getGrant, renewAccess, revokeGrant, signInForLong } from "./longSignin";
 
 afterEach(() => {
@@ -84,6 +84,44 @@ describe("signInForLong", () => {
   it("says so when the service can't be reached", async () => {
     setup([new TypeError("Failed to fetch")]);
     await expect(signInForLong()).rejects.toThrow(/Check your connection/);
+  });
+});
+
+describe("with Calendar", () => {
+  const both = `${GOOGLE_SCOPE} ${CALENDAR_SCOPE}`;
+
+  it("asks Google for Calendar in the same window only when it is wanted", async () => {
+    const env = setup([json({ access_token: "a1", expires_in: 3600, refresh_token: "r1" })]);
+    await signInForLong("", true);
+    expect(env.configs[0].scope).toBe(both);
+    const plain = setup([json({ access_token: "a1", expires_in: 3600, refresh_token: "r1" })]);
+    await signInForLong("", false);
+    expect(plain.configs[0].scope).toBe(GOOGLE_SCOPE);
+  });
+
+  it("stores the Calendar token too when Google says Calendar was granted", async () => {
+    setup([json({ access_token: "a1", expires_in: 3600, refresh_token: "r1", scope: both })]);
+    await signInForLong("", true);
+    expect(getStoredToken()?.accessToken).toBe("a1");
+    expect(getCalendarToken()?.accessToken).toBe("a1");
+  });
+
+  it("leaves the Calendar slot empty when it was unticked at Google's consent screen", async () => {
+    setup([json({ access_token: "a1", expires_in: 3600, refresh_token: "r1", scope: GOOGLE_SCOPE })]);
+    await signInForLong("", true);
+    expect(getStoredToken()?.accessToken).toBe("a1");
+    expect(getCalendarToken()).toBeNull();
+  });
+
+  it("renews the Calendar token along with the Drive one", async () => {
+    setup([
+      json({ access_token: "a1", expires_in: 3600, refresh_token: "r1", scope: both }),
+      json({ access_token: "a2", expires_in: 3600, scope: both })
+    ]);
+    await signInForLong("", true);
+    await renewAccess();
+    expect(getStoredToken()?.accessToken).toBe("a2");
+    expect(getCalendarToken()?.accessToken).toBe("a2");
   });
 });
 

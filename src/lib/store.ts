@@ -479,9 +479,9 @@ export async function connect() {
   try {
     // With the Calendar mirror on, Resume asks for Calendar too, so the hourly sign-in stays one window.
     const wantCalendar = CALENDAR_MIRROR_ENABLED && Boolean(state.settings.calendarMirror) && !calendarMirror.getState().declined;
-    // A long-lived sign-in has no Calendar permission in it yet, so someone with Calendar on keeps the one-window sign-in.
-    const token = LONG_SIGNIN_ENABLED && !wantCalendar
-      ? await signInForLong(state.sync.account?.email)
+    // A long-lived sign-in asks for Calendar in the same window, so one grant keeps both alive.
+    const token = LONG_SIGNIN_ENABLED
+      ? await signInForLong(state.sync.account?.email, wantCalendar)
       : await requestToken({ consent: !state.sync.connected, hint: state.sync.account?.email, calendar: wantCalendar });
     if (wantCalendar && !grantsCalendar(token.scope)) calendarMirror.declined();
     patchSync({ connected: true, status: "idle", error: "" });
