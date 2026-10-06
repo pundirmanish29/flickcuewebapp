@@ -1041,7 +1041,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   color: var(--ink); font-size: 12.5px; line-height: 1.35;
 }
 .am-note > span { flex: 1; min-width: 0; padding-block: 4px; }
-.am-note button { flex: none; min-height: 36px; padding: 0 16px; border: 0; border-radius: var(--r-pill); background: var(--orange); color: #16181b; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
+.am-note button { flex: none; min-height: 44px; padding: 0 16px; border: 0; border-radius: var(--r-pill); background: var(--orange); color: #16181b; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; }
 .am-lb {
   display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 10px 12px; border-radius: 18px; box-shadow: inset 0 0 0 1px var(--rule);
   color: var(--ink); text-decoration: none; transition: background-color var(--dur-fast) ease;
@@ -1058,7 +1058,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .am-appearance { cursor: default; }
 .am-appearance .am-row-label { width: auto; }
 .am-seg { display: flex; margin-left: auto; padding: 3px; border-radius: var(--r-pill); background: rgb(255 255 255 / 0.08); }
-.am-seg button { min-height: 32px; padding: 0 12px; border: 0; border-radius: var(--r-pill); background: none; color: var(--ink-soft); font: inherit; font-size: 12px; cursor: pointer; transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease; }
+.am-seg button { min-height: 40px; padding: 0 12px; border: 0; border-radius: var(--r-pill); background: none; color: var(--ink-soft); font: inherit; font-size: 12px; cursor: pointer; transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease; }
 .am-seg button[aria-pressed="true"] { background: #fff; color: #16181b; font-weight: 700; }
 .am-row-label { flex: none; width: 68px; color: var(--muted); font-size: 12.5px; pointer-events: none; }
 .am-row > svg { flex: none; color: var(--muted); pointer-events: none; }

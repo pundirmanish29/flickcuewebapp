@@ -57,14 +57,20 @@ export function ReminderChoices({
  * trigger as `anchor` when it toggles the popover, so pressing it counts as the
  * toggle rather than as a press outside that closes and then reopens it.
  */
-export function Popover({ open, onClose, children, label, anchor }: {
+export function Popover({ open, onClose, children, label, anchor, focusFirst = false }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
   label: string;
   anchor?: React.RefObject<HTMLElement | null>;
+  /** Opened from the keyboard: the first control takes focus, so Tab doesn't start from the trigger. */
+  focusFirst?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open && focusFirst) ref.current?.querySelector<HTMLElement>("a[href], button:not(:disabled), select")?.focus();
+  }, [open, focusFirst]);
 
   useEffect(() => {
     if (!open) return;
@@ -73,7 +79,12 @@ export function Popover({ open, onClose, children, label, anchor }: {
       if (anchor?.current?.contains(target)) return;
       if (ref.current && !ref.current.contains(target)) onClose();
     };
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      // Focus inside the popover goes back to what opened it, rather than to the top of the page.
+      if (ref.current?.contains(document.activeElement)) anchor?.current?.focus();
+      onClose();
+    };
     const timer = setTimeout(() => document.addEventListener("pointerdown", onDown));
     document.addEventListener("keydown", onKey);
     return () => {

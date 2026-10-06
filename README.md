@@ -76,7 +76,7 @@ npm run build      # dist/
 ### 1. Google sign-in
 
 Sign-in uses Google Identity Services' token flow with the `drive.appdata` scope
-only (the optional Calendar switch asks for one more, see below). It uses no client secret and stores no refresh token. By default it uses the
+only (the optional Calendar switch asks for one more, see below). It uses no client secret and, unless the optional long-lived sign-in below is on, stores no refresh token. By default it uses the
 extension's **Web application** OAuth client (`DEFAULT_WEB_CLIENT_ID` in the
 extension's `drive-sync.js`). The web app has to use a client from the **same
 Google Cloud project**, or it would see a different app-data folder and a different
@@ -94,7 +94,9 @@ To use a different client from the same project, set `VITE_GOOGLE_CLIENT_ID` (se
 ### Optional: reminders in Google Calendar
 
 The Calendar switch in Settings is off in a normal build: nothing about it shows or
-runs. To try it, build with `VITE_CALENDAR_MIRROR=1` (see `.env.example`). It also needs,
+runs. To try it, build with `VITE_CALENDAR_MIRROR=1` (see `.env.example`). On the deployed site, add a repository
+variable named `VITE_CALENDAR_MIRROR` with the value `1` (Settings, Secrets and variables, Actions, Variables) and run the
+deploy again; deleting the variable and redeploying turns it back off. It also needs,
 in the same Google Cloud project as the sign-in client:
 
 - the **Google Calendar API** enabled (APIs & Services → Library); without it Google
@@ -112,7 +114,49 @@ The calendar's id and the on/off switch sync between devices through
 
 Google access tokens last about an hour. When one expires the app shows
 **Reconnect**. After the first consent, reconnecting is a popup that closes by
-itself.
+itself. (With the optional long-lived sign-in below, the app renews it by itself.)
+
+### Optional: staying signed in (no hourly Resume)
+
+Off in a normal build. With `VITE_LONG_SIGNIN=1` the sign-in uses Google's code
+flow instead of the token flow: the popup returns a one-time code, FlickCue's
+title service (the Cloudflare Worker, which already holds the client secret for the
+extension) swaps it for tokens at `/oauth/token`, and the browser keeps the
+access token as before plus a **refresh token** in this device's local storage
+(`flickcue.refreshGrant`). When the access token has run out, the next sync asks
+`/oauth/refresh` for a new one with nothing shown. The service keeps nothing.
+
+- Signing out voids the grant at Google (`oauth2.googleapis.com/revoke`) and forgets it here.
+- If Google says the grant is gone (access removed in the Google Account, unused for
+  six months...) the usual **Resume sync** returns. If the service can't be reached the
+  grant is kept and the sync is retried.
+- Someone who turns on Calendar reminders keeps the one-window token sign-in, because
+  the grant doesn't carry the Calendar permission yet.
+- Google sends a refresh token only when it newly asks for offline access. Someone who
+  signed in before this feature may need to remove FlickCue at
+  myaccount.google.com/permissions and sign in once more to get one; until then
+  sign-in lasts an hour as before.
+- A long-lived key to someone's Drive folder is stored on their device (the page's
+  strict content policy is the protection against script injection). Say so in the
+  privacy policy before switching this on.
+
+Order of switching on (the first two are in the other repository):
+
+1. Apply `docs/long-signin-worker.patch` to `flickcue` (`git apply`; it also adds
+   `tests/proxy-oauth.test.js`), run `node tests/proxy-oauth.test.js`, and
+   `npx wrangler deploy` from `proxy/`. It lets this site use the `/oauth` routes,
+   limits a web page to presenting its own origin as `redirect_uri`, and leaves out
+   an empty PKCE verifier.
+2. Confirm the OAuth client has this site under **Authorized JavaScript origins**
+   (it does, for sign-in), and that the consent screen is **In production**: in
+   Testing, Google expires refresh tokens after 7 days.
+3. Publish the privacy change: in `public/privacy.html`, where the web app's stored
+   token is described, say that the browser can keep a long-lived Google refresh
+   token (to renew access without asking each hour) that is removed on sign out.
+4. Set the repository variable `VITE_LONG_SIGNIN` to `1` and redeploy. Then, with a
+   real account, check: first sign-in stores `flickcue.refreshGrant`; an hour later
+   (or after deleting `flickcue.googleToken`) a reload syncs with no popup; signing
+   out removes the grant; removing access at myaccount.google.com brings back Resume.
 
 ### 2. The proxy has to accept this site's origin
 

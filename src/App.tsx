@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { AccountMenu } from "./components/AccountMenu";
+import { AccountMenu, timeAgo } from "./components/AccountMenu";
 import { ScrollJump } from "./components/ScrollJump";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Icon, Logo, type IconName } from "./components/Icon";
@@ -11,6 +11,7 @@ import { ContactReveal } from "./components/ContactReveal";
 import { canAskExtension, preloadGoogleSignIn } from "./lib/auth";
 import { EXTENSION_URL } from "./lib/config";
 import { onPhone } from "./lib/device";
+import { pauseNotice, pendingChanges } from "./lib/pending";
 import { displayTitle } from "./lib/rules";
 import { connect, getState, startBackgroundSync, useAppState } from "./lib/store";
 import { DiscoverPage } from "./pages/DiscoverPage";
@@ -185,7 +186,7 @@ function SigningIn() {
 
 export default function App() {
   const requestedRoute = useHashRoute();
-  const { library, sync } = useAppState();
+  const { library, sync, settings } = useAppState();
   const [query, setQuery] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
   const preview = usePreview();
@@ -213,6 +214,9 @@ export default function App() {
 
   // Google's sign-in script is fetched while the page sits idle, so the first tap on Sign in or Resume opens its window at once.
   const needsSignIn = !sync.connected || sync.status === "needs-auth";
+  const pause = sync.connected && sync.status === "needs-auth"
+    ? pauseNotice(pendingChanges(library, Number(settings.settingsUpdatedAt) || 0, sync.lastSyncAt), sync.lastSyncAt, Date.now())
+    : ({ show: false } as const);
   useEffect(() => {
     if (!needsSignIn) return;
     const idle = window.requestIdleCallback
@@ -384,14 +388,19 @@ export default function App() {
         </div>
       </header>
 
-      {/* A sign-in lasts about an hour and can only be renewed by the person, so say so plainly, with the button. */}
-      {sync.connected && sync.status === "needs-auth" && (
+      {/* A sign-in lasts about an hour and can only be renewed by the person, so a pause is routine: the banner (with its
+          button) is for edits waiting to sync or a list long out of step. Otherwise the account menu carries the status. */}
+      {pause.show && (
         <div className="sync-banner" role="status">
           <div className="sync-notice">
             <span className="notice-icon" aria-hidden="true"><Icon name="pause" size={18} /></span>
             <div className="notice-text">
               <b>Sync is paused</b>
-              <span>Your changes are safe on this device.</span>
+              <span>
+                {pause.reason === "pending"
+                  ? `${pause.pending === 1 ? "1 change is" : `${pause.pending} changes are`} waiting. Safe on this device until you resume.`
+                  : sync.lastSyncAt ? `Last synced ${timeAgo(sync.lastSyncAt)}. Your changes are safe on this device.` : "Your changes are safe on this device."}
+              </span>
             </div>
             <button type="button" className="button button-orange" onClick={() => void connect()}>Resume sync</button>
           </div>
