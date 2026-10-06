@@ -18,6 +18,8 @@ export function timeAgo(time: number) {
 export function AccountMenu() {
   const { sync: state, library, settings } = useAppState();
   const [open, setOpen] = useState(false);
+  // Opened with the keyboard (a click with no pointer), so focus moves into the menu.
+  const [byKeyboard, setByKeyboard] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   const trigger = useRef<HTMLButtonElement>(null);
 
@@ -71,7 +73,7 @@ export function AccountMenu() {
         aria-expanded={open}
         aria-label={`Account. ${label}`}
         // Always the menu, even when paused: Settings and Sign out stay reachable, and Resume is inside it (and in the banner).
-        onClick={() => setOpen((value) => !value)}
+        onClick={(event) => { setByKeyboard(event.detail === 0); setOpen((value) => !value); }}
       >
         {/* The avatar alone while all is well; a small tick on it when sync is working or needs a look. */}
         <span className="pill-av">
@@ -87,7 +89,7 @@ export function AccountMenu() {
         <span className="sync-label">{pillLabel}</span>
       </button>
 
-      <Popover open={open} onClose={close} label="Account" anchor={trigger}>
+      <Popover open={open} onClose={close} label="Account" anchor={trigger} focusFirst={byKeyboard}>
         <div className="am">
           <div className={`am-who state-${tone}`}>
             {state.account?.photo
@@ -118,7 +120,7 @@ export function AccountMenu() {
               <span className="am-lb-icon" aria-hidden="true"><Icon name="star" size={15} /></span>
               <span className="am-lb-text">
                 <b>Letterboxd · {lb}</b>
-                <span>{lbLine || "Your public profile"}</span>
+                <span>{lbLine || "Your public profile"}<span className="visually-hidden"> (opens in a new tab)</span></span>
               </span>
               <Icon name="external" size={15} />
             </a>
