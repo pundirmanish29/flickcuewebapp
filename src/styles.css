@@ -223,19 +223,19 @@ a { color: inherit; }
 
 /* Liquid glass is for what floats above the page, and nothing else: the header, the tab bar, a few pills.
    The solid tint is the fallback for browsers without backdrop-filter and for people who ask for less transparency. */
-.site-header .header-inner, .dock-bar, .dock-search, .scroll-jump-button, .glass {
+.site-header .header-inner, .dock-bar, .scroll-jump-button, .glass {
   background: linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent 45%), var(--glass-solid);
   box-shadow: var(--glass-shadow), inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 rgb(255 255 255 / 0.12);
 }
 @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .site-header .header-inner, .dock-bar, .dock-search, .scroll-jump-button, .glass {
+  .site-header .header-inner, .dock-bar, .scroll-jump-button, .glass {
     background: linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent 45%), var(--glass-tint);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .site-header .header-inner, .dock-bar, .dock-search, .scroll-jump-button, .glass {
+  .site-header .header-inner, .dock-bar, .scroll-jump-button, .glass {
     background: var(--glass-solid); -webkit-backdrop-filter: none; backdrop-filter: none;
   }
 }
@@ -323,6 +323,8 @@ a { color: inherit; }
 }
 /* Desktop has room for the full search box, so the phone controls stay hidden. */
 .search-back { display: none; }
+/* Phones only: on a wide screen the header already has the search box. */
+.search-open { display: none; }
 
 .sync-pill {
   display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px 0 6px;
@@ -1446,6 +1448,7 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   .sync-pill { height: 44px; padding: 0 10px 0 8px; }
   .search, .header-sign-in { height: 44px; }
   .header-icon { width: 44px; height: 44px; }
+  .search-open { display: inline-flex; }
   .site-header .header-inner { gap: 2px; padding: 0 6px 0 14px; }
   .header-inner .search { display: none; }
   /* Searching, the bar takes the whole header, YouTube-style. */
@@ -1489,9 +1492,7 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   .dock-bar a[aria-current="page"] { color: var(--lime); }
   .dock-bar a[aria-current="page"] svg { animation: dock-pop 620ms var(--ease-spring); }
   @keyframes dock-pop { 0% { transform: scale(1) rotate(0); } 30% { transform: scale(1.34) rotate(-8deg); } 65% { transform: scale(0.94) rotate(3deg); } 100% { transform: scale(1) rotate(0); } }
-  .dock-search { flex: none; display: grid; place-items: center; width: 58px; height: 58px; padding: 0; border: 0; border-radius: 50%; color: #fff; cursor: pointer; transition: transform var(--dur-slow) var(--ease-spring); }
-  .dock-search:active { transform: scale(0.92); transition-duration: 90ms; }
-  /* The header says where you are, and the account: the bell is the dock's Alerts, the search is the dock's round button. */
+  /* The header says where you are, and holds search, the bell and the account. */
   .page-label { display: block; margin-left: 8px; }
   .header-inner:has(.page-label) .brand-name { display: none; }
   .site-footer.with-bottom-nav { padding-bottom: calc(114px + env(safe-area-inset-bottom)); }
