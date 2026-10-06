@@ -22,6 +22,7 @@ import { dismissEpisode, episodeKey, newEpisodeFor, readDismissed } from "../lib
 import { NewEpisodeCard } from "./NewEpisodeCard";
 import { Seasons } from "./Seasons";
 import { RatingScore } from "./RatingScore";
+import { ScrollArrows } from "./ScrollArrows";
 import { VerdictScale } from "./VerdictScale";
 import { goDiscover } from "../lib/discoverIntent";
 import { openTitle as openWithMotion, pop, reducedMotion } from "../lib/motion";
@@ -98,7 +99,6 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
                   <a href={providerLink(provider.name, title)} target="_blank" rel="noreferrer" onClick={close}>
                     <ProviderLogo provider={provider} />
                     <WatchName name={provider.name} />
-                    <Icon name="external" size={14} />
                   </a>
                 </li>
               ))}
@@ -161,6 +161,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   const showing = Boolean(movie && inCinemas?.has(cinemaKey(movie)));
 
   const inner = useRef<HTMLDivElement>(null);
+  const castRow = useRef<HTMLUListElement>(null);
   useEffect(() => {
     dialog.current?.showModal();
     // The sheet itself takes focus, not its close button, so a tap doesn't light a focus ring on ✕.
@@ -330,7 +331,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             </button>
             {details?.trailer && (
               <a className="trailer-link" href={details.trailer} target="_blank" rel="noreferrer">
-                <Icon name="external" size={14} /> YouTube
+                YouTube
               </a>
             )}
             <button type="button" className="icon-button trailer-close" onClick={() => closeSheet()} aria-label="Close">
@@ -547,8 +548,11 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
 
           {details && details.cast.length > 0 && (
             <section className="sheet-section">
-              <h3 className="section-label">Cast</h3>
-              <ul className="cast-row">
+              <div className="rail-head">
+                <h3 className="section-label">Cast</h3>
+                <ScrollArrows target={castRow} label="Cast" watch={details.cast} />
+              </div>
+              <ul className="cast-row" ref={castRow}>
                 {details.cast.map((person) => (
                   <li key={person.name + person.character}>
                     <button type="button" className="cast-link" onClick={() => goDiscover({ search: person.name })} aria-label={`${person.name}: more with them`}>
@@ -626,9 +630,9 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
           )}
 
           <div className="sheet-links">
-            {imdbId && <a className="link-chip" href={`https://www.imdb.com/title/${imdbId}/`} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> IMDb</a>}
+            {imdbId && <a className="link-chip" href={`https://www.imdb.com/title/${imdbId}/`} target="_blank" rel="noreferrer">IMDb</a>}
             {safeLink(movie.sourceUrl) && (
-              <a className="link-chip" href={safeLink(movie.sourceUrl)} target="_blank" rel="noreferrer"><Icon name="external" size={14} /> Where you found it</a>
+              <a className="link-chip" href={safeLink(movie.sourceUrl)} target="_blank" rel="noreferrer">Where you found it</a>
             )}
           </div>
         </div>

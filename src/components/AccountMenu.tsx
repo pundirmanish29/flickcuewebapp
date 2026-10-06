@@ -122,7 +122,6 @@ export function AccountMenu() {
                 <b>Letterboxd · {lb}</b>
                 <span>{lbLine || "Your public profile"}<span className="visually-hidden"> (opens in a new tab)</span></span>
               </span>
-              <Icon name="external" size={15} />
             </a>
           ) : (
             <a className="am-lb" href="#/settings" onClick={close}>
