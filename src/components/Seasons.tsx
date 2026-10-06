@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
-import { formatRuntime, localIsoDate, readerDate, seasonProgress } from "../lib/rules";
+import { episodesAired, formatRuntime, localIsoDate, readerDate, seasonProgress } from "../lib/rules";
 import { safeImage } from "../lib/safe";
 import { fetchSeason, upscale, type SeasonEpisode } from "../lib/tmdb";
 import type { Movie, Season } from "../lib/types";
@@ -81,8 +81,9 @@ function SeasonView({ movie, season, info, onBack }: {
     };
   }, [movie.tmdbId, season.number]);
 
-  // Only episodes that have aired can be ticked, so "all" means all of those.
-  const airedNumbers = episodes?.filter((episode) => !episode.airDate || readerDate(episode.airDate) <= today).map((episode) => episode.number);
+  // Only episodes that have aired can be ticked, so "all" means all of those (an undated one isn't, unless a later one is).
+  const aired = episodes ? episodesAired(episodes, today) : [];
+  const airedNumbers = episodes?.filter((_, index) => aired[index]).map((episode) => episode.number);
   const allAiredSeen = Boolean(airedNumbers?.length) && airedNumbers!.every((number) => seen.has(`${season.number}:${number}`));
   const facts = [`${season.total} episodes`, info?.year, `${season.seen} of ${season.total} watched`].filter(Boolean).join(" · ");
   return (
@@ -103,9 +104,9 @@ function SeasonView({ movie, season, info, onBack }: {
       {!failed && !episodes && <div className="season-loading" aria-hidden="true"><span /><span /><span /></div>}
       {episodes && (
         <ol className="episode-list">
-          {episodes.map((episode) => {
+          {episodes.map((episode, index) => {
             const done = seen.has(`${season.number}:${episode.number}`);
-            const unaired = Boolean(episode.airDate) && readerDate(episode.airDate) > today;
+            const unaired = !aired[index];
             const still = safeImage(episode.still);
             const meta = [episode.airDate ? dayText(readerDate(episode.airDate)) : "", formatRuntime(episode.runtimeMinutes)].filter(Boolean).join(" · ");
             return (

@@ -357,6 +357,23 @@ export function readerDate(value: string): string {
   return shiftIsoDate(value, scheduleShift);
 }
 
+/**
+ * Whether each of a season's episodes has aired on the reader's calendar, in
+ * the order given. TMDB often leaves a running season's last episodes undated
+ * until close to release, so an episode with no date counts as aired only when
+ * a later one in the season has aired, or when the season has no dates at all
+ * (an old listing).
+ */
+export function episodesAired(episodes: readonly { airDate?: string }[], today: string): boolean[] {
+  const dated = episodes.some((episode) => episode.airDate);
+  const aired = episodes.map((episode) => (episode.airDate ? readerDate(episode.airDate) <= today : !dated));
+  // An undated episode before one that has aired is in the past too.
+  for (let index = aired.length - 2; index >= 0; index--) {
+    if (!episodes[index].airDate && aired[index + 1]) aired[index] = true;
+  }
+  return aired;
+}
+
 function shiftIsoDate(value: string, days: number): string {
   if (!days || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   const date = new Date(`${value}T12:00:00Z`);
