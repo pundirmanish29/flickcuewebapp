@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
 import { formatRuntime, localIsoDate, readerDate, seasonProgress } from "../lib/rules";
 import { safeImage } from "../lib/safe";
@@ -6,6 +6,7 @@ import { fetchSeason, upscale, type SeasonEpisode } from "../lib/tmdb";
 import type { Movie, Season } from "../lib/types";
 import { Icon } from "./Icon";
 import { Poster } from "./Poster";
+import { ScrollArrows } from "./ScrollArrows";
 
 const dayText = (iso: string) => {
   const date = new Date(`${iso}T12:00:00`);
@@ -21,6 +22,7 @@ export function Seasons({ movie, info }: { movie: Movie; info: Season[] | undefi
   const [openNumber, setOpenNumber] = useState<number | null>(null);
   const progress = seasonProgress(movie);
   const open = progress.find((season) => season.number === openNumber);
+  const rail = useRef<HTMLUListElement>(null);
 
   if (open) {
     return <SeasonView movie={movie} season={open} info={info?.find((item) => item.number === open.number)} onBack={() => setOpenNumber(null)} />;
@@ -29,9 +31,12 @@ export function Seasons({ movie, info }: { movie: Movie; info: Season[] | undefi
     <>
       <div className="seasons-head">
         <h3 className="section-label">Seasons</h3>
-        <span className="muted">{progress.length}</span>
+        <span className="seasons-tools">
+          <ScrollArrows target={rail} label="Seasons" watch={progress.length} />
+          <span className="muted">{progress.length}</span>
+        </span>
       </div>
-      <ul className="season-rail">
+      <ul className="season-rail" ref={rail}>
         {progress.map((season) => {
           const meta = info?.find((item) => item.number === season.number);
           return (

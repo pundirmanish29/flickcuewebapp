@@ -7,7 +7,8 @@
 * { box-sizing: border-box; }
 html { background: var(--night); }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.65 "Archivo", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-a { color: var(--link); text-underline-offset: 3px; }
+a { color: var(--link); font-weight: 600; text-decoration: none; text-underline-offset: 3px; }
+a:not([class]):hover { text-decoration: underline; }
 .bar { background: var(--night); color: #fff; }
 .bar-inner, .foot-inner { max-width: 1280px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); display: flex; align-items: center; gap: 16px; }
 .bar-inner { height: 64px; justify-content: space-between; }

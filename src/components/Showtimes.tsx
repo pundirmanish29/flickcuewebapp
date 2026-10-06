@@ -3,7 +3,6 @@ import { showtimeLinks } from "../lib/cinemas";
 import { bookingUrl, fetchShowtimes, showtimeDays, showtimeStatus, type FilmShowtimes, type ShowtimeStatus } from "../lib/showtimes";
 import { useAppState } from "../lib/store";
 import { useWhere } from "../lib/useCinemas";
-import { Icon } from "./Icon";
 import { toast } from "./Toast";
 
 /**
@@ -19,7 +18,7 @@ export function ShowtimeLinks({ title, year, lead }: { title: string; year?: str
       <div className="showtime-links">
         {links.map((link) => (
           <a key={link.label} className="link-chip" href={link.url} target="_blank" rel="noreferrer">
-            <Icon name="external" size={14} /> {link.label}
+            {link.label}
           </a>
         ))}
       </div>

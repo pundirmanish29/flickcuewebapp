@@ -1,9 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { CandidateCard } from "../components/CandidateCard";
+import { HeadingMenu } from "../components/HeadingMenu";
 import { PageHeader } from "../components/PageHeader";
 import { Icon } from "../components/Icon";
 import { Poster } from "../components/Poster";
 import { ReminderChoices } from "../components/ReminderMenu";
+import { ScrollArrows } from "../components/ScrollArrows";
 import { toast } from "../components/Toast";
 import * as actions from "../lib/actions";
 import { pickSeeds, savedKeys } from "../lib/discover";
@@ -167,7 +169,7 @@ function Results({ items, onOpen, showtimes = false, ranked = false, compact = f
   );
 }
 
-/** A sideways row of titles, with arrows for a mouse. */
+/** A sideways row of titles, with arrows for a mouse in place of a scrollbar. */
 function Row({ title, heading, bare = false, items, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true, compact = false, swapKey }: {
   title: string;
   /** What the heading shows in place of the plain title, such as a menu. */
@@ -189,16 +191,12 @@ function Row({ title, heading, bare = false, items, onOpen, onSeeAll, ranked = f
   const row = useRef<HTMLDivElement>(null);
   useSwap(row, swapKey);
   const id = useId();
-  const scroll = (direction: number) => row.current?.scrollBy({ left: direction * row.current.clientWidth * 0.85, behavior: "smooth" });
   return (
     <section className={`cinema-shelf ${ranked ? "ranked-shelf" : ""} ${reasons ? "" : "no-reasons"}`} aria-labelledby={id}>
       <div className="cinema-shelf-head">
         {bare ? <div id={id} className="cinema-shelf-title">{heading}</div> : <h2 id={id}>{heading ?? title}</h2>}
         <div className="shelf-tools">
-          <span className="shelf-arrows">
-            <button type="button" className="shelf-arrow" aria-label={`Scroll ${title} back`} onClick={() => scroll(-1)}><Icon name="back" size={16} /></button>
-            <button type="button" className="shelf-arrow flip" aria-label={`Scroll ${title} on`} onClick={() => scroll(1)}><Icon name="back" size={16} /></button>
-          </span>
+          <ScrollArrows target={row} label={title} watch={items} />
           {onSeeAll && <button type="button" className="link-button" onClick={onSeeAll}>See all</button>}
         </div>
       </div>
@@ -325,15 +323,7 @@ function StreamingRow({ region, streams, saved, onOpen, onSeeAll }: {
   return (
     <Row
       title={label(choice)}
-      heading={
-        <label className="stream-picker">
-          <span className="visually-hidden">Streaming service</span>
-          <select value={choice.id} onChange={(event) => pick(event.target.value)} style={{ width: `${label(choice).length * 0.58 + 2.4}em` }}>
-            {streams.map((item) => <option key={item.id} value={item.id}>{label(item)}</option>)}
-          </select>
-          <Icon name="chevron" size={20} />
-        </label>
-      }
+      heading={<HeadingMenu label="Streaming service" value={choice.id} options={streams.map((item) => ({ id: item.id, label: label(item) }))} onPick={pick} />}
       items={shown}
       onOpen={onOpen}
       onSeeAll={() => onSeeAll(STREAM_PREFIX + choice.id)}
@@ -446,10 +436,12 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   };
 
   // Browsing is for finding something new, so saved titles drop out of the
-  // lists; a search still shows them, marked "In your queue", and a chart
-  // keeps them so its numbers stay true.
+  // lists; a search still shows them, marked "In your queue", a chart keeps
+  // them so its numbers stay true, and so does what's out to rent (it's news
+  // about a saved film too).
+  const keepSaved = searching || ranked || list === NEW_TO_RENT.id;
   const visible = load.state === "done"
-    ? load.items.filter((item) => matchesKindFilter(item, shownKind) && (searching || ranked || !saved.has(item.key)))
+    ? load.items.filter((item) => matchesKindFilter(item, shownKind) && (keepSaved || !saved.has(item.key)))
     : [];
   const person = load.state === "done" ? load.person : undefined;
   const personWork = person ? person.titles.filter((item) => matchesKindFilter(item, shownKind)) : [];
@@ -459,7 +451,8 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const fresh = (items: Candidate[]) => items.filter((item) => !saved.has(item.key)).slice(0, 10);
   const forYouRow = picks[0] ? { title: `Because you saved ${picks[0].because}`, items: fresh(picks[0].items) } : null;
   const trendingItems = trending ? fresh(trending) : null;
-  const rentalItems = rentals ? fresh(rentals) : null;
+  // A saved film coming out to rent is news too: it keeps its place in the row, ticked.
+  const rentalItems = rentals ? rentals.slice(0, 12) : null;
 
   const listTitle = genre
     ? GENRES_LIST.find((item) => item.id === genre)?.label ?? "Genre"

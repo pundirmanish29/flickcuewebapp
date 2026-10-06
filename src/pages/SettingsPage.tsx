@@ -372,7 +372,7 @@ function Letterboxd() {
         <>
           <p className="linked-row">
             <a href={letterboxdProfileUrl(settings.letterboxd)} target="_blank" rel="noreferrer">
-              letterboxd.com/{settings.letterboxd} <Icon name="external" size={13} />
+              letterboxd.com/{settings.letterboxd}
             </a>
           </p>
           <p className="linked-actions">
@@ -458,8 +458,8 @@ function About() {
         FlickCue for the web shares one list with the FlickCue browser extension and the Android app. No ads, no analytics, and no account with the developer.
       </p>
       <ul className="about-links">
-        <li><a href={EXTENSION_URL} target="_blank" rel="noreferrer">Chrome extension <Icon name="external" size={13} /></a></li>
-        <li><a href={FIREFOX_EXTENSION_URL} target="_blank" rel="noreferrer">Firefox add-on <Icon name="external" size={13} /></a></li>
+        <li><a href={EXTENSION_URL} target="_blank" rel="noreferrer">Chrome extension</a></li>
+        <li><a href={FIREFOX_EXTENSION_URL} target="_blank" rel="noreferrer">Firefox add-on</a></li>
         <li><span className="muted">Android app · coming soon</span></li>
         <li><a href="./privacy.html">Privacy</a></li>
         <li><ContactReveal label="Contact support" /></li>

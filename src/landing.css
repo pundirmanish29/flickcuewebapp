@@ -17,8 +17,8 @@
 .l-note a, .l-link, .l-step-link a { color: var(--blue); font-weight: 700; }
 .l-note:has(.l-ext-link) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .l-ext-link { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
-.l-ext-link span { text-decoration: underline; text-underline-offset: 3px; }
-.l-link { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.l-ext-link:hover span, .l-note a:hover, .l-link:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.l-link { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; }
 .l-step-link { margin: var(--space-xs) 0 0; }
 .l-step-link a { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .l-step-link a:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -218,7 +218,7 @@
 .l-cta .button-ink:hover:not(:disabled) { background: #1d2024; }
 .l-cta .l-actions { justify-content: center; margin-top: var(--space-l); }
 .l-cta .l-note { color: rgb(22 24 27 / 0.8); }
-.l-cta .l-note a, .l-cta .l-link { color: #16181b; text-decoration: underline; text-underline-offset: 3px; }
+.l-cta .l-note a, .l-cta .l-link { color: #16181b; }
 .l-cta-note { margin: var(--space-m) 0 0; color: rgb(22 24 27 / 0.72); font-size: 0.875rem; }
 .l-cta-note a { color: #16181b; font-weight: 700; }
 .l-guides { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-xs) var(--space-m); }

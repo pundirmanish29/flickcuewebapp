@@ -9,7 +9,7 @@ import { safeImage } from "../lib/safe";
 import { TALK_OF_THE_TOWN } from "../lib/shelves";
 import { connect, connectWithExtension } from "../lib/store";
 import { browse, upscale } from "../lib/tmdb";
-import { ExtensionIcon, GoogleIcon, Icon } from "./Icon";
+import { ExtensionIcon, GoogleIcon } from "./Icon";
 
 // Empty until the Android app has a public listing; the page then says "coming soon".
 const ANDROID_URL = "";
@@ -223,7 +223,7 @@ export function Landing() {
         <p className="l-scroll" aria-hidden="true">Scroll</p>
         {offerExtension && (
           <a className="l-ext" href={store.url} target="_blank" rel="noreferrer">
-            <ExtensionIcon size={20} /><span>Get the {store.browser} extension</span><Icon name="external" size={14} />
+            <ExtensionIcon size={20} /><span>Get the {store.browser} extension</span>
           </a>
         )}
       </section>
