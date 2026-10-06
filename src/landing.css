@@ -221,6 +221,7 @@
 .l-cta .l-note a, .l-cta .l-link { color: #16181b; text-decoration: underline; text-underline-offset: 3px; }
 .l-cta-note { margin: var(--space-m) 0 0; color: rgb(22 24 27 / 0.72); font-size: 0.875rem; }
 .l-cta-note a { color: #16181b; font-weight: 700; }
+.l-guides { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-xs) var(--space-m); }
 
 /* ---- Phones: a small glass button follows you down, until the closing block has its own ---- */
 

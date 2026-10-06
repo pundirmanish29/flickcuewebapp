@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="FlickCue on the web: your watchlist, reminders and what to watch next, synced with the extension and the Android app." />
+    <meta name="description" content="FlickCue is a movie and TV watchlist with reminders. Save films and shows from any page, see where to watch, and keep one list on Chrome and the web." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#0b0d0f" />
     <!-- Posters come from TMDB's image host: open that connection before the first one is asked for. -->
     <link rel="preconnect" href="https://image.tmdb.org" />
@@ -23,16 +24,36 @@
     <meta property="og:image" content="https://flickcue.in/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="FlickCue: one watchlist for films and shows, on the web and in Chrome." />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FlickCue — One watchlist. Everywhere." />
+    <meta name="twitter:description" content="Save films and shows wherever you find them, get reminded when it's time to watch, and keep one list across Chrome and the web." />
+    <meta name="twitter:image" content="https://flickcue.in/og-image.jpg" />
     <!-- The body font and the italic accent are needed for the first paint: fetched before the stylesheet asks for them. -->
     <link rel="preload" as="font" type="font/woff2" crossorigin href="./fonts/archivo-variable-latin.woff2" />
     <link rel="preload" as="font" type="font/woff2" crossorigin href="./fonts/instrument-serif-400italic-latin.woff2" />
     <link rel="stylesheet" href="./fonts/fonts.css" />
+    <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "@id": "https://flickcue.in/#site", "url": "https://flickcue.in/", "name": "FlickCue", "description": "FlickCue is a movie and TV watchlist with reminders. Save films and shows from any page, see where to watch, and keep one list on Chrome and the web.", "inLanguage": "en"}, {"@type": "WebApplication", "@id": "https://flickcue.in/#app", "name": "FlickCue", "url": "https://flickcue.in/", "description": "FlickCue is a movie and TV watchlist with reminders. Save films and shows from any page, see where to watch, and keep one list on Chrome and the web.", "applicationCategory": "EntertainmentApplication", "operatingSystem": "Any (web browser)", "browserRequirements": "Requires JavaScript and a Google account", "image": "https://flickcue.in/og-image.jpg", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "INR"}, "isPartOf": {"@id": "https://flickcue.in/#site"}}]}</script>
     <script src="./theme.js"></script>
-    <title>FlickCue — One watchlist. Everywhere.</title>
+    <title>FlickCue — Movie &amp; TV Watchlist with Reminders</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- What a crawler that doesn't run scripts reads. The app replaces it as soon as it loads. -->
+      <div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">
+        <h1>FlickCue: one watchlist for films and shows</h1>
+        <p>Save films and shows from anywhere, see what's next for the ones you're watching, and get a reminder when it's time to watch. Your list lives in your own Google Drive, and there is no account with us.</p>
+        <p><a href="https://chromewebstore.google.com/detail/flickcue-watch-later/hmgefidihfkkeleeblhecnhlkbbojmmh?hl=en">Add the FlickCue Chrome extension</a></p>
+        <nav aria-label="Guides">
+          <a href="./guides/movie-watchlist-app/">A movie and TV watchlist that follows you</a>
+          <a href="./guides/movie-release-reminders/">Get reminded when a movie or show comes out</a>
+          <a href="./guides/save-movies-from-any-page/">Save movies and shows from any website</a>
+          <a href="./guides/where-to-watch-and-cinema-showtimes/">Where to watch a movie, and what's in cinemas</a>
+          <a href="./guides/watchlist-without-an-account/">A watchlist with no account</a>
+          <a href="./privacy.html">Privacy</a>
+        </nav>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
