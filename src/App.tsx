@@ -9,7 +9,7 @@ import { closePreview, usePreview } from "./lib/preview";
 import { ToastHost } from "./components/Toast";
 import { ContactReveal } from "./components/ContactReveal";
 import { canAskExtension, preloadGoogleSignIn } from "./lib/auth";
-import { EXTENSION_URL } from "./lib/config";
+import { EXTENSION_URL, FIREFOX_EXTENSION_URL } from "./lib/config";
 import { onPhone } from "./lib/device";
 import { pauseNotice, pendingChanges } from "./lib/pending";
 import { displayTitle } from "./lib/rules";
@@ -425,7 +425,12 @@ export default function App() {
               <a className="footer-link" href="./privacy.html">Privacy</a>
               <ContactReveal label="Contact" className="footer-link" />
               {/* Not offered to a phone, or to someone who already has it. */}
-              {!onPhone() && !canAskExtension() && <a className="footer-link" href={EXTENSION_URL} target="_blank" rel="noreferrer">Chrome extension</a>}
+              {!onPhone() && !canAskExtension() && (
+                <>
+                  <a className="footer-link" href={EXTENSION_URL} target="_blank" rel="noreferrer">Chrome extension</a>
+                  <a className="footer-link" href={FIREFOX_EXTENSION_URL} target="_blank" rel="noreferrer">Firefox add-on</a>
+                </>
+              )}
               <span className="footer-chip">Android soon</span>
             </nav>
           </div>

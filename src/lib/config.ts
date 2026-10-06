@@ -25,5 +25,8 @@ export const PROXY_BASE_URL = ((import.meta.env.VITE_PROXY_URL as string | undef
 /** Where people reach the developer; the extension and the Android app show the same address. */
 export const SUPPORT_EMAIL = "support@flickcue.in";
 
+/** The FlickCue add-on's page on Firefox Add-ons. */
+export const FIREFOX_EXTENSION_URL = "https://addons.mozilla.org/en-US/firefox/addon/flickcue/";
+
 /** The FlickCue extension's Chrome Web Store page. */
 export const EXTENSION_URL = "https://chromewebstore.google.com/detail/flickcue-watch-later/hmgefidihfkkeleeblhecnhlkbbojmmh?hl=en";

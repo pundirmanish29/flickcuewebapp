@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import "../landing.css";
 import { canAskExtension } from "../lib/auth";
-import { EXTENSION_URL } from "../lib/config";
+import { EXTENSION_URL, FIREFOX_EXTENSION_URL } from "../lib/config";
+import { extensionStore } from "../lib/extensionStore";
 import { onPhone } from "../lib/device";
 import { startLandingMotion } from "../lib/landingMotion";
 import { safeImage } from "../lib/safe";
@@ -43,6 +44,7 @@ function Shot({ name, alt, eager = false }: { name: ShotName; alt: string; eager
  */
 function Actions({ tone = "light", extensionLine = false }: { tone?: "light" | "ink"; extensionLine?: boolean }) {
   const phone = onPhone();
+  const store = extensionStore();
   // Chrome only lets a page talk to an extension that is installed and lists it, so this is "already installed".
   const installed = canAskExtension();
   const [busy, setBusy] = useState(false);
@@ -78,11 +80,11 @@ function Actions({ tone = "light", extensionLine = false }: { tone?: "light" | "
           {installed ? (
             <>or <button type="button" className="l-link" onClick={() => void connect()}>sign in with Google</button></>
           ) : phone ? (
-            <>On your computer? <a href={EXTENSION_URL} target="_blank" rel="noreferrer">Add FlickCue to Chrome</a> to save from any page.</>
+            <>On your computer? Add FlickCue to <a href={EXTENSION_URL} target="_blank" rel="noreferrer">Chrome</a> or <a href={FIREFOX_EXTENSION_URL} target="_blank" rel="noreferrer">Firefox</a> to save from any page.</>
           ) : (
             <>
               <span>Want to save from any page too?</span>
-              <a className="l-ext-link" href={EXTENSION_URL} target="_blank" rel="noreferrer"><ExtensionIcon size={20} /><span>Add the Chrome extension</span></a>
+              <a className="l-ext-link" href={store.url} target="_blank" rel="noreferrer"><ExtensionIcon size={20} /><span>Add the {store.browser} extension</span></a>
             </>
           )}
         </p>
@@ -154,11 +156,11 @@ const STATEMENT = [
 // The logo's three dots, one for each step.
 const STEPS = [
   {
-    word: "Save it.", dot: "var(--green)", text: "One click on a review, a trailer or a streaming page with the Chrome extension. Or from Discover, or by hand.",
+    word: "Save it.", dot: "var(--green)", text: "One click on a review, a trailer or a streaming page with the browser extension. Or from Discover, or by hand.",
     image: <img src="./flickcue-extension-04.webp" alt="The FlickCue save card on a film page, with a Want to watch button" width={1280} height={800} loading="lazy" decoding="async" />
   },
   {
-    word: "Remember it.", dot: "var(--orange)", text: "One list, kept in your own Google Drive, the same on the web and in Chrome, and soon on Android.",
+    word: "Remember it.", dot: "var(--orange)", text: "One list, kept in your own Google Drive, the same on the web, in Chrome and in Firefox, and soon on Android.",
     image: <Shot name="queue" alt="The FlickCue queue: tonight's pick, what's due and the shows you're watching" />
   },
   {
@@ -177,11 +179,12 @@ const PHONES: { name: ShotName; label: string; alt: string }[] = [
 const FACTS = [
   { value: "0", label: "accounts with us", text: "You sign in with Google. That's all." },
   { value: "0", label: "ads or trackers", text: "No analytics, nothing watching you watch." },
-  { value: "1", label: "list, in your Drive", text: "The same on the web and in Chrome, and soon on Android." }
+  { value: "1", label: "list, in your Drive", text: "The same on the web, in Chrome and in Firefox, and soon on Android." }
 ];
 
 /** The signed-out home page: a headline over what's playing, a film's worth of scenes, and a way in. */
 export function Landing() {
+  const store = extensionStore();
   const root = useRef<HTMLDivElement>(null);
   const [dock, setDock] = useState(false);
   // Offered in the story, not next to the way in; not to phones, or to someone who already has it.
@@ -219,8 +222,8 @@ export function Landing() {
         </div>
         <p className="l-scroll" aria-hidden="true">Scroll</p>
         {offerExtension && (
-          <a className="l-ext" href={EXTENSION_URL} target="_blank" rel="noreferrer">
-            <ExtensionIcon size={20} /><span>Get the Chrome extension</span><Icon name="external" size={14} />
+          <a className="l-ext" href={store.url} target="_blank" rel="noreferrer">
+            <ExtensionIcon size={20} /><span>Get the {store.browser} extension</span><Icon name="external" size={14} />
           </a>
         )}
       </section>
@@ -259,7 +262,7 @@ export function Landing() {
                   <span className="l-step-word">{step.word}</span>
                   <p>{step.text}</p>
                   {index === 0 && offerExtension && (
-                    <p className="l-step-link"><a href={EXTENSION_URL} target="_blank" rel="noreferrer"><ExtensionIcon size={18} /> Add to Chrome</a></p>
+                    <p className="l-step-link"><a href={store.url} target="_blank" rel="noreferrer"><ExtensionIcon size={18} /> Add to {store.browser}</a></p>
                   )}
                 </div>
                 <figure className="l-step-shot">{step.image}</figure>
