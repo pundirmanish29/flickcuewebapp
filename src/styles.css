@@ -1374,6 +1374,8 @@ button.tag-link:hover { box-shadow: inset 0 0 0 1px var(--ink); }
   position: absolute; left: 8px; top: 8px; padding: 3px 8px; border-radius: 6px; background: var(--green); color: var(--on-accent);
   font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
 }
+/* Still to air: the tag is quiet, since there's nothing to do yet. */
+.new-episode.is-upcoming .new-episode-tag { background: var(--paper-surface); color: var(--ink); }
 .new-episode-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .new-episode-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
 .new-episode-head h4 { margin: 0; font-size: 17px; line-height: 1.25; overflow-wrap: anywhere; }

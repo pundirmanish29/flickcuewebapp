@@ -2,17 +2,21 @@ import { useEffect, useState } from "react";
 import { formatRuntime, readerDate, shortDay } from "../lib/rules";
 import { safeImage } from "../lib/safe";
 import { fetchEpisode, type EpisodeInfo } from "../lib/tmdb";
-import type { AiredEpisode } from "../lib/newEpisode";
+import type { UpNext } from "../lib/newEpisode";
 import { Icon } from "./Icon";
 
+const TAGS: Record<UpNext["state"], string> = { next: "Up next", new: "New", upcoming: "Next" };
+
 /**
- * The latest aired episode, kept at the top of a followed show's progress until
- * it's watched or put away: its still, name, rating and summary, fetched as the
- * sheet opens.
+ * The episode to watch next, kept at the top of a followed show's progress: its
+ * still, name, rating and summary, fetched as the sheet opens. An aired one can
+ * be ticked off or put away; one still to air says when it does.
  */
-export function NewEpisodeCard({ tmdbId, air, onWatched, onDismiss }: {
+export function NewEpisodeCard({ tmdbId, air, fallbackImage = "", onWatched, onDismiss }: {
   tmdbId: string | undefined;
-  air: AiredEpisode;
+  air: UpNext;
+  /** The show's own backdrop, for an episode TMDB has no still for yet (often one still to air). */
+  fallbackImage?: string;
   onWatched: () => void;
   onDismiss: () => void;
 }) {
@@ -29,16 +33,20 @@ export function NewEpisodeCard({ tmdbId, air, onWatched, onDismiss }: {
     };
   }, [tmdbId, air.season, air.episode]);
 
-  const still = safeImage(info?.still);
+  const still = safeImage(info?.still) || (info ? safeImage(fallbackImage) : "");
   const name = info?.name || air.name;
-  const aired = new Date(`${readerDate(air.date)}T20:00:00`).getTime();
-  const meta = [info?.runtimeMinutes ? formatRuntime(info.runtimeMinutes) : "", shortDay(aired, Date.now(), false)].filter(Boolean).join(" · ");
+  // A caught-up episode comes without its date; the episode lookup has it.
+  const date = air.date || info?.airDate || "";
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(date) ? shortDay(new Date(`${readerDate(date)}T20:00:00`).getTime(), Date.now(), false) : "";
+  const upcoming = air.state === "upcoming";
+  const when = upcoming && day ? `Airs ${day === "Today" || day === "Tomorrow" ? day.toLowerCase() : day}` : day;
+  const meta = [info?.runtimeMinutes ? formatRuntime(info.runtimeMinutes) : "", when].filter(Boolean).join(" · ");
 
   return (
-    <article className="new-episode" aria-label={`New episode: season ${air.season} episode ${air.episode}`}>
+    <article className={`new-episode is-${air.state}`} aria-label={`${TAGS[air.state]} episode: season ${air.season} episode ${air.episode}`}>
       <div className={`new-episode-still ${still && !stillFailed ? "" : "is-empty"}`}>
         {still && !stillFailed && <img src={still} alt="" loading="lazy" decoding="async" onError={() => setStillFailed(true)} />}
-        <span className="new-episode-tag">New · S{air.season} E{air.episode}</span>
+        <span className="new-episode-tag">{TAGS[air.state]} · S{air.season} E{air.episode}</span>
       </div>
       <div className="new-episode-body">
         <div className="new-episode-head">
@@ -47,12 +55,14 @@ export function NewEpisodeCard({ tmdbId, air, onWatched, onDismiss }: {
         </div>
         {meta && <p className="new-episode-meta">{meta}</p>}
         {info?.overview && <p className="new-episode-overview">{info.overview}</p>}
-        <div className="new-episode-actions">
-          <button type="button" className="chip-button new-episode-watched" onClick={onWatched}>
-            <Icon name="check" size={14} /> Watched
-          </button>
-          <button type="button" className="chip-button ghost" onClick={onDismiss}>Not now</button>
-        </div>
+        {!upcoming && (
+          <div className="new-episode-actions">
+            <button type="button" className="chip-button new-episode-watched" onClick={onWatched}>
+              <Icon name="check" size={14} /> Watched
+            </button>
+            <button type="button" className="chip-button ghost" onClick={onDismiss}>Not now</button>
+          </div>
+        )}
       </div>
     </article>
   );

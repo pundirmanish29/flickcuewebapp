@@ -54,6 +54,72 @@ export function newEpisodeFor(
   return last;
 }
 
+export interface UpNext extends AiredEpisode {
+  /**
+   * "next": the one after the furthest watched, aired, while catching up;
+   * "new": the latest aired episode; "upcoming": caught up, so the next one
+   * to air, which can't be ticked off yet.
+   */
+  state: "next" | "new" | "upcoming";
+}
+
+const order = (season: number, episode: number) => season * 10000 + episode;
+
+/** The furthest episode the reader has ticked off ("6:2" → season 6, episode 2), specials aside. */
+function furthestWatched(movie: Movie): { season: number; episode: number } | null {
+  let best: { season: number; episode: number } | null = null;
+  for (const key of movie.personal?.episodes ?? []) {
+    const [season, episode] = key.split(":").map(Number);
+    if (!(season > 0 && episode > 0)) continue;
+    if (!best || order(season, episode) > order(best.season, best.episode)) best = { season, episode };
+  }
+  return best;
+}
+
+/**
+ * The episode a followed show's reader should see next, in order of use: the
+ * one after the furthest they've watched when it has aired (catching up), else
+ * the latest aired one (as newEpisodeFor), else, once they're caught up, the
+ * next one to air. Null when the show isn't being followed or nothing is known.
+ */
+export function upNextEpisode(
+  movie: Movie,
+  last: AiredEpisode | null | undefined,
+  next: AiredEpisode | null | undefined,
+  dismissed: readonly string[],
+  now = Date.now()
+): UpNext | null {
+  if (!isStartedShow(movie)) return null;
+  const today = localIsoDate(now);
+  const seen = new Set(movie.personal?.episodes ?? []);
+  const unwatched = (air: { season: number; episode: number }) => !seen.has(`${air.season}:${air.episode}`);
+  const lastAired = last && readerDate(last.date) <= today ? last : null;
+
+  // Catching up: the episode after the furthest watched, if it has aired and hasn't been put away.
+  const furthest = furthestWatched(movie);
+  if (furthest && lastAired) {
+    const count = movie.seasons?.find((season) => season.number === furthest.season)?.episodes
+      ?? (lastAired.season === furthest.season ? lastAired.episode : 0);
+    const after = furthest.episode < Number(count)
+      ? { season: furthest.season, episode: furthest.episode + 1 }
+      : movie.seasons?.some((season) => season.number === furthest.season + 1) || lastAired.season > furthest.season
+        ? { season: furthest.season + 1, episode: 1 }
+        : null;
+    const isLast = after && after.season === lastAired.season && after.episode === lastAired.episode;
+    if (after && !isLast && order(after.season, after.episode) < order(lastAired.season, lastAired.episode)
+      && unwatched(after) && !dismissed.includes(episodeKey(movie.id, after.season, after.episode))) {
+      return { ...after, name: "", date: "", state: "next" };
+    }
+  }
+
+  const fresh = newEpisodeFor(movie, last, dismissed, now);
+  if (fresh) return { ...fresh, state: "new" };
+
+  // Caught up: the next one to air (TMDB's "last" can still be tomorrow on the reader's calendar).
+  const coming = [last, next].find((air) => air && readerDate(air.date) > today && unwatched(air));
+  return coming ? { ...coming, state: "upcoming" } : null;
+}
+
 export interface TonightEntry {
   movie: Movie;
   season: number;

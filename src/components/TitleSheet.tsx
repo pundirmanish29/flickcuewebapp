@@ -18,7 +18,7 @@ import { Popover, ReminderChoices } from "./ReminderMenu";
 import { providerLink, splitChannel } from "../lib/providers";
 import { regionName } from "../lib/cinemas";
 import { writeBack } from "../lib/showSync";
-import { dismissEpisode, episodeKey, newEpisodeFor, readDismissed } from "../lib/newEpisode";
+import { dismissEpisode, episodeKey, readDismissed, upNextEpisode } from "../lib/newEpisode";
 import { NewEpisodeCard } from "./NewEpisodeCard";
 import { Seasons } from "./Seasons";
 import { RatingScore } from "./RatingScore";
@@ -219,8 +219,8 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
   const reminderActive = hasActiveReminder(movie);
   const backdrop = safeImage(details?.backdrop) || safeImage(upscale(movie.backdrop, "w1280"));
   const progress = seasonProgress(movie);
-  // The latest aired episode stays up here until it is ticked off or put away.
-  const newEpisode = isSaved && isShow(movie) ? newEpisodeFor(movie, details?.lastEpisode, dismissedEpisodes) : null;
+  // The episode to watch next stays up here: the next one while catching up, the latest aired, or, once caught up, the next to air.
+  const newEpisode = isSaved && isShow(movie) ? upNextEpisode(movie, details?.lastEpisode, details?.nextEpisode, dismissedEpisodes) : null;
   const imdbRating = Number(movie.imdbRating) || 0;
   const imdbId = safeImdbId(details?.imdbId) || safeImdbId(movie.imdbId);
   const show = isShow(movie);
@@ -537,6 +537,7 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
                   <NewEpisodeCard
                     tmdbId={movie.tmdbId}
                     air={newEpisode}
+                    fallbackImage={backdrop}
                     onWatched={() => actions.toggleEpisode(movie.id, newEpisode.season, newEpisode.episode)}
                     onDismiss={() => setDismissedEpisodes(dismissEpisode(episodeKey(movie.id, newEpisode.season, newEpisode.episode)))}
                   />
