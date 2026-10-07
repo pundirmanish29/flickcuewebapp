@@ -131,7 +131,8 @@ function pickSeats(lines: string[]): string[] {
   const seats: string[] = [];
   lines.forEach((text, line) => {
     // "Row H Seats 5, 6"
-    const row = /\brow\s*[:\-]?\s*([A-Z]{1,2})\b[,\s]*seats?\s*(?:no\.?)?\s*[:\-]?\s*((?:\d{1,3}\s*(?:,|&|and|\s)\s*)*\d{1,3})/i.exec(text);
+    // Text recognition reads the commas between seat numbers as ; or . often enough to allow them.
+    const row = /\brow\s*[:\-]?\s*([A-Z]{1,2})\b[,;\s]*seats?\s*(?:no\.?)?\s*[:\-]?\s*((?:\d{1,3}\s*(?:,|;|\.|\/|&|and|\s)\s*)*\d{1,3})/i.exec(text);
     if (row) {
       for (const n of row[2].match(/\d{1,3}/g) ?? []) seats.push(`${row[1].toUpperCase()}${Number(n)}`);
       return;
