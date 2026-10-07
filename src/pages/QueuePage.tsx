@@ -4,6 +4,7 @@ import { CalendarMark } from "../components/CalendarMark";
 import { Poster } from "../components/Poster";
 import { TitleCard } from "../components/TitleCard";
 import { TonightStrip } from "../components/TonightStrip";
+import { ScrollArrows } from "../components/ScrollArrows";
 import { airingToday, readDismissed, upNextEpisode } from "../lib/newEpisode";
 import * as actions from "../lib/actions";
 import {
@@ -126,6 +127,10 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   const [skip, setSkip] = useState(0);
   const [limit, setLimit] = useState(PAGE);
   const [adding, setAdding] = useState(false);
+  // The three rows above the grid scroll sideways; a mouse gets arrows (ScrollArrows), a finger swipes.
+  const dueRow = useRef<HTMLUListElement>(null);
+  const watchingRow = useRef<HTMLUListElement>(null);
+  const radarRow = useRef<HTMLUListElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   useSwap(gridRef, `${kind}:${sort}`);
 
@@ -288,14 +293,20 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
           <div className="wrap rails-grid">
             {(alsoDue.length > 0 || onTonight.length > 0) && (
               <div className="rail" aria-labelledby="also-due-title">
-                <h2 id="also-due-title" className="section-title">{due.heroDue ? "Also due today" : "Due today"} <span className="count">{due.remaining}</span></h2>
-                <TonightStrip entries={onTonight} reminders={alsoDue} onOpen={onOpen} embedded />
+                <div className="rail-head">
+                  <h2 id="also-due-title" className="section-title">{due.heroDue ? "Also due today" : "Due today"} <span className="count">{due.remaining}</span></h2>
+                  <ScrollArrows target={dueRow} label={due.heroDue ? "Also due today" : "Due today"} watch={due.remaining} />
+                </div>
+                <TonightStrip entries={onTonight} reminders={alsoDue} onOpen={onOpen} embedded listRef={dueRow} />
               </div>
             )}
             {watching.length > 0 && (
               <div className="rail" aria-labelledby="watching-title">
-                <h2 id="watching-title" className="section-title">Continue watching <span className="count">{watching.length}</span></h2>
-                <ul className="radar-list">
+                <div className="rail-head">
+                  <h2 id="watching-title" className="section-title">Continue watching <span className="count">{watching.length}</span></h2>
+                  <ScrollArrows target={watchingRow} label="Continue watching" watch={watching.length} />
+                </div>
+                <ul className="radar-list" ref={watchingRow}>
                 {watching.map(({ movie, label, detail, tone }) => {
                   const progress = seasonProgress(movie).filter((season) => season.seen > 0).at(-1);
                   return (
@@ -317,8 +328,11 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
             )}
             {radar.length > 0 && (
               <div className="rail" aria-labelledby="radar-title">
-                <h2 id="radar-title" className="section-title">Upcoming</h2>
-                <ul className="radar-list">
+                <div className="rail-head">
+                  <h2 id="radar-title" className="section-title">Upcoming</h2>
+                  <ScrollArrows target={radarRow} label="Upcoming" watch={radar.length} />
+                </div>
+                <ul className="radar-list" ref={radarRow}>
                 {radar.map(({ movie, at }) => (
                   <li key={movie.id}>
                     <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>

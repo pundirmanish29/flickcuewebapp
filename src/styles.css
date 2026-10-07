@@ -626,6 +626,7 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 /* Also due, Watching and On your radar: stacked on a phone, side by side when there's room. */
 .rails-grid { display: grid; gap: clamp(24px, 3vw, 32px); }
 .rail { min-width: 0; }
+.rail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 @media (min-width: 901px) {
   .rails-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); column-gap: 40px; }
   .rails-grid .radar-list { margin: 16px 0 0; padding: 0 0 8px; scroll-padding: 0; }
