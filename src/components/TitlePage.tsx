@@ -11,6 +11,7 @@ import { editNoteDraft, noteDraft, noteSavePlan, reconcileNoteDraft } from "../l
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { FilmShowtimes } from "./Showtimes";
 import { TicketPanel, hasTicketFile, type TicketHandle } from "./TicketPanel";
+import { EpisodeStrip, SeriesProgress, UpNextRow } from "./ShowProgress";
 import { cinemaKey, fetchCandidate, fetchDetails, genreIdFor, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
 import type { Candidate, Movie } from "../lib/types";
 import { CandidateCard } from "./CandidateCard";
@@ -350,6 +351,10 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     : null;
 
   const episodesSeen = progress.reduce((sum, season) => sum + season.seen, 0);
+  const episodesTotal = progress.reduce((sum, season) => sum + season.total, 0);
+  // An aired episode to watch next: it leads the stub (still, name, length) and opens the season strip below.
+  const episodeAction = isSaved && !movie.watched && show && newEpisode && newEpisode.state !== "upcoming" ? newEpisode : null;
+  const nextSeason = episodeAction ? progress.find((season) => season.number === episodeAction.season) : undefined;
   const seasons = details?.seasonCount ? `${details.seasonCount} season${details.seasonCount === 1 ? "" : "s"}` : "";
   const statusNamesSeasons = /\bseasons?\b/i.test(status?.text || "");
   const facts = show && details?.seasonCount
@@ -384,15 +389,18 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     movie, saved: isSaved, show, unreleased,
     releaseDate: show ? details?.releaseDate || movie.releaseDate || "" : details?.regionalRelease || movie.releaseDate || "",
     provider,
-    upNext: newEpisode && newEpisode.state !== "upcoming" ? `S${newEpisode.season} E${newEpisode.episode}` : "",
+    // The up-next row in the stub says it, with the episode's name; a field would repeat it.
+    upNext: "",
     length: show ? seasons : formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes),
     now: Date.now()
   });
   const providerName = provider ? splitChannel(provider.name)[0] : "";
   // Every service, beside the title, unless the stub's main button already is the only one.
   const providerCount = (details?.streaming.length ?? 0) + (details?.rentOrBuy.length ?? 0);
-  const episodeAction = isSaved && !movie.watched && show && newEpisode && newEpisode.state !== "upcoming" ? newEpisode : null;
-  const watchOnShown = providerCount > 1 || (providerCount === 1 && (episodeAction || (stub.primary !== "watch" && stub.primary !== "watchAgain")));
+  // With somewhere to watch it, the next episode's main button plays it there and its tick sits in the up-next row.
+  const watchEpisode = episodeAction && provider ? episodeAction : null;
+  const primaryWatches = Boolean(watchEpisode) || stub.primary === "watch" || stub.primary === "watchAgain";
+  const watchOnShown = providerCount > 1 || (providerCount === 1 && !primaryWatches);
   const watchHref = provider ? providerLink(provider.name, movie.title) : "";
 
   const openChoices = (fromBar = false) => {
@@ -417,7 +425,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
       watchAgain: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? "Watch again" : `Watch again on ${providerName}`}</StubButton>,
       none: null
     };
-    if (isSaved && !movie.watched && show && newEpisode && newEpisode.state !== "upcoming") return <StubButton kind="primary" icon="check" onClick={() => actions.toggleEpisode(movie.id, newEpisode.season, newEpisode.episode)}>{fromBar ? `Watched S${newEpisode.season} E${newEpisode.episode}` : `Mark S${newEpisode.season} E${newEpisode.episode} watched`}</StubButton>;
+    if (watchEpisode) return <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : `${provider?.included ? "Watch" : "Rent"} S${watchEpisode.season} E${watchEpisode.episode} on ${providerName}`}</StubButton>;
+    if (episodeAction) return <StubButton kind="primary" icon="check" onClick={() => actions.toggleEpisode(movie.id, episodeAction.season, episodeAction.episode)}>{fromBar ? `Watched S${episodeAction.season} E${episodeAction.episode}` : `Mark S${episodeAction.season} E${episodeAction.episode} watched`}</StubButton>;
     if (show && stub.primary === "watched") return <StubButton kind="primary" icon="play" onClick={() => document.getElementById("episode-progress")?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" })}>Episode progress</StubButton>;
     return map[stub.primary];
   };
@@ -540,6 +549,16 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
               </dl>
             )}
             {reminderActive && !movie.watched && <CalendarMark movie={movie} label />}
+            {isSaved && show && !movie.watched && episodesSeen > 0 && episodesTotal > 0 && <SeriesProgress seen={episodesSeen} total={episodesTotal} />}
+            {episodeAction && (
+              <UpNextRow
+                tmdbId={movie.tmdbId}
+                air={episodeAction}
+                fallbackImage={backdrop}
+                tick={Boolean(watchEpisode)}
+                onWatched={() => actions.toggleEpisode(movie.id, episodeAction.season, episodeAction.episode)}
+              />
+            )}
             {primary("stub")}
             {secondary.length > 0 && (
               <div className="tp-secondary" onClickCapture={(event) => pop((event.target as Element).closest(".tp-button"))}>{secondary}</div>
@@ -616,7 +635,16 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
           {isSaved && show && (
             <section className="sheet-section" id="episode-progress">
               {!progress.length && !newEpisode && <p className="muted">Episode information isn't available for this show yet.</p>}
-              {newEpisode && (
+              {episodeAction && movie.tmdbId && (
+                <EpisodeStrip
+                  movie={movie}
+                  season={episodeAction.season}
+                  seasonName={nextSeason?.name}
+                  upNext={episodeAction.episode}
+                  onDismiss={() => setDismissedEpisodes(dismissEpisode(episodeKey(movie.id, episodeAction.season, episodeAction.episode)))}
+                />
+              )}
+              {newEpisode && !(episodeAction && movie.tmdbId) && (
                 <>
                   <h2 className="section-label">Episode progress</h2>
                   <NewEpisodeCard
@@ -628,7 +656,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
                   />
                 </>
               )}
-              {progress.length > 0 && <Seasons movie={movie} info={details?.seasons} nested={Boolean(newEpisode)} />}
+              {progress.length > 0 && <Seasons movie={movie} info={details?.seasons} nested={Boolean(newEpisode) && !(episodeAction && movie.tmdbId)} />}
             </section>
           )}
 
