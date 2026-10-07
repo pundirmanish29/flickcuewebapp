@@ -19,7 +19,7 @@ export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.app.crea
 // there arrives signed in here. The Chrome Web Store build first, then the
 // unpacked one, whose id is pinned by the "key" in its manifest.
 export const EXTENSION_IDS = ["hmgefidihfkkeleeblhecnhlkbbojmmh", "jojcdljmjbgkpakaacobgnpcfmcambaa"];
-export const PROXY_BASE_URL = ((import.meta.env.VITE_PROXY_URL as string | undefined)?.trim() || "https://flickcue-proxy.manishpundir29.workers.dev").replace(/\/+$/, "");
+export const PROXY_BASE_URL = ((import.meta.env.VITE_PROXY_URL as string | undefined)?.trim() || "https://api.flickcue.in").replace(/\/+$/, "");
 
 
 /** Where people reach the developer; the extension and the Android app show the same address. */

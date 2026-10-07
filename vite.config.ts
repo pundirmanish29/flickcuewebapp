@@ -7,7 +7,7 @@ import pkg from "./package.json";
 // domain root or from a GitHub Pages project path. Routing is hash-based for
 // the same reason: no host needs a rewrite rule.
 const env = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
-const PROXY = (env.VITE_PROXY_URL || "https://flickcue-proxy.manishpundir29.workers.dev").replace(/\/+$/, "");
+const PROXY = (env.VITE_PROXY_URL || "https://api.flickcue.in").replace(/\/+$/, "");
 
 /**
  * The page's security policy, as a meta tag (GitHub Pages can't send headers),
