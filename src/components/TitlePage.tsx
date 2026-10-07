@@ -564,7 +564,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
                   />
                 </>
               )}
-              {progress.length > 0 && <Seasons movie={movie} info={details?.seasons} />}
+              {progress.length > 0 && <Seasons movie={movie} info={details?.seasons} nested={Boolean(newEpisode)} />}
             </section>
           )}
 
