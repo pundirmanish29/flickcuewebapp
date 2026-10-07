@@ -9,7 +9,8 @@ import * as actions from "../lib/actions";
 import { alertSupport } from "../lib/alerts";
 import { pop, useSwap } from "../lib/motion";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
-import { formatRelativeDay } from "../lib/rules";
+import { displayTitle, formatRelativeDay, formatReminder, formatShowTime } from "../lib/rules";
+import { comingUp, type ComingUp } from "../lib/comingUp";
 import { useAppState } from "../lib/store";
 import { upscale } from "../lib/tmdb";
 
@@ -139,6 +140,33 @@ function dismissWithUndo(item: FlickNotification) {
   toast(`Dismissed ${item.title}`, { label: "Undo", run: () => undismiss(item.id) });
 }
 
+/** What's ahead: reminders set for the coming week and shows you have tickets for. Quieter than a notification; nothing to do yet. */
+function ComingUpList({ entries, onOpen }: { entries: ComingUp[]; onOpen: (id: string) => void }) {
+  const now = Date.now();
+  return (
+    <section className="coming-up" aria-labelledby="coming-up-title">
+      <h2 id="coming-up-title" className="notifications-group">Coming up <span className="count">{entries.length}</span></h2>
+      <ul className="coming-list">
+        {entries.map(({ movie, kind, at }) => (
+          <li key={movie.id}>
+            <button type="button" className="coming-item" onClick={() => onOpen(movie.id)}>
+              <Poster src={upscale(movie.poster, "w185")} title={movie.title} className="coming-poster" />
+              <span className="coming-text">
+                <b>{displayTitle(movie)}</b>
+                <span className={`coming-when kind-${kind}`}>
+                  <Icon name={kind === "booking" ? "ticket" : "clock"} size={13} />
+                  {kind === "booking" ? `Booked · ${formatShowTime(at, now)}` : `Reminder ${formatReminder(at, now)}`}
+                </span>
+                {kind === "booking" && movie.booking?.cinema && <span className="coming-sub">{movie.booking.cinema}</span>}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function NotificationList({ items, unread, onOpen }: { items: FlickNotification[]; unread: boolean; onOpen: (id: string) => void }) {
   const { library } = useAppState();
   const now = Date.now();
@@ -248,6 +276,7 @@ export function NotificationsPage({ onOpen }: { onOpen: (id: string) => void }) 
   const fresh = shown.filter((item) => item.at > seenBefore).sort(byShown);
   const seen = byDay(shown.filter((item) => item.at <= seenBefore), now);
   const older = olderReminders(library.movies, now);
+  const ahead = useMemo(() => comingUp(library.movies, now), [library.movies, Math.floor(now / 60000)]);
 
   return (
     <>
@@ -260,7 +289,10 @@ export function NotificationsPage({ onOpen }: { onOpen: (id: string) => void }) 
       <div className="wrap notifications-wrap">
         <AlertsPrompt />
 
-        {items.length === 0 ? (
+        {items.length === 0 && ahead.length > 0 ? (
+          // Nothing has gone off yet, but things are set: a line, and the list of them below.
+          <p className="notifications-quiet">Nothing new yet. When something below comes due, or a show you watch has a new episode, it shows up here.</p>
+        ) : items.length === 0 ? (
           <div className="notifications-empty">
             <span className="notifications-empty-icon"><Icon name="bell" size={26} /></span>
             <h2>You're all caught up</h2>
@@ -298,6 +330,7 @@ export function NotificationsPage({ onOpen }: { onOpen: (id: string) => void }) 
             </div>
           </>
         )}
+        {ahead.length > 0 && <ComingUpList entries={ahead} onOpen={onOpen} />}
         {older > 0 && (
           <p className="notifications-older">
             <a href="#/">{older} older reminder{older === 1 ? " is" : "s are"} still due in your queue</a>

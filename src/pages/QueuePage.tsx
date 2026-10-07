@@ -201,10 +201,15 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   const shownAbove = useMemo(() => new Set([
     tonight?.id, ...alsoDue.map((movie) => movie.id), ...onTonight.map(entry => entry.movie.id), ...watching.map((entry) => entry.movie.id), ...radar.map((entry) => entry.movie.id)
   ].filter(Boolean) as string[]), [tonight?.id, alsoDue, onTonight, watching, radar]);
+  const searching = Boolean(query.trim());
   const matches = queue.filter((movie) => (kind === "airing" ? isAiring(movie) : matchesKind(movie, kind)) && matchesSearch(movie, query));
   const visible = sortMovies(query ? matches : matches.filter((movie) => !shownAbove.has(movie.id)), sort);
   const skipped = matches.length - visible.length;
   useEffect(() => setLimit(PAGE), [kind, sort, query]);
+  // Starting a search from further down the page brings its matches into view.
+  useEffect(() => {
+    if (searching) window.scrollTo({ top: 0 });
+  }, [searching]);
 
   const changeSort = (mode: SortMode) => updateSettings({ sort: mode });
 
@@ -213,6 +218,9 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
       {!sync.connected ? (
         // Dark while it loads, so the light theme's paper doesn't flash before it.
         <Suspense fallback={<div className="landing landing-loading" />}><Landing /></Suspense>
+      ) : searching ? (
+        // Searching: the matches lead, under a plain heading; the pick and the rows step aside until it's cleared.
+        <PageHeader title="Your queue" meta={`${matches.length} ${matches.length === 1 ? "title matches" : "titles match"} “${query.trim()}”`} className="queue-search-head" />
       ) : tonight ? (
         <h1 className="visually-hidden">What are we watching?</h1>
       ) : (
@@ -222,7 +230,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
         />
       )}
 
-      {sync.connected && tonight && (
+      {sync.connected && tonight && !searching && (
         <section className="band tonight">
           <div
             className={`tonight-media ${!tonightBackdrop && safeImage(tonight.poster) ? "poster-only" : ""}`}
@@ -287,7 +295,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
 
 
 
-      {sync.connected && (alsoDue.length > 0 || onTonight.length > 0 || watching.length > 0 || radar.length > 0) && (
+      {sync.connected && !searching && (alsoDue.length > 0 || onTonight.length > 0 || watching.length > 0 || radar.length > 0) && (
         // Side by side on a wide screen: each row is short, and a band each would be mostly empty.
         <section className="paper radar rails">
           <div className="wrap rails-grid">
@@ -380,7 +388,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
       {sync.connected && queue.length > 0 && <section className="paper titles queue-titles" id="titles" tabIndex={-1}>
         <div className="wrap">
           <div className="toolbar">
-            <h2 className="section-title">Queue <span className="count">{matches.length}</span></h2>
+            <h2 className="section-title">{searching ? "Matches" : "Queue"} <span className="count">{matches.length}</span></h2>
             <div className="segmented" role="group" aria-label="Show">
               {(["all", "movie", "tv", "airing"] as QueueFilter[]).map((value) => (
                 <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>

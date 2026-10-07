@@ -853,6 +853,21 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 .notifications-group .count { font-family: var(--font-mono); font-style: normal; font-size: 13px; letter-spacing: 0; color: var(--muted); }
 .notifications-group.is-new { color: var(--orange-ink); }
 
+/* Coming up (NotificationsPage): what's set for the week ahead, quieter than a notification. */
+.coming-up { margin-top: var(--space-l); }
+.notifications-quiet { margin: var(--space-m) 0 0; color: var(--ink-soft); font-size: 16px; line-height: 1.5; }
+.notifications-quiet + .coming-up { margin-top: var(--space-m); }
+.coming-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); column-gap: 24px; }
+.coming-list li { border-bottom: 1px dashed var(--rule); }
+.coming-item { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 72px; padding: 10px 2px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.coming-poster { width: 40px; flex: none; border-radius: 8px; }
+.coming-poster.poster-placeholder { font-size: 12px; }
+.coming-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.coming-text b { font-size: 15px; font-weight: 700; line-height: 1.25; }
+.coming-when { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
+.coming-when.kind-booking { color: var(--green-ink); font-weight: 600; }
+.coming-sub { color: var(--muted); font-size: 12px; }
+@media (hover: hover) { .coming-item:hover b { text-decoration: underline; text-underline-offset: 3px; } }
 .notification-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); }
 .notification {
   display: flex; align-items: center; gap: 8px; padding: 12px; border-radius: 22px; background: var(--paper-surface); box-shadow: inset 0 0 0 1px var(--rule);

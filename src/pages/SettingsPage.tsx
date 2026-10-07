@@ -13,7 +13,7 @@ import { ContactReveal } from "../components/ContactReveal";
 import { alertSupport } from "../lib/alerts";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import { useTheme, type ThemeChoice } from "../lib/theme";
-import { REGIONS } from "../lib/regions";
+import { LANGUAGES, REGIONS } from "../lib/regions";
 import type { LibraryDocument } from "../lib/types";
 import { backupPreview } from "../lib/backupPreview";
 
@@ -303,7 +303,7 @@ function RegionAndCity() {
 
   return (
     <article className="card">
-      <h2>Region &amp; city</h2>
+      <h2>Region, city &amp; language</h2>
       <div className="field-stack">
         <label>
           <span className="field-label">Streaming region</span>
@@ -345,6 +345,14 @@ function RegionAndCity() {
               <> <button type="button" className="inline-link" onClick={() => { setTypingCity(false); updateSettings({ city: "" }); }}>Pick from the list</button></>
             )}
           </span>
+        </label>
+        {/* Also in the profile menu; Settings holds every preference. */}
+        <label>
+          <span className="field-label">Title language</span>
+          <select value={settings.language ?? "en-US"} onChange={(event) => updateSettings({ language: event.target.value })}>
+            {LANGUAGES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+          </select>
+          <span className="hint">The language of titles, overviews and taglines, where TMDB has it.</span>
         </label>
       </div>
     </article>

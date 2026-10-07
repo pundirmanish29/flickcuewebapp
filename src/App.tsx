@@ -32,7 +32,8 @@ const SITE_TITLE = "FlickCue — One watchlist. Everywhere.";
 const PAGE_TITLES: Record<Route, string> = { queue: "Queue", discover: "Discover", watched: "Watched", settings: "Settings", notifications: "Notifications" };
 
 const AUTHENTICATED_ROUTES = new Set<Route>(["discover", "watched", "settings", "notifications"]);
-// Pages whose lists the header search filters (Discover searches everything).
+// Pages whose lists the header search filters (Discover searches everything). Elsewhere the box
+// is still there, so the header keeps its shape, and typing in it searches your queue.
 const SEARCHABLE = new Set<Route>(["queue", "discover", "watched"]);
 // A #/title/<id> link followed while signed out (the extension's "Notes &
 // progress" link, say), kept for this tab and opened once signing in has
@@ -192,6 +193,8 @@ export default function App() {
   const requestedRoute = useHashRoute();
   const { library, sync, settings } = useAppState();
   const [query, setQuery] = useState("");
+  // A search typed on a page with nothing to filter, kept through the move to the queue.
+  const carryQuery = useRef<string | null>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   // On phones search is an icon until tapped; with text in it, it stays open.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -274,8 +277,10 @@ export default function App() {
 
   useEffect(() => {
     sessionStorage.setItem("flickcue.lastRoute", route);
-    setQuery("");
-    setSearchOpen(false);
+    const carried = carryQuery.current;
+    carryQuery.current = null;
+    setQuery(carried ?? "");
+    setSearchOpen(Boolean(carried));
     closePreview();
     window.scrollTo({ top: 0 });
   }, [route]);
@@ -338,7 +343,7 @@ export default function App() {
               ))}
             </nav>
           )}
-          {SEARCHABLE.has(route) && sync.connected && (
+          {sync.connected && (
             <button
               type="button"
               className="header-icon search-back"
@@ -351,7 +356,7 @@ export default function App() {
               <Icon name="back" size={21} />
             </button>
           )}
-          {SEARCHABLE.has(route) && sync.connected && (
+          {sync.connected && (
             <label className="search">
               <Icon name="search" size={16} />
               <span className="visually-hidden">Search</span>
@@ -359,7 +364,13 @@ export default function App() {
                 ref={searchInput}
                 type="search"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  if (!SEARCHABLE.has(route) && event.target.value) {
+                    carryQuery.current = event.target.value;
+                    location.hash = "#/";
+                  }
+                  setQuery(event.target.value);
+                }}
                 onKeyDown={(event) => {
                   if (event.key !== "Escape") return;
                   setQuery("");
@@ -384,7 +395,7 @@ export default function App() {
           )}
           {/* The theme switch lives in the account menu once signed in. */}
           {!sync.connected && <ThemeToggle />}
-          {SEARCHABLE.has(route) && sync.connected && (
+          {sync.connected && (
             <button
               type="button"
               className="header-icon search-open"
