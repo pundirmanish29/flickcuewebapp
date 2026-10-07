@@ -6,6 +6,11 @@ export interface StoreLink {
 }
 
 /** Where to get the extension for the browser this is: Firefox's add-ons page in Firefox, the Chrome Web Store otherwise (Chrome and Edge both install from it). */
+/** The other store, offered beside the main one so people know FlickCue isn't only for their browser. */
+export function otherStore(store: StoreLink): StoreLink {
+  return store.browser === "Firefox" ? { browser: "Chrome", url: EXTENSION_URL } : { browser: "Firefox", url: FIREFOX_EXTENSION_URL };
+}
+
 export function extensionStore(userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent): StoreLink {
   return /firefox/i.test(userAgent) && !/seamonkey/i.test(userAgent)
     ? { browser: "Firefox", url: FIREFOX_EXTENSION_URL }
