@@ -217,8 +217,8 @@ const STREAM_KEY = "flickcue.discoverStream";
 const BROWSE_LISTS: { id: string; title: string }[] = [
   { id: "trending", title: "Trending" },
   { id: "trending-shows", title: "Top 10 shows" },
-  { id: "now-playing", title: "In cinemas" },
   { id: "upcoming", title: "Coming soon" },
+  { id: "now-playing", title: "In cinemas" },
   { id: "to-rent", title: "New to rent" },
   { id: "hidden-gems", title: "Hidden gems" },
   { id: "popular-films", title: "Popular films" },
@@ -242,11 +242,11 @@ const readStream = (): string => {
 };
 
 /**
- * The top of Discover: what's in cinemas now or coming soon, as ordinary posters.
- * The two lists share one row, switched by the pair of buttons that is its heading.
+ * The top of Discover: what's coming soon or in cinemas now, as ordinary posters.
+ * The two lists share one row, switched by the pair of buttons that is its heading; coming soon shows first.
  */
 function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved: Set<string>; onOpen: (id: string) => void; onSeeAll: (list: string) => void }) {
-  const [mode, setMode] = useState<"now" | "soon">("now");
+  const [chosen, setMode] = useState<"now" | "soon">("soon");
   const [lists, setLists] = useState<Record<"now" | "soon", Candidate[] | null>>({ now: null, soon: null });
 
   useEffect(() => {
@@ -263,6 +263,8 @@ function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved:
     };
   }, [region]);
 
+  // Nothing coming soon in this region: show what's in cinemas instead of an empty row.
+  const mode = chosen === "soon" && lists.soon?.length === 0 && lists.now?.length ? "now" : chosen;
   // Films you haven't saved come first: the row is for finding something, and the rest follow, ticked.
   const items = lists[mode]
     ? [...lists[mode]!.filter((item) => !saved.has(item.key)), ...lists[mode]!.filter((item) => saved.has(item.key))].slice(0, 12)
@@ -274,8 +276,8 @@ function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved:
       bare
       heading={
         <div className="segmented" role="group" aria-label="At the cinema">
-          <button type="button" aria-pressed={mode === "now"} onClick={() => setMode("now")}>In cinemas</button>
           <button type="button" aria-pressed={mode === "soon"} onClick={() => setMode("soon")}>Coming soon</button>
+          <button type="button" aria-pressed={mode === "now"} onClick={() => setMode("now")}>In cinemas</button>
         </div>
       }
       items={items}
@@ -523,14 +525,14 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
             </div>
           )}
 
-          {/* Discover: the cinema first, then streaming and renting, then more picks; every other list is at the bottom. */}
+          {/* Discover: the cinema first, then renting and streaming, then more picks; every other list is at the bottom. */}
           {root && (
             <>
               <CinemaRow region={region} saved={saved} onOpen={onOpen} onSeeAll={setList} />
-              <StreamingRow region={region} streams={streams} saved={saved} onOpen={onOpen} onSeeAll={setList} />
               {(!rentalItems || rentalItems.length > 0) && (
                 <Row title="New to rent" items={rentalItems} onOpen={onOpen} onSeeAll={() => setList(NEW_TO_RENT.id)} compact />
               )}
+              <StreamingRow region={region} streams={streams} saved={saved} onOpen={onOpen} onSeeAll={setList} />
               {forYou && load.state === "loading" && <Row title="For you" items={null} onOpen={onOpen} compact />}
               {forYouRow && forYouRow.items.length > 0 && <Row title={forYouRow.title} items={forYouRow.items} onOpen={onOpen} compact />}
               {(!trendingItems || trendingItems.length > 0) && (
