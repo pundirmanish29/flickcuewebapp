@@ -70,7 +70,8 @@ function useSeenAt(): number {
 let cameFrom = "#/";
 if (typeof window !== "undefined") {
   window.addEventListener("hashchange", (event) => {
-    const from = new URL(event.oldURL).hash;
+    // A hash change the app dispatches itself may carry no old address.
+    const from = event.oldURL ? new URL(event.oldURL).hash : "";
     if (location.hash.startsWith("#/notifications") && !from.startsWith("#/notifications") && !from.startsWith("#/title/")) cameFrom = from || "#/";
   });
 }

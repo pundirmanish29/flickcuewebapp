@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { AccountMenu, timeAgo } from "./components/AccountMenu";
 import { ScrollJump } from "./components/ScrollJump";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Icon, Logo, type IconName } from "./components/Icon";
-import { TitleSheet } from "./components/TitleSheet";
-import { closePreview, usePreview } from "./lib/preview";
+import { TitlePage } from "./components/TitlePage";
+import { closePreview } from "./lib/preview";
+import { goToTitle, leaveTitle, scrollToRestore } from "./lib/titleRoute";
 import { ToastHost } from "./components/Toast";
 import { ContactReveal } from "./components/ContactReveal";
 import { canAskExtension, preloadGoogleSignIn } from "./lib/auth";
@@ -127,7 +128,7 @@ function useReminderNotifications() {
         });
         notification.onclick = () => {
           window.focus();
-          location.hash = `#/title/${encodeURIComponent(movie.id)}`;
+          goToTitle(movie.id);
         };
       }
 
@@ -141,7 +142,7 @@ function useReminderNotifications() {
         const notification = new Notification(item.text, { body: item.detail, icon: movie?.poster || "./icon.svg", tag: item.id });
         notification.onclick = () => {
           window.focus();
-          location.hash = `#/title/${encodeURIComponent(item.movieId)}`;
+          goToTitle(item.movieId);
         };
       }
       writeAlerted(alerted);
@@ -191,7 +192,6 @@ export default function App() {
   const { library, sync, settings } = useAppState();
   const [query, setQuery] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
-  const preview = usePreview();
   // On phones search is an icon until tapped; with text in it, it stays open.
   const [searchOpen, setSearchOpen] = useState(false);
   const searching = searchOpen || query !== "";
@@ -300,13 +300,19 @@ export default function App() {
   const activeDock = DOCK.findIndex((item) => item.route === route);
 
   const openTitle = useCallback((id: string) => {
-    openWithMotion(() => { location.hash = `#/title/${encodeURIComponent(id)}`; });
+    openWithMotion(() => goToTitle(id));
   }, []);
-  const closeTitle = useCallback(() => {
-    // Back to the page underneath, without leaving a history entry to reopen it.
-    history.replaceState(null, "", `#/${route === "queue" ? "" : route}`);
-    window.dispatchEvent(new HashChangeEvent("hashchange"));
-  }, [route]);
+  // Back to the page underneath: through history when the app opened the title, else straight to that page.
+  const closeTitle = useCallback(() => leaveTitle(`#/${route === "queue" ? "" : route}`), [route]);
+
+  // A title opens at the top of its page; leaving it returns the page underneath to where it was scrolled.
+  const showingTitle = Boolean(titleId) && !connecting;
+  const wasShowingTitle = useRef(showingTitle);
+  useLayoutEffect(() => {
+    if (showingTitle) window.scrollTo({ top: 0 });
+    else if (wasShowingTitle.current) window.scrollTo({ top: scrollToRestore() });
+    wasShowingTitle.current = showingTitle;
+  }, [showingTitle, titleId]);
 
   return (
     <>
@@ -411,11 +417,15 @@ export default function App() {
 
       <main id="main" tabIndex={-1}>
         {connecting && <SigningIn />}
-        {!connecting && route === "queue" && <QueuePage onOpen={openTitle} query={query} />}
-        {route === "discover" && <DiscoverPage onOpen={openTitle} query={query} />}
-        {route === "watched" && <WatchedPage onOpen={openTitle} query={query} />}
-        {route === "settings" && <SettingsPage />}
-        {route === "notifications" && <NotificationsPage onOpen={openTitle} />}
+        {/* The page a title opened from stays mounted under it, so going back finds it as it was. */}
+        <div className="route-page" hidden={showingTitle}>
+          {!connecting && route === "queue" && <QueuePage onOpen={openTitle} query={query} />}
+          {route === "discover" && <DiscoverPage onOpen={openTitle} query={query} />}
+          {route === "watched" && <WatchedPage onOpen={openTitle} query={query} />}
+          {route === "settings" && <SettingsPage />}
+          {route === "notifications" && <NotificationsPage onOpen={openTitle} />}
+        </div>
+        {showingTitle && <TitlePage key={titleId} id={titleId} backLabel={PAGE_LABELS[route]} onBack={closeTitle} />}
       </main>
 
       <footer className={`site-footer ${sync.connected ? "with-bottom-nav" : ""}`}>
@@ -462,9 +472,6 @@ export default function App() {
         </div>
       )}
 
-      {/* A title opened from "More like this" sits over the saved one; closing it goes back. */}
-      {titleId && !connecting && !preview && <TitleSheet key={titleId} id={titleId} onClose={closeTitle} />}
-      {preview && <TitleSheet key={preview.key} candidate={preview} onClose={closePreview} />}
       <ScrollJump />
       <ToastHost />
     </>

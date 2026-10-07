@@ -154,6 +154,22 @@ function toCandidate(item: any, defaultType?: "movie" | "tv"): Candidate {
   return candidate;
 }
 
+const candidateLookups = new Map<string, Promise<Candidate>>();
+
+/** One title by its TMDB id, as a Discover result: for a title page opened from a link to a title that isn't saved. */
+export function fetchCandidate(tmdbType: "movie" | "tv", tmdbId: string): Promise<Candidate> {
+  if (!safeTmdbId(tmdbId)) return Promise.reject(new TmdbError("This title has no valid TMDB id."));
+  const key = `${tmdbType}:${tmdbId}:${contentLanguage}`;
+  const cached = candidateLookups.get(key);
+  if (cached) return cached;
+  const request = tmdbGet(`${tmdbType}/${tmdbId}`).then((data) =>
+    toCandidate({ ...data, genre_ids: (data.genres ?? []).map((genre: { id: number }) => genre.id) }, tmdbType)
+  );
+  candidateLookups.set(key, request);
+  request.catch(() => candidateLookups.delete(key));
+  return request;
+}
+
 // TMDB's genre ids, films' and shows', named short as streaming apps do.
 const GENRES: Record<number, string> = {
   28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime", 99: "Documentary", 18: "Drama",
