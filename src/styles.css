@@ -26,6 +26,10 @@
   --blue: #55a9ff;
   --red: #c8412f;
   --lime: #d7ff86;
+  /* The title page's ticket stub is the inverse of the page; its state colours are picked to read on it. */
+  --stub-orange: #ff9b5c;
+  --stub-blue: #6cb5ff;
+  --stub-green: #6fdc93;
 
   --font-display: "Instrument Serif", Georgia, serif;
   --font-ui: Archivo, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -90,6 +94,9 @@
     --green-ink: #7ee2a1;
     --orange-ink: #ffac73;
     --red: #ff7b6b;
+    --stub-orange: #b84f0b;
+    --stub-blue: #1d64b8;
+    --stub-green: #137a40;
     --poster-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
@@ -107,6 +114,9 @@
   --green-ink: #7ee2a1;
   --orange-ink: #ffac73;
   --red: #ff7b6b;
+  --stub-orange: #b84f0b;
+  --stub-blue: #1d64b8;
+  --stub-green: #137a40;
   --poster-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
@@ -166,7 +176,7 @@ p a:not([class]), .about-links a { font-weight: 600; text-underline-offset: 3px;
 p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; }
 
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
-.site-header :focus-visible, .band :focus-visible, .dock :focus-visible, .sheet-hero :focus-visible { outline-color: var(--lime); }
+.site-header :focus-visible, .band :focus-visible, .dock :focus-visible, .tp-hero :focus-visible, .tp-bar :focus-visible { outline-color: var(--lime); }
 
 .visually-hidden {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
@@ -1161,32 +1171,145 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .switch { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; cursor: pointer; }
 .switch input { width: 20px; height: 20px; accent-color: var(--ink); }
 
-/* ---- Title sheet ---- */
+/* ---- Title page (components/TitlePage.tsx) ---- */
 
-.sheet {
-  width: min(920px, 100vw); max-width: 100vw; max-height: min(92vh, 100dvh); padding: 0; margin: auto;
-  border: 0; border-radius: 30px; background: var(--paper); color: var(--ink); overflow: hidden;
+/* A title's own page: its backdrop across the top, the title beside a ticket stub that holds where you stand with it and what to do next. */
+.title-page { position: relative; padding-bottom: clamp(48px, 8vw, 96px); }
+.tp-hero { position: relative; margin-top: calc(-1 * var(--header)); height: clamp(300px, 54vh, 560px); background: var(--night) center 22% / cover no-repeat; }
+/* On a wide 2x screen the backdrop is the larger copy (set by the page as --hero-hi); a phone never needs it. */
+@media (min-resolution: 1.5dppx) and (min-width: 700px) { .tp-hero[style*="--hero-hi"] { background-image: var(--hero-hi) !important; } }
+/* Dark at the top for the header and Back, the page colour at the foot for the title, in either theme. */
+.tp-hero::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(to top, var(--paper) 4%, color-mix(in srgb, var(--paper) 78%, transparent) 42%, transparent 82%),
+    linear-gradient(to bottom, rgba(11, 13, 15, 0.6), transparent 34%);
 }
-.sheet::backdrop { background: rgba(11, 13, 15, 0.64); backdrop-filter: blur(4px); }
-.sheet[open] { animation: sheet-in 420ms var(--ease-out); }
-/* Closing: out faster than in, down and away. */
-.sheet.closing { animation: sheet-out 180ms cubic-bezier(0.4, 0, 1, 1) forwards; }
-.sheet.closing::backdrop { animation: fade-out 180ms ease forwards; }
-@keyframes sheet-out { to { opacity: 0; transform: translateY(18px) scale(0.99); } }
+.tp-hero-bar { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; padding-top: calc(var(--header) + 14px); }
+.tp-back, .tp-play {
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 12px; border: 0; border-radius: 999px;
+  background: rgba(11, 13, 15, 0.72); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: background-color 160ms ease;
+}
+.tp-play { padding-left: 6px; }
+.tp-back:hover, .tp-play:hover { background: rgba(11, 13, 15, 0.9); }
+.tp-play-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85); }
+.tp-play-icon svg { margin-left: 2px; }
+.tp-hero.playing { height: auto; aspect-ratio: 16 / 9; max-height: 78vh; margin-top: 0; background-image: none !important; }
+.tp-hero.playing::after { display: none; }
+.tp-trailer { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+.tp-layout { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr); }
+.tp-heading { min-width: 0; }
+.tp-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.tp-head h1 {
+  margin: 10px 0 0; font-size: clamp(2rem, 1.1rem + 3.8vw, 5.25rem); line-height: 0.94; letter-spacing: -0.045em; font-weight: 800;
+  text-wrap: balance; overflow-wrap: anywhere;
+}
+.tp-head h1:focus { outline: none; }
+.tp-credit { margin: 12px 0 0; color: var(--ink-soft); font-size: 15px; line-height: 1.35; }
+.tp-facts { margin: 4px 0 0; color: var(--ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
+/* The title can start over a busy backdrop; a glow in the page colour keeps it legible in either theme. */
+.tp-meta, .tp-head h1, .tp-credit { text-shadow: 0 0 12px var(--paper), 0 0 2px var(--paper); }
+.tp-poster { aspect-ratio: 2 / 3; object-fit: cover; }
+.tp-body { min-width: 0; max-width: 780px; }
+.tp-body .sheet-section { margin-top: 40px; }
+.tp-empty { padding: 40px 0 80px; }
+
+/* The stub: the page's inverse, a ticket torn along a perforation under the poster. */
+.tp-stub, .tp-bar {
+  --stub-muted: color-mix(in srgb, var(--paper) 64%, var(--ink));
+  --stub-line: color-mix(in srgb, var(--paper) 24%, var(--ink));
+  background: var(--ink); color: var(--paper);
+}
+.tp-tone-orange { --stub-tone: var(--stub-orange); }
+.tp-tone-blue { --stub-tone: var(--stub-blue); }
+.tp-tone-green { --stub-tone: var(--stub-green); }
+.tp-tone-neutral { --stub-tone: var(--stub-muted); }
+.tp-stub { border-radius: 24px; box-shadow: 0 28px 60px -28px rgba(0, 0, 0, 0.55); }
+.tp-stub-art { padding: 18px 18px 0; }
+.tp-poster-stub { display: block; width: 100%; border-radius: 12px; }
+.tp-perf {
+  position: relative; height: 30px;
+  background: radial-gradient(circle at 0 50%, var(--paper) 13px, transparent 14px), radial-gradient(circle at 100% 50%, var(--paper) 13px, transparent 14px);
+}
+.tp-perf::before { content: ""; position: absolute; left: 24px; right: 24px; top: 50%; border-top: 2px dashed var(--stub-line); }
+.tp-stub-body { display: grid; gap: 16px; padding: 2px 22px 22px; }
+.tp-stub-label { margin: 0; color: var(--stub-tone); font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+.tp-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; margin: 0; }
+.tp-fields dt { color: var(--stub-muted); font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; }
+.tp-fields dd { margin: 3px 0 0; font-size: 16px; font-weight: 800; line-height: 1.25; letter-spacing: -0.01em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.tp-stub .on-calendar { display: flex; align-items: center; gap: 6px; margin: -4px 0 0; color: var(--stub-muted); font-size: 13px; font-weight: 600; }
+.tp-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px;
+  border: 1.5px solid var(--stub-line); background: transparent; color: inherit; font: inherit; font-size: 14px; font-weight: 700; line-height: 1.2;
+  text-align: center; text-decoration: none; cursor: pointer;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-slow) var(--ease-spring);
+}
+.tp-button:hover { border-color: var(--paper); }
+.tp-button:active { transform: scale(0.97); transition-duration: 90ms; }
+.tp-button-primary { width: 100%; min-height: 52px; border-color: var(--paper); background: var(--paper); color: var(--ink); font-size: 15px; }
+.tp-button-primary:hover { background: color-mix(in srgb, var(--paper) 88%, var(--ink)); }
+.tp-button.on { border-color: var(--lime); background: var(--lime); color: var(--on-accent); }
+.tp-button-danger:hover { border-color: var(--stub-orange); color: var(--stub-orange); }
+.tp-secondary { display: flex; flex-wrap: wrap; gap: 8px; }
+.tp-secondary .tp-button { flex: 1 1 auto; }
+.tp-stub :focus-visible { outline-color: var(--paper); }
+/* The reminder choices are page content, set on the page's own colours inside the stub. */
+.tp-choices { padding: 14px; border-radius: 16px; background: var(--paper-surface); color: var(--ink); }
+.tp-bar { display: none; }
+
+@media (min-width: 901px) {
+  .tp-layout { grid-template-columns: 340px minmax(0, 1fr); column-gap: clamp(40px, 5vw, 72px); margin-top: -232px; }
+  .tp-layout.after-trailer { margin-top: 32px; }
+  .tp-head { grid-column: 2; grid-row: 1; padding-top: 36px; }
+  .tp-poster-head { display: none; }
+  /* The stub stays in view while the details scroll; one taller than the window keeps its buttons on screen. */
+  .tp-stub { grid-column: 1; grid-row: 1 / span 2; align-self: start; position: sticky; top: min(calc(var(--header) + 16px), calc(100vh - var(--stub-h, 0px) - 16px)); }
+  .tp-body { grid-column: 2; grid-row: 2; }
+  html[data-opening] .tp-poster-stub { view-transition-name: title-poster; }
+}
+
+@media (max-width: 900px) {
+  .tp-hero { height: clamp(230px, 40vh, 340px); }
+  .tp-layout { margin-top: -104px; }
+  .tp-layout.after-trailer { margin-top: 20px; }
+  .tp-head { display: flex; align-items: flex-end; gap: 14px; }
+  .tp-poster-head { width: 104px; flex-shrink: 0; border-radius: var(--r-s); box-shadow: var(--poster-shadow), 0 0 0 1px rgba(255, 255, 255, 0.1); }
+  .tp-head h1 { font-size: clamp(26px, 7.4vw, 40px); line-height: 1.02; }
+  .tp-meta { gap: 6px 8px; font-size: 11px; }
+  .tp-credit { margin-top: 8px; font-size: 13px; }
+  .tp-facts { font-size: 13px; }
+  .tp-head .watch-on { height: 38px; margin-top: 10px; font-size: 12px; padding-left: 12px; }
+  .tp-head .watch-on img, .tp-head .watch-on b { width: 28px; height: 28px; }
+  /* The poster already sits beside the title, so the stub is just its plan. */
+  .tp-stub { margin-top: 22px; border-radius: 22px; }
+  .tp-stub-art, .tp-perf { display: none; }
+  .tp-stub-body { padding: 18px; }
+  html[data-opening] .tp-poster-head { view-transition-name: title-poster; }
+  .tp-body .sheet-section { margin-top: 32px; }
+
+  /* Pinned above the dock once the stub has scrolled away: the state on the left, the main button past a perforation. */
+  .tp-bar {
+    position: fixed; left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right));
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + 80px); z-index: 29;
+    display: flex; align-items: stretch; border-radius: 22px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    visibility: hidden; opacity: 0; transform: translateY(14px);
+    transition: opacity 200ms ease, transform 320ms var(--ease-out), visibility 0s linear 320ms;
+  }
+  .tp-bar.on { visibility: visible; opacity: 1; transform: none; transition: opacity 200ms ease, transform 320ms var(--ease-out), visibility 0s; }
+  .tp-bar-text { flex: 1; min-width: 0; padding: 12px 12px 12px 18px; }
+  .tp-bar-main { margin: 2px 0 0; font-size: 18px; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tp-bar-sub { margin: 0; color: var(--stub-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tp-bar-action { display: flex; align-items: center; padding: 10px 12px 10px 14px; border-left: 2px dashed var(--stub-line); }
+  .tp-bar-action .tp-button-primary { width: auto; min-height: 48px; padding: 0 18px; }
+  body:has(.tp-bar.on) .toast-region, body:has(.tp-bar.on) .scroll-jump { bottom: calc(178px + env(safe-area-inset-bottom)); }
+  body:has(.title-page) .site-footer.with-bottom-nav { padding-bottom: calc(196px + env(safe-area-inset-bottom)); }
+  body:has(input:not([type="checkbox"]):focus, textarea:focus) .tp-bar { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .tp-bar, .tp-bar.on { transition: none; transform: none; } }
+
 @keyframes fade-out { to { opacity: 0; } }
-/* While a poster grows into the sheet, the sheet itself only fades, so the poster's path is the motion. */
-html[data-opening] .sheet[open] { animation: fade-in 240ms ease; }
-html[data-opening] .sheet-poster { view-transition-name: title-poster; }
-@keyframes sheet-in { from { opacity: 0; transform: translateY(16px) scale(0.99); } }
-.sheet-inner { max-height: min(92vh, 100dvh); overflow-y: auto; overscroll-behavior: contain; }
-/* On a wide 2x screen the banner is the larger copy (set by the sheet as --hero-hi); a phone's narrow banner never needs it. */
-@media (min-resolution: 1.5dppx) and (min-width: 700px) { .sheet-hero[style*="--hero-hi"] { background-image: var(--hero-hi) !important; } }
-.sheet-hero { position: relative; height: clamp(220px, 38vh, 340px); background: var(--night) center / cover no-repeat; }
-/* Fades further up than the text reaches, so the title block stays readable on a bright backdrop. */
-.sheet-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, var(--paper) 8%, color-mix(in srgb, var(--paper) 72%, transparent) 42%, transparent 88%); }
-/* Banner corner: where to watch, then close. */
-.sheet-hero-top { position: absolute; top: 14px; right: 14px; left: 14px; z-index: 2; display: flex; justify-content: flex-end; align-items: center; gap: 8px; pointer-events: none; }
-.sheet-hero-top > * { pointer-events: auto; }
 .watch-on {
   display: inline-flex; align-items: center; gap: 6px; height: 44px; margin-top: 12px; padding: 0 6px 0 14px; border: 0; border-radius: 999px;
   background: var(--paper-deep); box-shadow: inset 0 0 0 1px var(--rule);
@@ -1230,22 +1353,6 @@ html[data-opening] .sheet-poster { view-transition-name: title-poster; }
 .watch-name small { display: block; color: var(--muted); font-size: 11px; font-weight: 500; }
 .watch-list a > svg { color: var(--muted); flex-shrink: 0; transition: color 160ms ease, transform 160ms ease; }
 .watch-list a:hover > svg { color: var(--ink); transform: translate(1px, -1px); }
-/* The trailer plays in the banner itself; its button is a pill in the banner's top-left corner, clear of the title. */
-.sheet-play {
-  position: absolute; top: 14px; left: 14px; z-index: 1; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 6px;
-  border: 0; border-radius: 999px; background: rgba(11, 13, 15, 0.72); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: background-color 160ms ease;
-}
-.sheet-play-icon {
-  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85);
-}
-.sheet-play-icon svg { width: 16px; height: 16px; margin-left: 2px; }
-.sheet-play:hover { background: rgba(11, 13, 15, 0.9); }
-.sheet-hero.playing { height: auto; aspect-ratio: 16 / 9; background-image: none !important; }
-.sheet-hero.playing::after { display: none; }
-.sheet-trailer { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-.sheet-hero.playing ~ .sheet-body { margin-top: 20px; }
 .trailer-bar {
   display: flex; align-items: center; gap: 8px; padding: 10px clamp(12px, 3vw, 24px);
   background: var(--night); color: #fff; border-bottom: 1px solid var(--dark-line);
@@ -1255,12 +1362,6 @@ html[data-opening] .sheet-poster { view-transition-name: title-poster; }
   background: var(--lime); color: var(--on-accent); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
 }
 .trailer-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; margin-left: auto; color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; }
-.trailer-close { background: rgba(255, 255, 255, 0.08); border-color: transparent; color: #fff; }
-.sheet-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.sheet-credit { margin: 6px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.35; }
-/* The title block can start over a busy banner; a glow in the page colour keeps it legible in either theme. */
-.sheet-meta, .sheet-heading h2, .sheet-credit { text-shadow: 0 0 10px var(--paper), 0 0 2px var(--paper); }
-.sheet-facts { margin: 4px 0 0; color: var(--ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
 .sheet-status.tone-green, .sheet-status.tone-amber { font-weight: 700; }
 .take { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 15px; }
 .take-stars, .take-liked { display: inline-flex; align-items: center; gap: 6px; }
@@ -1277,12 +1378,6 @@ html[data-opening] .sheet-poster { view-transition-name: title-poster; }
   display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; box-shadow: inset 0 0 0 1px currentColor;
   color: var(--ink); font-size: 11px; font-weight: 700; letter-spacing: 0.02em; text-transform: none;
 }
-.sheet-body { position: relative; padding: 0 clamp(20px, 4vw, 40px) 32px; margin-top: -120px; }
-/* Poster and text start level; a long title block runs on below the poster rather than up into the banner. */
-.sheet-head { display: flex; gap: 24px; align-items: flex-start; }
-.sheet-poster { width: clamp(120px, 18vw, 170px); flex-shrink: 0; border-radius: var(--r-m); box-shadow: var(--poster-shadow), 0 0 0 1px rgba(255, 255, 255, 0.1); }
-.sheet-heading { min-width: 0; padding-bottom: 4px; }
-.sheet-heading h2 { margin: 0; font-size: clamp(1.75rem, 1.1rem + 3.4vw, 3.5rem); line-height: 0.96; letter-spacing: -0.045em; font-weight: 800; text-wrap: balance; }
 .score-row { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 14px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
 .score { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .score svg { color: var(--muted); }
@@ -1293,7 +1388,6 @@ html[data-opening] .sheet-poster { view-transition-name: title-poster; }
 .imdb-mark { padding: 1px 4px; border-radius: 3px; background: #f5c518; color: #000; font-size: 11px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; }
 .sheet-status { margin: 8px 0 0; font-weight: 600; }
 .sheet-status-sub { font-weight: 500; font-size: 0.85em; color: var(--ink-soft); }
-.sheet:focus { outline: none; }
 /* Your own stars and heart, set with a tap. */
 .take-stars-edit { display: inline-flex; gap: 2px; }
 .take-stars-edit .star { position: relative; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; background: none; color: var(--rule); cursor: pointer; }
@@ -1320,26 +1414,6 @@ html[data-opening] .sheet-poster { view-transition-name: title-poster; }
   display: inline-block; margin: 0 0 8px; padding: 3px 10px; border-radius: 999px;
   background: var(--paper-deep); color: var(--ink); font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
 }
-.sheet-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 24px 0 0; }
-/* Fixed-width slots from the left, so two actions sit together rather than at opposite edges. */
-.action-row { display: grid; grid-auto-flow: column; grid-auto-columns: 80px; justify-content: start; gap: 8px; }
-.action {
-  display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: 4px 2px; border: 0; background: none;
-  color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; line-height: 1.2; text-align: center; cursor: pointer;
-}
-.action > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.action-icon {
-  display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--rule);
-  transition: background-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease, transform var(--dur-slow) var(--ease-spring);
-}
-.action:hover:not(:disabled) .action-icon { box-shadow: inset 0 0 0 1px var(--ink); }
-.action:active:not(:disabled) .action-icon { transform: scale(0.9); transition-duration: 90ms; }
-.action.primary .action-icon { background: var(--ink); color: var(--on-ink); box-shadow: none; }
-.action.on .action-icon { background: var(--lime); color: var(--on-accent); box-shadow: none; }
-.action.danger:hover .action-icon { box-shadow: inset 0 0 0 1px var(--orange); color: var(--orange); }
-.action:disabled { color: var(--muted); cursor: default; }
-.action:disabled .action-icon { opacity: 0.5; }
-.sheet-panel { margin-top: 14px; padding: 14px; border-radius: 14px; background: var(--paper-surface); border: 1px solid var(--rule); }
 .sheet-section { margin-top: 28px; }
 /* A cinema ticket on a film: added from a screenshot, photo or PDF, checked, then shown as a card. */
 .ticket-panel { padding: 16px; border-radius: 16px; background: var(--paper-surface); border: 1px solid var(--rule); }
@@ -1596,18 +1670,6 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
     position: fixed; top: auto; left: 50%; bottom: calc(108px + env(safe-area-inset-bottom)); z-index: 40;
     width: min(420px, calc(100vw - 32px)); transform: translateX(-50%); box-shadow: 0 24px 64px rgba(11, 13, 15, 0.35);
   }
-  /* Paper runs on below the sheet, under Safari's floating toolbar, so the page behind never shows through there. */
-  .sheet { border-radius: 22px 22px 0 0; margin-bottom: 0; max-height: 94dvh; box-shadow: 0 240px 0 0 var(--paper); }
-  .sheet-body { padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
-  /* No rubber-band at the ends: pulled down at the top, the sheet itself follows the finger and closes (useSwipeToClose). */
-  .sheet-inner { max-height: 94dvh; overscroll-behavior-y: none; }
-  .sheet-hero { height: 180px; }
-  .sheet-hero-top { left: auto; }
-  .sheet-body { margin-top: -90px; }
-  /* Poster and title side by side, so the space beside the poster isn't wasted. */
-  .sheet-head { flex-direction: row; align-items: flex-start; gap: 14px; }
-  .sheet-poster { width: 104px; }
-  /* The pill sits beside the poster; its list lines up with the sheet's edge instead of running off it. */
   /* The list rises from the bottom over a dimmed sheet, clear of the text beneath. */
   .watch-scrim { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(11, 13, 15, 0.55); animation: fade-in 160ms ease; }
   .watch-on-wrap .popover {
@@ -1616,14 +1678,8 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   }
   .watch-sheet-title { display: block; margin: 0; padding: 12px 10px 4px; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .watch-sheet-title b { color: var(--ink); font-weight: 700; }
-  .sheet-actions { margin-top: 18px; }
-  .sheet-heading h2 { font-size: clamp(22px, 6.2vw, 27px); line-height: 1.08; overflow-wrap: anywhere; }
-  .sheet-meta { gap: 6px 8px; font-size: 11px; }
   .score-row { gap: 4px 11px; margin-top: 8px; font-size: 13px; }
   .sheet-status { font-size: 15px; line-height: 1.3; }
-  .sheet-credit, .sheet-facts { font-size: 13px; }
-  .sheet-head .watch-on { height: 38px; margin-top: 10px; font-size: 12px; padding-left: 12px; }
-  .sheet-head .watch-on img, .sheet-head .watch-on b { width: 28px; height: 28px; }
   .season-row { grid-template-columns: 1fr auto; }
   .season-row .progress { grid-column: 1 / -1; grid-row: 2; }
   .footer-links { margin-left: 0; }
@@ -1639,7 +1695,7 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
 @keyframes rise-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes fade-in { from { opacity: 0; } }
 
-/* Pages cross-fade; a title's poster travels from its card to the sheet. */
+/* Pages cross-fade; a title's poster travels from its card to the title page's. */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; animation-timing-function: ease; }
 ::view-transition-group(title-poster) { animation-duration: 440ms; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
 ::view-transition-image-pair(title-poster) { isolation: isolate; }
@@ -1647,7 +1703,7 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
 ::view-transition-group(title-poster) { z-index: 100; }
 /* Popovers placed with a transform of their own fade rather than scale, or they'd jump sideways. */
 .cinema-row .popover, .candidate-card .popover { animation: fade-in 160ms ease; }
-/* The header stays put while the page under it changes (but not over a sheet that's opening). */
+/* The header stays put while the page under it changes (but not while a title opens). */
 html[data-transition="title"] .site-header .header-inner, html[data-transition="title"] .dock { view-transition-name: none; }
 /* Named on the pill itself, not on .site-header: a named container would be a backdrop root and its glass could not see the page. */
 .site-header .header-inner { view-transition-name: site-header; }

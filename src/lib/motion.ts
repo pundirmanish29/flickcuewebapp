@@ -1,5 +1,5 @@
 // FlickCue's motion. One authored moment: opening a title, the poster you
-// pressed grows into the details sheet's poster (a view transition). Around
+// pressed grows into the title page's poster (a view transition). Around
 // it, quiet continuity (pages cross-fade) and small feedback (pop). All of it
 // steps aside for prefers-reduced-motion and for browsers without the APIs.
 
@@ -69,14 +69,14 @@ const pressedPoster = (): HTMLElement | null =>
 // Not requestAnimationFrame: the browser holds rendering while a transition waits for the DOM.
 const tick = () => new Promise<void>((resolve) => window.setTimeout(resolve, 16));
 
-/** Waits (at most about half a second) for the details sheet to be open with its poster. */
-async function sheetReady() {
-  for (let tries = 0; tries < 30 && !document.querySelector("dialog.sheet[open] .sheet-poster"); tries++) await tick();
-  // One more beat, for the sheet's content to settle.
+/** Waits (at most about half a second) for the title page to be showing with its poster. */
+async function pageReady() {
+  for (let tries = 0; tries < 30 && !document.querySelector(".title-page .tp-poster"); tries++) await tick();
+  // One more beat, for the page's content to settle.
   await tick();
 }
 
-/** Opens a title's details, the pressed poster growing into the sheet's. */
+/** Opens a title's page, the pressed poster growing into the page's. */
 export function openTitle(open: () => void) {
   const poster = pressedPoster();
   if (!poster || !canTransition() || running) {
@@ -86,10 +86,10 @@ export function openTitle(open: () => void) {
   poster.style.setProperty("view-transition-name", "title-poster");
   transition(async () => {
     poster.style.removeProperty("view-transition-name");
-    // Named only now, so a sheet already open doesn't share the name in the old picture.
+    // Named only now, so a title page already showing doesn't share the name in the old picture.
     document.documentElement.dataset.opening = "";
     open();
-    await sheetReady();
+    await pageReady();
   }, "title");
 }
 

@@ -33,7 +33,7 @@ Success means saved titles actually get watched, and the list is the same on eve
 
 - Signed out, the site is just the homepage: what FlickCue is, a link to Add to Chrome, and Sign in. The Queue, Discover, Watched and Settings need a Google sign-in.
 - Signing in uses Google (the `drive.appdata` scope; `calendar.app.created` too, only if the person turns on Calendar reminders, which are off by default). In Chrome or Edge with the extension signed in, the site signs itself in through the extension.
-- Signed in, the product has four pages: Queue (tonight's pick, "On your radar", the poster grid), Discover, Watched (history and counts) and Settings, plus a title details sheet and an account menu in the header.
+- Signed in, the product has four pages: Queue (tonight's pick, "On your radar", the poster grid), Discover, Watched (history and counts) and Settings, plus a page for each title (#/title/<id>, or #/title/tmdb:<type>:<id> for one not saved, with a ticket stub that holds where you stand with it and the next thing to do) and an account menu in the header.
 - Phones get a bottom tab bar; desktop gets top navigation and a header search box.
 
 ## Capabilities and Constraints
