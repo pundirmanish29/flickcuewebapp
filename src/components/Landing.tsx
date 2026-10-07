@@ -317,7 +317,7 @@ export function Landing() {
             <h2 id="l-reel-title">Made for the couch.</h2>
             <p>Most nights you'll open FlickCue on your phone, so that's where it started.</p>
           </div>
-          <ul className="l-reel-track">
+          <ul className="l-reel-track" tabIndex={0} aria-label="FlickCue on a phone, screen by screen">
             {PHONES.map((phone) => (
               <li key={phone.name} className="l-phone">
                 <figure>

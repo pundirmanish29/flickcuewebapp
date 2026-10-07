@@ -20,9 +20,9 @@
   --muted: #666a70;
   --rule: #d6d0c5;
   --green: #64d48a;
-  --green-ink: #178a4a;
+  --green-ink: #13783f;
   --orange: #ff8c45;
-  --orange-ink: #c0560d;
+  --orange-ink: #a84a0b;
   --blue: #55a9ff;
   --red: #c8412f;
   --lime: #d7ff86;
@@ -1475,6 +1475,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .ticket-seats { color: var(--ink-soft); font-size: 14px; }
 .ticket-id { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 14px; color: var(--ink-soft); }
 .ticket-id code { padding: 2px 8px; border-radius: 6px; background: var(--paper-deep, rgba(0,0,0,.05)); color: var(--ink); font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; }
+/* Phones: small text buttons keep their look but get a 44px tap area. */
+@media (max-width: 600px) {
+  .ticket-id .inline-link, .restore-link, .contact-reveal .link-button, .contact-reveal-toggle, .heading-menu-button, .tp-head .watch-on { position: relative; }
+  .ticket-id .inline-link::after, .restore-link::after, .contact-reveal .link-button::after, .contact-reveal-toggle::after, .heading-menu-button::after { content: ""; position: absolute; inset: -12px -8px; }
+  .tp-head .watch-on::after { content: ""; position: absolute; inset: -3px 0; }
+}
 .ticket-card .small-print { margin: 12px 0 0; }
 /* The ticket itself, big and bright for the scanner at the door. */
 .ticket-viewer { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 56px 16px 24px; background: rgba(0, 0, 0, 0.92); }
@@ -1490,6 +1496,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tag { padding: 3px 10px; border-radius: 999px; background: var(--paper-deep); font-size: 13px; font-weight: 600; }
 button.tag-link { border: 0; color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: box-shadow 160ms ease; }
 button.tag-link:hover { box-shadow: inset 0 0 0 1px var(--ink); }
+/* Phones: a taller genre button whose tap area reaches 44px without crowding the row. */
+@media (max-width: 600px) {
+  .tag-row:has(.tag-link) { row-gap: 12px; }
+  button.tag-link { position: relative; display: inline-flex; align-items: center; min-height: 32px; padding-inline: 12px; }
+  button.tag-link::after { content: ""; position: absolute; inset: -6px -3px; }
+}
 
 
 .season-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -1558,6 +1570,8 @@ button.tag-link:hover { box-shadow: inset 0 0 0 1px var(--ink); }
 .scroll-jump-button:hover { transform: scale(1.06); }
 .scroll-jump-button:active { transform: scale(0.94); transition-duration: 90ms; }
 .scroll-jump-button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+/* With the dock (phones and small tablets) only Back to top: a jump down would sit on the page's first screen, over its controls. */
+@media (max-width: 900px) { .scroll-jump-button:not(.up) { display: none; } }
 .scroll-jump-button.up svg { transform: rotate(180deg); }
 /* Clear of a toast while one is showing. */
 body:has(.toast) .scroll-jump { transform: translateY(-72px); }

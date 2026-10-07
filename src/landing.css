@@ -190,6 +190,7 @@
   overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); scrollbar-width: none;
 }
 .l-reel-track::-webkit-scrollbar { display: none; }
+.l-reel-track:focus-visible { outline: 2px solid var(--lime); outline-offset: 4px; border-radius: 12px; }
 .l-phone { flex: 0 0 auto; width: min(64vw, 17.5rem); scroll-snap-align: start; }
 @media (min-width: 60em) { .l-phone { width: clamp(13rem, 19vw, 19rem); } }
 .l-phone:nth-child(even) { margin-top: clamp(24px, 6vw, 72px); }
@@ -226,6 +227,8 @@
 .l-cta-note { margin: var(--space-m) 0 0; color: rgb(22 24 27 / 0.72); font-size: 0.875rem; }
 .l-cta-note a { color: #16181b; font-weight: 700; }
 .l-guides { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-xs) var(--space-m); }
+/* Phones: each guide link is a full 44px row to tap; the row gap gives way to it. */
+@media (max-width: 600px) { .l-guides { row-gap: 0; } .l-guides a { display: inline-flex; align-items: center; min-height: 44px; } }
 
 /* ---- Phones: a small glass button follows you down, until the closing block has its own ---- */
 
