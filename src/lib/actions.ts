@@ -55,6 +55,10 @@ export function setInterested(id: string, interested: boolean) {
     interested ? `Keeping an eye on ${title}` : `Stopped watching for ${title}`);
 }
 
+export function dismissWatchedPrompt(id: string) {
+  apply(editor.dismissWatchedPrompt(getState().library, id), (title) => `OK, ${title} stays in your queue`);
+}
+
 export function setTake(id: string, take: { rating?: number; liked?: boolean }) {
   apply(editor.setTake(getState().library, id, take));
 }

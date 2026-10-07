@@ -8,3 +8,6 @@ dist/
 .claude/skills/impeccable/scripts/bin/
 .claude/settings.local.json
 .impeccable/config.local.json
+
+# Text-recognition files, copied from node_modules by scripts/copy-ocr.mjs.
+public/ocr/

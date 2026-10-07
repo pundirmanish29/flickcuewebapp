@@ -62,7 +62,7 @@
 
     <main>
       <h1>Privacy Policy</h1>
-      <p class="muted">Last updated 6 October 2026</p>
+      <p class="muted">Last updated 7 October 2026</p>
 
       <p>This page covers the FlickCue <strong>web app</strong> at flickcue.in and the FlickCue <strong>browser extension</strong> for Chrome, Edge and Firefox, which has <a href="#extension">its own part below</a>. The three FlickCue apps (web, extension and Android) share one list, kept in your own Google Drive.</p>
 
@@ -71,18 +71,20 @@
           <li>There are no FlickCue accounts and no FlickCue database. Your list and settings live in your browser and, once you sign in, in your own Google Drive.</li>
           <li>No analytics, no advertising, no tracking cookies. Your data isn't sold or shared.</li>
           <li>Film and show lookups go through FlickCue's title service. They can name titles from your list, but never who you are.</li>
+          <li>A cinema ticket you add is read on your own device. It is never sent to FlickCue or to any other service; if you keep it, it goes in your own Google Drive.</li>
           <li>If you choose to, your reminders can also go on a calendar FlickCue makes in your own Google Calendar. FlickCue can't see any of your other calendars or events.</li>
         </ul>
       </div>
 
       <h2>What is stored in your browser</h2>
-      <p>The web app keeps a local copy of your list, your settings and a few things about this device in your browser's local storage. Your list can keep working offline after you sign in. When signed out, the site shows its homepage; Queue, Discover, Watched and Settings require Google sign-in. Local storage also includes your streaming region, city, Letterboxd username, theme and sort; whether alerts are on; whether your reminders go to Google Calendar, and which events FlickCue has put there; which notifications you've seen or dismissed; and sync status. Once you sign in, a short-lived Google access token (about an hour) is kept there too, and so is a Google refresh token, which lets the site get a new access token without asking you to sign in again each hour (see <a href="#staying-signed-in">Staying signed in</a>). Clearing site data for flickcue.in removes all of it.</p>
+      <p>The web app keeps a local copy of your list, your settings and a few things about this device in your browser's local storage. Your list can keep working offline after you sign in. When signed out, the site shows its homepage; Queue, Discover, Watched and Settings require Google sign-in. Local storage also includes your streaming region, city, Letterboxd username, theme and sort; whether alerts are on; whether your reminders go to Google Calendar, and which events FlickCue has put there; which notifications you've seen or dismissed; and sync status. Once you sign in, a short-lived Google access token (about an hour) is kept there too, and so is a Google refresh token, which lets the site get a new access token without asking you to sign in again each hour (see <a href="#staying-signed-in">Staying signed in</a>). Copies of cinema tickets you keep are stored in this browser too (in its IndexedDB storage), so they open offline; signing out removes them. Clearing site data for flickcue.in removes all of it.</p>
 
       <h2>Google sign-in and Google Drive</h2>
       <p>Google sign-in is required to use the web app's list and features. It keeps your list and settings in step between your devices and FlickCue's other apps. FlickCue asks for one permission, <code>drive.appdata</code>, which gives it a private app folder in your Drive that only FlickCue can open. (A second permission is asked for only if you turn on Google Calendar reminders; see <a href="#calendar">Google Calendar</a> below.) It keeps two files there:</p>
       <ul>
         <li><code>flickcue-watchlist.json</code>: your list, shared with the extension and the Android app.</li>
         <li><code>flickcue-settings.json</code>: the web app's settings (streaming region, city, Letterboxd username, theme and Queue sort), so they follow you between browsers.</li>
+        <li>Cinema tickets you choose to keep (<code>flickcue-ticket-…</code>), so you can show them at the cinema from any of your devices.</li>
       </ul>
       <p>Drive keeps earlier versions of these files for about 30 days. Settings can bring back an earlier version of your list from them; that happens between your browser and Google too.</p>
       <p>FlickCue can't see anything else in your Drive. It also reads your Google account's name, email address and photo to show which account is syncing. Your list, settings and account details travel only between your browser and Google; none of it goes to a FlickCue server. Signing in is the one step that does pass through FlickCue's proxy; see <a href="#staying-signed-in">Staying signed in</a>.</p>
@@ -92,6 +94,10 @@
       <p>Completing sign-in, and getting a new access token from the refresh token, needs a step Google calls a client secret. FlickCue's proxy holds that secret and performs the step for the web app: the proxy sees the one-time authorization code (or the refresh token), forwards it to Google, and returns the result. It does not log or keep any of it.</p>
       <p>The refresh token is removed from your browser, and FlickCue tells Google to revoke it, when you sign out. It also stops working if you remove FlickCue in your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>, and clearing site data for flickcue.in removes it from this browser.</p>
       <p>FlickCue's use of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. You can remove FlickCue's access at any time in your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.</p>
+
+      <h2 id="tickets">Cinema tickets (optional)</h2>
+      <p>On a film's page you can add a ticket you've booked, from a screenshot, photo or PDF, or by typing it in. The file is read in your browser: a PDF's text is read directly, and an image goes through text recognition that runs on your device, using files served from flickcue.in. The ticket is not sent to FlickCue, to the title service or to any AI service.</p>
+      <p>You check what was read before saving. What you save (the showtime, cinema, screen, seats and booking ID) becomes part of that title in your list, in your own Google Drive. If you choose to keep the ticket itself, a copy goes in FlickCue's private folder in your Drive and another stays in this browser, so it opens at the cinema without a signal. Removing the ticket deletes both; signing out removes the copy in this browser.</p>
 
       <h2 id="calendar">Google Calendar (optional)</h2>
       <p>If you turn on <strong>Add reminders to Google Calendar</strong> in Settings, FlickCue asks Google for a second permission, <code>calendar.app.created</code>. It lets FlickCue create one calendar of its own, named FlickCue, and add, change and delete events on that calendar only. It gives FlickCue no access to your other calendars or their events, and FlickCue can't read them.</p>
@@ -119,7 +125,7 @@
       <ul>
         <li><strong>Google Calendar:</strong> turn off Add reminders to Google Calendar in Settings, which deletes the FlickCue calendar. Or delete that calendar yourself in Google Calendar's settings. Removing FlickCue from your Google Account permissions also ends its access to the calendar, but doesn't delete it.</li>
         <li><strong>On one device:</strong> clear site data for flickcue.in in your browser settings. Signing out removes FlickCue's access on that device but leaves your list and settings in your Drive.</li>
-        <li><strong>Everywhere:</strong> in Google Drive, go to Settings, then Manage apps, find FlickCue and choose "Delete hidden app data". That removes both files. Then remove FlickCue from your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.</li>
+        <li><strong>Everywhere:</strong> in Google Drive, go to Settings, then Manage apps, find FlickCue and choose "Delete hidden app data". That removes all of FlickCue's files there, tickets included. Then remove FlickCue from your <a href="https://myaccount.google.com/permissions">Google Account permissions</a>.</li>
       </ul>
 
       <h2 id="extension">The browser extension</h2>

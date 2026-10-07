@@ -8,6 +8,7 @@ import { CALENDAR_MIRROR_ENABLED } from "../lib/config";
 import { useAppState } from "../lib/store";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { FilmShowtimes } from "./Showtimes";
+import { TicketPanel } from "./TicketPanel";
 import { cinemaKey, fetchDetails, genreIdFor, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
 import type { Candidate, Movie } from "../lib/types";
 import { CandidateCard } from "./CandidateCard";
@@ -128,6 +129,13 @@ function dayLabel(iso: string, now = Date.now()): string {
 }
 
 /** A Discover or search result as a title, for showing it before it's saved. */
+/** Out within the last `days` days: a film people may still be booking tickets for. */
+function releasedWithin(iso: string | undefined, days: number, now = Date.now()): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso ?? "")) return false;
+  const released = new Date(`${iso}T00:00:00`).getTime();
+  return released <= now && now - released <= days * 24 * 60 * 60 * 1000;
+}
+
 function candidateAsMovie(candidate: Candidate): Movie {
   return {
     id: candidate.key, title: candidate.title, year: candidate.year, mediaType: candidate.mediaType,
@@ -501,6 +509,14 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             </>
           )}
 
+          {/* A ticket already added comes first: it's what matters on the day. */}
+          {isSaved && !show && movie.booking && (
+            <section className="sheet-section">
+              <h3 className="section-label">Your ticket</h3>
+              <TicketPanel movie={movie} />
+            </section>
+          )}
+
           <section className="sheet-section">
             {details?.tagline && <p className="tagline">“{smartQuotes(details.tagline)}”</p>}
             <p className="overview">{smartQuotes(details?.overview || movie.tagline || "") || (movie.tmdbId ? "" : "No synopsis for a title added by hand.")}</p>
@@ -522,6 +538,13 @@ export function TitleSheet({ id, candidate, onClose }: { id?: string; candidate?
             <section className="sheet-section" ref={showtimesRef}>
               <h3 className="section-label">Showtimes in {place}</h3>
               <FilmShowtimes title={movie.title} year={movie.year} imdb={imdbId} />
+            </section>
+          )}
+
+          {isSaved && !show && !movie.booking && !movie.watched && (showing || unreleased || releasedWithin(movie.releaseDate, 120)) && (
+            <section className="sheet-section">
+              <h3 className="section-label">Cinema ticket</h3>
+              <TicketPanel movie={movie} />
             </section>
           )}
 

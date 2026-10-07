@@ -2,7 +2,7 @@
 // "On your radar" are: nothing is sent or stored except when the reader last
 // looked, so every device shows the same ones for the same list.
 
-import { displayTitle, getShowSchedule, isShow, isStartedShow, localIsoDate } from "./rules";
+import { displayTitle, getShowSchedule, isBookingReminder, isShow, isStartedShow, localIsoDate, showEndsAt, watchedPromptDue } from "./rules";
 import { cinemaKey } from "./tmdb";
 import type { Movie } from "./types";
 
@@ -24,7 +24,7 @@ export interface CinemaState {
   place: string;
 }
 
-export type NotificationKind = "reminder" | "release" | "cinema" | "premiere" | "episode" | "season" | "finale";
+export type NotificationKind = "reminder" | "ticket" | "release" | "cinema" | "premiere" | "episode" | "season" | "finale";
 
 export interface FlickNotification {
   /** Stable across loads, so an item keeps its place and read state. */
@@ -66,9 +66,21 @@ export function buildNotifications(movies: Movie[], now = Date.now(), cinema?: C
 
     const remindAt = Number(movie.remindAt);
     if (remindAt > 0 && remindAt <= now && now - remindAt <= REMINDER_WINDOW) {
+      const booked = isBookingReminder(movie) ? movie.booking! : null;
+      const starts = booked ? new Date(booked.showAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "";
       items.push({
         id: `reminder:${movie.id}:${remindAt}`, movieId: movie.id, kind: "reminder", at: remindAt,
-        text: `Time to watch ${title}`, title, event: "Reminder due", detail: ""
+        text: booked ? `${title} starts at ${starts}${booked.cinema ? ` at ${booked.cinema}` : ""}` : `Time to watch ${title}`,
+        title, event: booked ? `Starts at ${starts}` : "Reminder due", detail: booked?.cinema ?? ""
+      });
+    }
+
+    // After a booked show: did they go?
+    if (watchedPromptDue(movie, now)) {
+      const at = showEndsAt(movie);
+      items.push({
+        id: `ticket:${movie.id}:${movie.booking!.showAt}`, movieId: movie.id, kind: "ticket", at,
+        text: `Did you watch ${title}?`, title, event: "Did you watch it?", detail: movie.booking!.cinema ?? ""
       });
     }
 

@@ -142,3 +142,60 @@ describe("your take", () => {
     expect(cleared.ok && cleared.movie.personal).toEqual({ note: "keep", liked: true });
   });
 });
+
+describe("tickets", () => {
+  const show = NOW + 3 * 24 * 60 * 60 * 1000; // three days from now
+  const HOUR = 60 * 60 * 1000;
+
+  it("puts a ticket on a title with a reminder an hour before the show", () => {
+    const result = editor.setBooking(doc(), "a", { showAt: show, cinema: " PVR: Saket ", screen: "Audi 2", seats: ["h12", "H13", "h12", " "], bookingId: "WG1", source: "bookmyshow" }, NOW);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.movie.booking).toEqual({ showAt: show, addedAt: NOW, cinema: "PVR: Saket", screen: "Audi 2", seats: ["H12", "H13"], bookingId: "WG1", source: "bookmyshow" });
+    expect(result.movie.remindAt).toBe(show - HOUR);
+    expect(result.movie.updatedAt).toBe(NOW);
+    expect(result.movie.custom).toEqual({ keep: true });
+  });
+
+  it("needs a showtime", () => {
+    expect(editor.setBooking(doc(), "a", { showAt: NaN }, NOW)).toMatchObject({ ok: false });
+  });
+
+  it("leaves the reminder alone when the show is less than an hour away or past", () => {
+    const start = { ...doc(), movies: doc().movies.map((movie) => (movie.id === "a" ? { ...movie, remindAt: NOW + 10 * HOUR } : movie)) };
+    const result = editor.setBooking(start, "a", { showAt: NOW + 30 * 60 * 1000 }, NOW);
+    expect(result.ok && result.movie.remindAt).toBe(NOW + 10 * HOUR);
+  });
+
+  it("keeps when it was first added, and asks 'did you watch it?' again only for a new showtime", () => {
+    const first = editor.setBooking(doc(), "a", { showAt: show }, NOW);
+    if (!first.ok) throw new Error();
+    const asked = editor.dismissWatchedPrompt(first.document, "a", NOW + 1);
+    if (!asked.ok) throw new Error();
+    expect(asked.movie.booking?.watchedAsked).toBe(true);
+    const same = editor.setBooking(asked.document, "a", { showAt: show, seats: ["A1"] }, NOW + 2);
+    expect(same.ok && same.movie.booking).toMatchObject({ addedAt: NOW, watchedAsked: true, seats: ["A1"] });
+    const moved = editor.setBooking(asked.document, "a", { showAt: show + HOUR }, NOW + 3);
+    expect(moved.ok && moved.movie.booking?.watchedAsked).toBeUndefined();
+  });
+
+  it("takes a ticket off with the reminder it set, but not one changed since", () => {
+    const booked = editor.setBooking(doc(), "a", { showAt: show }, NOW);
+    if (!booked.ok) throw new Error();
+    const cleared = editor.clearBooking(booked.document, "a", NOW + 1);
+    expect(cleared.ok && cleared.movie.booking).toBeUndefined();
+    expect(cleared.ok && cleared.movie.remindAt).toBeNull();
+
+    const moved = editor.setReminder(booked.document, "a", show - 3 * HOUR, NOW + 1);
+    if (!moved.ok) throw new Error();
+    const kept = editor.clearBooking(moved.document, "a", NOW + 2);
+    expect(kept.ok && kept.movie.remindAt).toBe(show - 3 * HOUR);
+    expect(editor.clearBooking(doc(), "a", NOW)).toMatchObject({ ok: false });
+  });
+
+  it("travels through a sync merge with the rest of the title", () => {
+    const booked = editor.setBooking(doc(), "a", { showAt: show, seats: ["F7"] }, NOW);
+    if (!booked.ok) throw new Error();
+    const merged = mergeWatchlists(doc(), booked.document);
+    expect(merged.movies.find((movie) => movie.id === "a")?.booking).toMatchObject({ showAt: show, seats: ["F7"] });
+  });
+});

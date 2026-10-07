@@ -7,7 +7,7 @@ import { TonightStrip } from "../components/TonightStrip";
 import { airingToday, readDismissed } from "../lib/newEpisode";
 import * as actions from "../lib/actions";
 import {
-  cardLine, displayTitle, formatRating, getShowStatus, isShow, shortDay, seasonProgress, watchingShows, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies
+  cardLine, displayTitle, formatRating, getShowStatus, isShow, shortDay, seasonProgress, watchingShows, formatReminder, formatRuntime, hasActiveReminder, isDueNow, isUnreleased, matchesKind, matchesSearch, sortMovies, hasUpcomingBooking, formatShowTime
 } from "../lib/rules";
 import { updateSettings, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
@@ -96,7 +96,8 @@ const titleSize = (title: string) => (title.length > 44 ? "xs" : title.length > 
 function pickTonight(queue: Movie[], skip: number): { movie?: Movie; place: number; due: Movie[] } {
   const released = queue.filter((movie) => !isUnreleased(movie));
   const due = sortMovies(released.filter((movie) => isDueNow(movie)), "reminder");
-  const rest = sortMovies(released.filter((movie) => !isDueNow(movie)), "rating");
+  // A film booked at the cinema for another day isn't a pick for tonight at home.
+  const rest = sortMovies(released.filter((movie) => !isDueNow(movie) && !hasUpcomingBooking(movie)), "rating");
   const order = [...due, ...rest];
   const index = order.length ? skip % order.length : 0;
   return { movie: order[index], place: index + 1, due };
@@ -201,7 +202,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
               {/* The pick sits over the picture, so a phone's first screen is the pick and its buttons. */}
               <button type="button" className="tonight-heading" onClick={() => onOpen(tonight.id)} aria-label={`${displayTitle(tonight)}, details`}>
                 <span className={`tonight-when ${tonightDue ? "due" : ""}`}>
-                  {!tonightDue ? "Tonight's pick" : Number(tonight.remindAt) <= Date.now() ? "Due now" : `Due ${formatReminder(Number(tonight.remindAt))}`}
+                  {hasUpcomingBooking(tonight) ? `Booked · ${formatShowTime(tonight.booking!.showAt)}` : !tonightDue ? "Tonight's pick" : Number(tonight.remindAt) <= Date.now() ? "Due now" : `Due ${formatReminder(Number(tonight.remindAt))}`}
                   {tonightDue && pick.due.length > 1 && ` · ${pick.place} of ${pick.due.length}`}
                 </span>
                 <h2 data-size={titleSize(displayTitle(tonight))}>{displayTitle(tonight)}</h2>
@@ -294,7 +295,9 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                       <Poster src={upscale(movie.poster, "w185")} retina={upscale(movie.poster, "w342")} title={movie.title} className="radar-poster" />
                       <span className="radar-text">
                         <span className="radar-when">
-                          {hasActiveReminder(movie)
+                          {hasUpcomingBooking(movie)
+                            ? <><Icon name="ticket" size={11} /> {shortDay(movie.booking!.showAt)}<CalendarMark movie={movie} /></>
+                            : hasActiveReminder(movie)
                             ? <><Icon name="clock" size={11} /> {shortDay(at)}<CalendarMark movie={movie} /></>
                             : `Out ${shortDay(at, Date.now(), false).replace(/^(Today|Tomorrow)$/, (day) => day.toLowerCase())}`}
                         </span>

@@ -4,8 +4,8 @@
 // Android app's LibraryEditor. Edits copy the title and change only the
 // fields they own, so fields this app doesn't know survive the round trip.
 
-import { hasActiveReminder, isShow, isUnreleased, nextReminder, normalizeTitle, releaseDayReminder } from "./rules";
-import type { Candidate, LibraryDocument, Movie } from "./types";
+import { BOOKING_LEAD, hasActiveReminder, isShow, isUnreleased, nextReminder, normalizeTitle, releaseDayReminder } from "./rules";
+import type { Booking, Candidate, LibraryDocument, Movie } from "./types";
 
 export type EditResult =
   | { ok: true; document: LibraryDocument; movie: Movie }
@@ -150,6 +150,59 @@ export function toggleSeason(document: LibraryDocument, id: string, season: numb
       else episodes.add(key);
     }
     movie.personal = { ...(movie.personal ?? {}), episodes: [...episodes] };
+    return null;
+  });
+}
+
+/** A ticket's details, without empty fields. */
+function cleanBooking(booking: Booking): Booking {
+  const out: Booking = { showAt: booking.showAt, addedAt: booking.addedAt };
+  for (const key of ["cinema", "screen", "bookingId", "source", "ticketFileId", "ticketFileName", "ticketMime"] as const) {
+    const value = booking[key]?.trim();
+    if (value) out[key] = value;
+  }
+  const seats = (booking.seats ?? []).map((seat) => seat.trim().toUpperCase()).filter(Boolean);
+  if (seats.length) out.seats = [...new Set(seats)];
+  if (booking.watchedAsked) out.watchedAsked = true;
+  return out;
+}
+
+/**
+ * Puts a ticket on a title, and a reminder an hour before the show (when that's still to come). Saving it again
+ * keeps when it was first added; a changed showtime asks "Did you watch it?" afresh.
+ */
+export function setBooking(document: LibraryDocument, id: string, booking: Omit<Booking, "addedAt"> & { addedAt?: number }, now = Date.now()): EditResult {
+  if (!Number.isFinite(booking.showAt) || booking.showAt <= 0) return { ok: false, reason: "Add the show's date and time." };
+  return edit(document, id, now, (movie) => {
+    const previous = movie.booking;
+    const sameShow = previous?.showAt === booking.showAt;
+    movie.booking = cleanBooking({
+      ...booking,
+      addedAt: previous?.addedAt ?? booking.addedAt ?? now,
+      watchedAsked: sameShow ? previous?.watchedAsked || booking.watchedAsked : false
+    });
+    const remindAt = booking.showAt - BOOKING_LEAD;
+    if (remindAt > now) movie.remindAt = remindAt;
+    return null;
+  });
+}
+
+/** Takes the ticket off a title, and the reminder it set, if that is still the one it set. */
+export function clearBooking(document: LibraryDocument, id: string, now = Date.now()): EditResult {
+  return edit(document, id, now, (movie) => {
+    const booking = movie.booking;
+    if (!booking) return "No ticket to remove.";
+    if (movie.remindAt === booking.showAt - BOOKING_LEAD) movie.remindAt = null;
+    delete movie.booking;
+    return null;
+  });
+}
+
+/** "Not yet" to "Did you watch it?": not asked again for this show. */
+export function dismissWatchedPrompt(document: LibraryDocument, id: string, now = Date.now()): EditResult {
+  return edit(document, id, now, (movie) => {
+    if (!movie.booking) return "No ticket on this title.";
+    movie.booking = { ...movie.booking, watchedAsked: true };
     return null;
   });
 }

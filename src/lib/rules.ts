@@ -163,6 +163,41 @@ export function formatReminder(value: number, now = Date.now()): string {
   return `${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${time}`;
 }
 
+/** How long before the show a booked ticket's reminder goes off. */
+export const BOOKING_LEAD = 60 * 60 * 1000;
+// A film's length when it isn't known, for working out when the show is over.
+const SHOW_LENGTH = 150 * 60 * 1000;
+
+/** The reminder on this title is the one its ticket set, an hour before the show. */
+export function isBookingReminder(movie: Movie): boolean {
+  return Boolean(movie.booking) && Number(movie.remindAt) === Number(movie.booking!.showAt) - BOOKING_LEAD;
+}
+
+/** When the booked show should be over: the start plus the film's length (or two and a half hours). */
+export function showEndsAt(movie: Movie): number {
+  const runtime = Number(movie.runtimeMinutes);
+  return Number(movie.booking?.showAt) + (runtime > 0 ? runtime * 60_000 + 20 * 60_000 : SHOW_LENGTH);
+}
+
+/** A ticket for a show still to come or under way. */
+export function hasUpcomingBooking(movie: Movie, now = Date.now()): boolean {
+  return Boolean(movie.booking) && now < showEndsAt(movie);
+}
+
+/** After the show, until answered: "Did you watch it?" */
+export function watchedPromptDue(movie: Movie, now = Date.now()): boolean {
+  return Boolean(movie.booking) && !movie.watched && !movie.booking!.watchedAsked && now >= showEndsAt(movie);
+}
+
+/** A showtime for a label: "Today 7:30 PM", "Tomorrow 7:30 PM", "Sat 11 Oct, 7:30 PM". */
+export function formatShowTime(value: number, now = Date.now()): string {
+  const date = new Date(value);
+  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  if (isSameDay(date, new Date(now))) return `Today ${time}`;
+  if (isSameDay(date, new Date(now + DAY))) return `Tomorrow ${time}`;
+  return `${date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}, ${time}`;
+}
+
 /** A short day for a small label: "9:00 PM" (or "Today") today, "Tomorrow", "Fri", else "Oct 13". */
 export function shortDay(value: number, now = Date.now(), withTime = true): string {
   const date = new Date(value);
@@ -177,6 +212,7 @@ export function reminderText(movie: Movie, now = Date.now()): string {
     const at = knownWatchedAt(movie);
     return at ? `Watched ${formatRelativeDay(at, now)}` : "Watched";
   }
+  if (hasUpcomingBooking(movie, now)) return `Booked · ${formatShowTime(movie.booking!.showAt, now)}`;
   if (isUnreleased(movie, now)) {
     const release = ISO_DATE.test(movie.releaseDate || "")
       ? new Date(`${movie.releaseDate}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
@@ -431,6 +467,8 @@ export function getShowStatus(movie: Movie, now = Date.now()): ShowStatus | null
 /** The corner badge on a grid tile: what needs attention first. */
 export function gridBadge(movie: Movie, now = Date.now()): { text: string; tone: "due" | "amber" | "green" | "neutral" } | null {
   if (movie.watched) return null;
+  // A ticket says more than a reminder: the film is happening, at a set time.
+  if (hasUpcomingBooking(movie, now)) return { text: "BOOKED", tone: "green" };
   if (isDueNow(movie, now)) return { text: movie.remindAt! <= now ? "DUE" : "TONIGHT", tone: "due" };
   const status = getShowStatus(movie, now);
   if (status?.badge) return { text: status.badge, tone: status.tone };
@@ -569,6 +607,7 @@ export function cardLine(movie: Movie, now = Date.now()): string {
     const at = knownWatchedAt(movie);
     return at ? `Watched ${formatRelativeDay(at, now)}` : "Watched";
   }
+  if (hasUpcomingBooking(movie, now)) return `Booked · ${formatShowTime(movie.booking!.showAt, now)}`;
   if (isUnreleased(movie, now)) {
     if (!ISO_DATE.test(movie.releaseDate || "")) return "Coming soon";
     const release = new Date(`${movie.releaseDate}T00:00:00`);

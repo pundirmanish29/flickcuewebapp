@@ -141,6 +141,39 @@ async function writeFile(fileId: string, token: string, name: string, body: stri
   return (await response.json()).id;
 }
 
+/** Saves a file (a cinema ticket) in FlickCue's private Drive folder; returns its id. */
+export async function uploadAppFile(token: string, name: string, file: Blob): Promise<string> {
+  const boundary = `flickcue${Date.now()}`;
+  const metadata = JSON.stringify({ name, parents: ["appDataFolder"] });
+  const body = new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`,
+    `--${boundary}\r\nContent-Type: ${file.type || "application/octet-stream"}\r\n\r\n`,
+    file,
+    `\r\n--${boundary}--\r\n`
+  ]);
+  const response = await driveFetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id`, token, {
+    method: "POST",
+    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+    body
+  });
+  return (await response.json()).id;
+}
+
+export async function downloadAppFile(token: string, fileId: string): Promise<Blob> {
+  const response = await driveFetch(`${DRIVE_FILES_URL}/${encodeURIComponent(fileId)}?alt=media`, token);
+  return response.blob();
+}
+
+/** Deletes a file from FlickCue's private folder; one already gone counts as deleted. */
+export async function deleteAppFile(token: string, fileId: string): Promise<void> {
+  try {
+    await driveFetch(`${DRIVE_FILES_URL}/${encodeURIComponent(fileId)}`, token, { method: "DELETE" });
+  } catch (error) {
+    if (error instanceof DriveError && error.status === 404) return;
+    throw error;
+  }
+}
+
 export interface Account {
   email: string;
   name: string;

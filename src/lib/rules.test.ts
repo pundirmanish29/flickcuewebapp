@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardLine, episodesAired, importDays, shortDay, showsToRefresh, smartQuotes, watchedGroups, watchingShows, yourTake } from "./rules";
+import { cardLine, episodesAired, formatShowTime, gridBadge, hasUpcomingBooking, importDays, isBookingReminder, shortDay, showEndsAt, showsToRefresh, smartQuotes, watchedGroups, watchingShows, watchedPromptDue, yourTake } from "./rules";
 import type { Movie } from "./types";
 
 describe("short day labels", () => {
@@ -117,5 +117,33 @@ describe("which of a season's episodes have aired", () => {
 
   it("counts every episode of an old season with no dates at all", () => {
     expect(episodesAired([{}, {}, { airDate: "" }], today)).toEqual([true, true, true]);
+  });
+});
+
+describe("booked tickets on cards", () => {
+  const now = new Date(2026, 9, 7, 12, 0).getTime();
+  const HOUR = 60 * 60 * 1000;
+  const film = (extra: Partial<Movie> = {}): Movie => ({ id: "f", title: "Dune", mediaType: "Movie", tmdbType: "movie", ...extra });
+
+  it("shows BOOKED and when, until the show is over", () => {
+    const showAt = new Date(2026, 9, 11, 19, 30).getTime();
+    const movie = film({ runtimeMinutes: 166, remindAt: showAt - HOUR, booking: { showAt, addedAt: 1 } });
+    expect(gridBadge(movie, now)).toEqual({ text: "BOOKED", tone: "green" });
+    expect(cardLine(movie, now)).toBe(`Booked · ${formatShowTime(showAt, now)}`);
+    expect(isBookingReminder(movie)).toBe(true);
+    expect(hasUpcomingBooking(movie, showEndsAt(movie) + 1)).toBe(false);
+    expect(gridBadge({ ...movie, watched: true }, now)).toBeNull();
+  });
+
+  it("says today and tomorrow in words", () => {
+    expect(formatShowTime(new Date(2026, 9, 7, 21, 0).getTime(), now)).toMatch(/^Today /);
+    expect(formatShowTime(new Date(2026, 9, 8, 21, 0).getTime(), now)).toMatch(/^Tomorrow /);
+  });
+
+  it("asks 'did you watch it?' only after the show, and not twice", () => {
+    const movie = film({ booking: { showAt: now - 4 * HOUR, addedAt: 1 } });
+    expect(watchedPromptDue(movie, now)).toBe(true);
+    expect(watchedPromptDue(film({ booking: { showAt: now - HOUR, addedAt: 1 } }), now)).toBe(false);
+    expect(watchedPromptDue({ ...movie, booking: { ...movie.booking!, watchedAsked: true } }, now)).toBe(false);
   });
 });

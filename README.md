@@ -26,6 +26,15 @@ Vite + React + TypeScript, no backend. It builds to static files.
   Once the title service has MovieGlu credentials (see the proxy's README),
   title details list real showtimes instead: a week of days, the nearest cinemas
   with each format's times, and a tap on a time opens that cinema's booking page.
+- **Cinema tickets**: on a saved film, "Upload ticket" reads a screenshot, photo or PDF
+  from BookMyShow, District, PVR INOX, Cinépolis or any cinema, in the browser (PDF text
+  with pdf.js; images with tesseract.js, whose files the site serves itself from `ocr/`,
+  copied by `scripts/copy-ocr.mjs`). The person checks the date, time, cinema, screen,
+  seats and booking ID, then the title shows "Booked", gets a reminder an hour before
+  (a Calendar event at the showtime, with the cinema, when Calendar is on), keeps the
+  ticket in Drive's app folder and on the device (IndexedDB, for the cinema offline),
+  and asks "Did you watch it?" after the show. Nothing is sent to FlickCue
+  (`src/lib/ticket.ts`, `ticketReader.ts`, `components/TicketPanel.tsx`).
 - **Discover**: TMDB search, plus the Android app's lists (trending, popular, top
   rated, coming soon, genres). Saving asks when to remind you, the way the
   extension's on-page card does. Titles can also be added by hand.
