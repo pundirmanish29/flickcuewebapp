@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import "../landing.css";
 import { canAskExtension } from "../lib/auth";
 import { EXTENSION_URL, FIREFOX_EXTENSION_URL } from "../lib/config";
-import { extensionStore } from "../lib/extensionStore";
+import { extensionStore, otherStore } from "../lib/extensionStore";
 import { onPhone } from "../lib/device";
 import { startLandingMotion } from "../lib/landingMotion";
 import { safeImage } from "../lib/safe";
@@ -45,6 +45,7 @@ function Shot({ name, alt, eager = false }: { name: ShotName; alt: string; eager
 function Actions({ tone = "light", extensionLine = false }: { tone?: "light" | "ink"; extensionLine?: boolean }) {
   const phone = onPhone();
   const store = extensionStore();
+  const other = otherStore(store);
   // Chrome only lets a page talk to an extension that is installed and lists it, so this is "already installed".
   const installed = canAskExtension();
   const [busy, setBusy] = useState(false);
@@ -85,6 +86,7 @@ function Actions({ tone = "light", extensionLine = false }: { tone?: "light" | "
             <>
               <span>Want to save from any page too?</span>
               <a className="l-ext-link" href={store.url} target="_blank" rel="noreferrer"><ExtensionIcon size={20} /><span>Add the {store.browser} extension</span></a>
+              <a className="l-ext-also" href={other.url} target="_blank" rel="noreferrer">Also on {other.browser}</a>
             </>
           )}
         </p>
@@ -185,6 +187,7 @@ const FACTS = [
 /** The signed-out home page: a headline over what's playing, a film's worth of scenes, and a way in. */
 export function Landing() {
   const store = extensionStore();
+  const other = otherStore(store);
   const root = useRef<HTMLDivElement>(null);
   const [dock, setDock] = useState(false);
   // Offered in the story, not next to the way in; not to phones, or to someone who already has it.
@@ -222,9 +225,12 @@ export function Landing() {
         </div>
         <p className="l-scroll" aria-hidden="true">Scroll</p>
         {offerExtension && (
-          <a className="l-ext" href={store.url} target="_blank" rel="noreferrer">
-            <ExtensionIcon size={20} /><span>Get the {store.browser} extension</span>
-          </a>
+          <div className="l-ext-row">
+            <a className="l-ext" href={store.url} target="_blank" rel="noreferrer">
+              <ExtensionIcon size={20} /><span>Get the {store.browser} extension</span>
+            </a>
+            <a className="l-ext l-ext-alt" href={other.url} target="_blank" rel="noreferrer">Also on {other.browser}</a>
+          </div>
         )}
       </section>
 
@@ -262,7 +268,7 @@ export function Landing() {
                   <span className="l-step-word">{step.word}</span>
                   <p>{step.text}</p>
                   {index === 0 && offerExtension && (
-                    <p className="l-step-link"><a href={store.url} target="_blank" rel="noreferrer"><ExtensionIcon size={18} /> Add to {store.browser}</a></p>
+                    <p className="l-step-link"><a href={store.url} target="_blank" rel="noreferrer"><ExtensionIcon size={18} /> Add to {store.browser}</a><span className="l-step-or">or</span><a href={other.url} target="_blank" rel="noreferrer">{other.browser}</a></p>
                   )}
                 </div>
                 <figure className="l-step-shot">{step.image}</figure>
