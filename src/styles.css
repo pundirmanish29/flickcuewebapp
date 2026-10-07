@@ -30,6 +30,9 @@
   --stub-orange: #ff9b5c;
   --stub-blue: #6cb5ff;
   --stub-green: #6fdc93;
+  --page-orange: #b84f0b;
+  --page-blue: #1d64b8;
+  --page-green: #137a40;
 
   --font-display: "Instrument Serif", Georgia, serif;
   --font-ui: Archivo, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -97,6 +100,9 @@
     --stub-orange: #b84f0b;
     --stub-blue: #1d64b8;
     --stub-green: #137a40;
+    --page-orange: #ff9b5c;
+    --page-blue: #6cb5ff;
+    --page-green: #6fdc93;
     --poster-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
@@ -117,6 +123,9 @@
   --stub-orange: #b84f0b;
   --stub-blue: #1d64b8;
   --stub-green: #137a40;
+  --page-orange: #ff9b5c;
+  --page-blue: #6cb5ff;
+  --page-green: #6fdc93;
   --poster-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
@@ -1236,6 +1245,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tp-perf::before { content: ""; position: absolute; left: 24px; right: 24px; top: 50%; border-top: 2px dashed var(--stub-line); }
 .tp-stub-body { display: grid; gap: 16px; padding: 2px 22px 22px; }
 .tp-stub-label { margin: 0; color: var(--stub-tone); font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
+.tp-summary { display: none; }
 .tp-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; margin: 0; }
 .tp-fields dt { color: var(--stub-muted); font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; }
 .tp-fields dd { margin: 3px 0 0; font-size: 16px; font-weight: 800; line-height: 1.25; letter-spacing: -0.01em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
@@ -1271,7 +1281,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 }
 
 @media (max-width: 900px) {
-  .tp-hero { height: clamp(230px, 40vh, 340px); }
+  .tp-hero { height: clamp(220px, 34vh, 300px); }
   .tp-layout { margin-top: -104px; }
   .tp-layout.after-trailer { margin-top: 20px; }
   .tp-head { display: flex; align-items: flex-end; gap: 14px; }
@@ -1282,12 +1292,39 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .tp-facts { font-size: 13px; }
   .tp-head .watch-on { height: 38px; margin-top: 10px; font-size: 12px; padding-left: 12px; }
   .tp-head .watch-on img, .tp-head .watch-on b { width: 28px; height: 28px; }
-  /* The poster already sits beside the title, so the stub is just its plan. */
-  .tp-stub { margin-top: 22px; border-radius: 22px; }
-  .tp-stub-art, .tp-perf { display: none; }
-  .tp-stub-body { padding: 18px; }
+  /* Back and Trailer as round icons: the header already names the page. */
+  .tp-back, .tp-play { width: 44px; padding: 0; justify-content: center; }
+  .tp-play-icon { width: 30px; height: 30px; box-shadow: none; }
+  .tp-back-label, .tp-play-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* The poster already sits beside the title, so on a phone the stub is just its plan, set on the page between two tear lines: no card. */
+  .tp-stub {
+    --stub-muted: var(--muted); --stub-line: var(--rule);
+    margin-top: 26px; padding: 20px 0; border-radius: 0; background: none; color: var(--ink); box-shadow: none;
+    border-top: 2px dashed var(--rule); border-bottom: 2px dashed var(--rule);
+  }
+  .tp-stub.tp-tone-orange { --stub-tone: var(--page-orange); }
+  .tp-stub.tp-tone-blue { --stub-tone: var(--page-blue); }
+  .tp-stub.tp-tone-green { --stub-tone: var(--page-green); }
+  .tp-stub-art, .tp-perf, .tp-fields { display: none; }
+  .tp-stub-body { gap: 14px; padding: 0; }
+  .tp-stub-label { margin-bottom: -8px; }
+  .tp-summary { display: block; margin: 0; font-size: 18px; font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .tp-stub .tp-button-primary { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .tp-stub .tp-button-primary:hover { background: color-mix(in srgb, var(--ink) 88%, var(--paper)); }
+  .tp-stub :focus-visible { outline-color: var(--ink); }
+  /* The other actions: a quiet row of icons with their names under them. */
+  .tp-stub .tp-secondary { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
+  .tp-stub .tp-secondary .tp-button { flex-direction: column; gap: 5px; min-height: 58px; padding: 4px 2px; border: 0; border-radius: 14px; color: var(--ink-soft); font-size: 12px; font-weight: 600; }
+  .tp-stub .tp-secondary .tp-button:hover { color: var(--ink); background: var(--paper-deep); }
+  .tp-stub .tp-secondary .tp-button svg { width: 22px; height: 22px; }
+  .tp-stub .tp-secondary .tp-button.on { background: none; color: var(--ink); }
+  .tp-stub .tp-secondary .tp-button.on svg { padding: 5px; box-sizing: content-box; margin: -5px; border-radius: 50%; background: var(--lime); color: var(--on-accent); }
+  .tp-stub .tp-secondary .tp-button-danger:hover { color: var(--page-orange); }
+  .tp-stub .on-calendar { margin-top: -6px; }
   html[data-opening] .tp-poster-head { view-transition-name: title-poster; }
-  .tp-body .sheet-section { margin-top: 32px; }
+  .tp-body .sheet-section { margin-top: 40px; }
+  /* The pinned bar and the dock already sit where the scroll arrows would. */
+  body:has(.title-page) .scroll-jump { display: none; }
 
   /* Pinned above the dock once the stub has scrolled away: the state on the left, the main button past a perforation. */
   .tp-bar {
