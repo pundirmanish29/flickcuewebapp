@@ -88,6 +88,10 @@ export interface Movie {
   personal?: Personal;
   sourceUrl?: string;
   booking?: Booking;
+  /** When its TMDB details were last fetched (ms). Shared with the extension; refreshed within TMDB's six-month limit (lib/metaRefresh.ts). */
+  metaFetchedAt?: number;
+  /** A poster picked by hand, never replaced by a refresh (the extension sets it). */
+  posterLocked?: boolean;
   [key: string]: unknown;
 }
 

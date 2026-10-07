@@ -281,6 +281,8 @@ export function addFromCandidate(document: LibraryDocument, candidate: Candidate
   if (candidate.tmdbType) movie.tmdbType = candidate.tmdbType;
   if (candidate.rating) movie.rating = candidate.rating;
   if (candidate.overview) movie.tagline = candidate.overview.slice(0, 200);
+  // Just fetched from TMDB: due again in 150 days (lib/metaRefresh.ts).
+  if (candidate.tmdbId) movie.metaFetchedAt = now;
 
   return { ok: true, document: { ...document, movies: [movie, ...document.movies] }, movie };
 }

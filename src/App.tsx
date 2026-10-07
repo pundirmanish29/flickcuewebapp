@@ -7,6 +7,7 @@ import { Icon, Logo, type IconName } from "./components/Icon";
 import { TitlePage } from "./components/TitlePage";
 import { closePreview } from "./lib/preview";
 import { goToTitle, leaveTitle, scrollToRestore } from "./lib/titleRoute";
+import { useMetaRefresh } from "./lib/showSync";
 import { ToastHost } from "./components/Toast";
 import { ContactReveal } from "./components/ContactReveal";
 import { canAskExtension, preloadGoogleSignIn } from "./lib/auth";
@@ -227,6 +228,8 @@ export default function App() {
     return idle(preloadGoogleSignIn);
   }, [needsSignIn]);
   useReminderNotifications();
+  // TMDB details older than 150 days are fetched again, a few a visit, once this tab has synced (lib/metaRefresh.ts).
+  useMetaRefresh(library.movies, settings.region || "IN", sync);
 
   useEffect(() => {
     if (!titleWaitsForSignIn) return;
