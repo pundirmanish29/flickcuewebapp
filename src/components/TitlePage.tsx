@@ -249,7 +249,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
 
   const back = (
     <button type="button" className="tp-back" onClick={onBack}>
-      <Icon name="back" size={18} /> {backLabel}
+      <Icon name="back" size={18} /> <span className="tp-back-label">{backLabel}</span>
     </button>
   );
 
@@ -401,7 +401,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             {details?.trailerKey && (
               <button type="button" className="tp-play" onClick={() => setPlaying(true)} aria-label={`Play the trailer for ${title}`}>
                 <span className="tp-play-icon"><Icon name="play" size={18} /></span>
-                <span>Trailer</span>
+                <span className="tp-play-label">Trailer</span>
               </button>
             )}
           </div>
@@ -464,6 +464,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
           <div className="tp-perf" aria-hidden="true" />
           <div className="tp-stub-body">
             <p className="tp-stub-label">{stub.label}</p>
+            {/* A phone shows the fields as one line under the state; the grid is for a wide screen. */}
+            {stub.fields.length > 0 && <p className="tp-summary">{stub.fields.slice(0, 2).map((item) => item.value).join(" · ")}</p>}
             {stub.fields.length > 0 && (
               <dl className="tp-fields">
                 {stub.fields.map((item) => (
