@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { lookupErrorText } from "../lib/friendlyError";
 import { CandidateCard } from "../components/CandidateCard";
 import { HeadingMenu } from "../components/HeadingMenu";
 import { PageHeader } from "../components/PageHeader";
@@ -194,7 +195,8 @@ function Row({ title, heading, bare = false, items, onOpen, onSeeAll, ranked = f
   return (
     <section className={`cinema-shelf ${ranked ? "ranked-shelf" : ""} ${reasons ? "" : "no-reasons"}`} aria-labelledby={id}>
       <div className="cinema-shelf-head">
-        {bare ? <div id={id} className="cinema-shelf-title">{heading}</div> : <h2 id={id}>{heading ?? title}</h2>}
+        {/* A row whose heading is a control (the cinema toggle) still gets a real heading, for screen readers. */}
+        {bare ? <div className="cinema-shelf-title"><h2 id={id} className="visually-hidden">{title}</h2>{heading}</div> : <h2 id={id}>{heading ?? title}</h2>}
         <div className="shelf-tools">
           <ScrollArrows target={row} label={title} watch={items} />
           {onSeeAll && <button type="button" className="link-button" onClick={onSeeAll}>See all</button>}
@@ -345,7 +347,8 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const hasSeeds = seeds.length > 0;
 
   // "" is Discover's own page; anything else is a full list opened from it.
-  const [list, setList] = useState("");
+  // Coming back to a list through history (Back from another page) reopens that list.
+  const [list, setList] = useState(() => (history.state as { discoverList?: string } | null)?.discoverList ?? "");
   const [kind, setKind] = useState<KindFilter>("all");
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [trending, setTrending] = useState<Candidate[] | null>(null);
@@ -354,11 +357,28 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const [loadingMore, setLoadingMore] = useState(false);
   const [manual, setManual] = useState(false);
 
+  // A full list is a step in history, so Back (or a phone's back gesture) returns to Discover rather than leaving it.
+  const openList = (id: string) => {
+    const state = (history.state ?? {}) as { discoverList?: string };
+    if (state.discoverList) history.replaceState({ ...state, discoverList: id }, "", location.hash);
+    else history.pushState({ fromApp: true, discoverList: id }, "", location.hash || "#/discover");
+    setList(id);
+  };
+  const closeList = () => {
+    if ((history.state as { discoverList?: string } | null)?.discoverList) history.back();
+    else setList("");
+  };
+  useEffect(() => {
+    const onPop = (event: PopStateEvent) => setList((event.state as { discoverList?: string } | null)?.discoverList ?? "");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   // A genre tapped in a title's details opens here on that genre.
   useEffect(() => onIntent(() => {
     const wanted = takeIntent("genre");
-    if (wanted) setList(GENRE_PREFIX + wanted);
-  }), []);
+    if (wanted) openList(GENRE_PREFIX + wanted);
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const searching = query.trim().length >= 2;
   const root = !searching && !list;
@@ -431,7 +451,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
       setLoad({ ...load, items: [...load.items, ...next.items.filter((item) => !known.has(item.key))], more: next.more });
       setPage(page + 1);
     } catch (error) {
-      toast((error as Error).message);
+      toast(lookupErrorText((error as Error).message));
     } finally {
       setLoadingMore(false);
     }
@@ -470,7 +490,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
         <div className="wrap">
           {!searching && list && (
             <div className="list-head">
-              <button type="button" className="header-icon list-back" onClick={() => setList("")} aria-label="Back to Discover">
+              <button type="button" className="header-icon list-back" onClick={closeList} aria-label="Back to Discover">
                 <Icon name="back" size={20} />
               </button>
               <h2>{listTitle}</h2>
@@ -495,7 +515,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
               {!searching && !stream && (
                 <label className={`select genre-select ${genre ? "active" : ""}`}>
                   <span className="visually-hidden">Genre</span>
-                  <select value={genre} onChange={(event) => setList(event.target.value ? GENRE_PREFIX + event.target.value : "")}>
+                  <select value={genre} onChange={(event) => (event.target.value ? openList(GENRE_PREFIX + event.target.value) : closeList())}>
                     <option value="">Genre</option>
                     {GENRES_LIST.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </select>
@@ -509,7 +529,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
               {Array.from({ length: 12 }, (_, index) => <div key={index} className="skeleton-card" />)}
             </div>
           )}
-          {load.state === "error" && <p className="empty">{load.message}</p>}
+          {load.state === "error" && <p className="empty">{lookupErrorText(load.message)}</p>}
 
           {person && personWork.length > 0 && (
             <div className="person-block">
@@ -528,27 +548,27 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
           {/* Discover: the cinema first, then renting and streaming, then more picks; every other list is at the bottom. */}
           {root && (
             <>
-              <CinemaRow region={region} saved={saved} onOpen={onOpen} onSeeAll={setList} />
+              <CinemaRow region={region} saved={saved} onOpen={onOpen} onSeeAll={openList} />
               {(!rentalItems || rentalItems.length > 0) && (
-                <Row title="New to rent" items={rentalItems} onOpen={onOpen} onSeeAll={() => setList(NEW_TO_RENT.id)} compact />
+                <Row title="New to rent" items={rentalItems} onOpen={onOpen} onSeeAll={() => openList(NEW_TO_RENT.id)} compact />
               )}
-              <StreamingRow region={region} streams={streams} saved={saved} onOpen={onOpen} onSeeAll={setList} />
+              <StreamingRow region={region} streams={streams} saved={saved} onOpen={onOpen} onSeeAll={openList} />
               {forYou && load.state === "loading" && <Row title="For you" items={null} onOpen={onOpen} compact />}
               {forYouRow && forYouRow.items.length > 0 && <Row title={forYouRow.title} items={forYouRow.items} onOpen={onOpen} compact />}
               {(!trendingItems || trendingItems.length > 0) && (
-                <Row title="Trending now" items={trendingItems} onOpen={onOpen} onSeeAll={() => setList("trending")} compact />
+                <Row title="Trending now" items={trendingItems} onOpen={onOpen} onSeeAll={() => openList("trending")} compact />
               )}
               <section className="genre-browse" aria-labelledby="explore-title">
                 <h2 id="explore-title">Explore more</h2>
                 <div className="genre-chips">
                   {EXPLORE_LISTS.map((id) => (
-                    <button key={id} type="button" className="category" onClick={() => setList(id)}>{BROWSE_LISTS.find((item) => item.id === id)!.title}</button>
+                    <button key={id} type="button" className="category" onClick={() => openList(id)}>{BROWSE_LISTS.find((item) => item.id === id)!.title}</button>
                   ))}
                 </div>
                 <h2 className="genre-browse-sub">Genres</h2>
                 <div className="genre-chips">
                   {GENRES_LIST.map((item) => (
-                    <button key={item.id} type="button" className="category" onClick={() => setList(GENRE_PREFIX + item.id)}>{item.label}</button>
+                    <button key={item.id} type="button" className="category" onClick={() => openList(GENRE_PREFIX + item.id)}>{item.label}</button>
                   ))}
                 </div>
               </section>

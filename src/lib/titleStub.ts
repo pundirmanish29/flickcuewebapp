@@ -65,7 +65,6 @@ const whereText = (provider: StubInput["provider"]) => (provider ? `${provider.n
 
 export function titleStub(input: StubInput): TitleStub {
   const { movie, saved, show, unreleased, releaseDate, provider, upNext, length, now } = input;
-  const savedOn = saved && movie.createdAt ? formatRelativeDay(Number(movie.createdAt), now) : "";
 
   // A booked film: the show is what matters, until it's watched.
   if (saved && !show && movie.booking && !movie.watched) {
@@ -92,10 +91,9 @@ export function titleStub(input: StubInput): TitleStub {
       label: "Watched",
       fields: [
         { label: "When", value: at ? capital(formatRelativeDay(at, now)) : "Date not known" },
-        { label: "Your take", value: verdict ? `${verdictLabel(verdict)}${take.liked ? ", liked" : ""}` : take.liked ? "Liked" : "Not rated yet" },
-        ...field("Watch again", whereText(provider)),
-        ...field("Saved", savedOn ? capital(savedOn) : "")
-      ].slice(0, 4),
+        { label: "Your take", value: verdict ? `${verdictLabel(verdict)}${take.liked ? ", liked" : ""}` : take.liked ? "Liked" : "Not rated yet" }
+        // Where to watch it again is the main button's own label; when it was saved is under the details.
+      ],
       primary: provider ? "watchAgain" : "none"
     };
   }
@@ -140,8 +138,8 @@ export function titleStub(input: StubInput): TitleStub {
     fields: [
       { label: "Reminder", value: hasActiveReminder(movie, now) ? capital(formatReminder(movie.remindAt!, now)) : due ? "Due now" : "None" },
       { label: "Where", value: whereText(provider) || "Not streaming here" },
-      ...(show ? field("Up next", upNext) : field("Runtime", length)),
-      ...field("Saved", savedOn ? capital(savedOn) : "")
+      ...(show ? field("Up next", upNext) : field("Runtime", length))
+      // When it was saved (and from where) is under the details, not repeated here.
     ].slice(0, 4),
     primary: provider ? "watch" : "watched"
   };

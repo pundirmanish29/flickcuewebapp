@@ -76,7 +76,8 @@ describe("titleStub", () => {
     }));
     expect(stub).toMatchObject({ tone: "green", label: "Watched", primary: "watchAgain" });
     const localized = new Date(2026, 7, 20).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    expect(values(stub)).toMatchObject({ When: localized, "Your take": "Timepass, liked", "Watch again": "Prime Video · rent or buy" });
+    expect(values(stub)).toMatchObject({ When: localized, "Your take": "Timepass, liked" });
+    expect(values(stub)).not.toHaveProperty("Watch again");
   });
 
   it("has no main button for a watched title nothing streams", () => {

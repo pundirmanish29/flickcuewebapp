@@ -16,7 +16,7 @@ const ANDROID_URL = "";
 
 const PRIVACY = "Your list lives in your own Google Drive. FlickCue can't see anything else in it, and there's no account with us.";
 
-type ShotName = "queue" | "title" | "discover" | "alerts";
+type ShotName = "queue" | "title" | "discover" | "alerts" | "ticket";
 
 /** A screenshot of the web app: the phone-shaped one on narrow screens. */
 function Shot({ name, alt, eager = false }: { name: ShotName; alt: string; eager?: boolean }) {
@@ -167,14 +167,15 @@ const STEPS = [
   },
   {
     word: "Watch it.", dot: "var(--blue)", text: "A reminder for tonight, the weekend or release day, and a pick when you can't decide.",
-    image: <Shot name="alerts" alt="FlickCue notifications: reminders due and new seasons out" />
+    image: <Shot name="alerts" alt="FlickCue notifications: a reminder due now, and what's coming up" />
   }
 ] as const;
 
 const PHONES: { name: ShotName; label: string; alt: string }[] = [
   { name: "queue", label: "Tonight, decided", alt: "The FlickCue queue on a phone: tonight's pick and what's due" },
-  { name: "title", label: "Know what's next", alt: "A show's details on a phone: next episode, where to watch, episode progress" },
+  { name: "title", label: "Know what's next", alt: "A show on a phone: up next, watch it on Netflix, series progress" },
   { name: "discover", label: "Find something good", alt: "FlickCue Discover on a phone: in cinemas, coming soon, and where to stream" },
+  { name: "ticket", label: "Your seats, at the door", alt: "A booked film on a phone: show time, cinema, screen and seats" },
   { name: "alerts", label: "A nudge, on time", alt: "FlickCue notifications on a phone: reminders due and new seasons out" }
 ];
 
@@ -284,21 +285,21 @@ export function Landing() {
 
       <section className="l-scene" aria-labelledby="l-scene-a">
         <div className="wrap l-scene-grid">
-          <p className="l-ghost" aria-hidden="true">01</p>
+          <p className="l-ghost" aria-hidden="true">04</p>
           <div className="l-scene-copy">
             <p className="l-eyebrow" style={{ ["--tone" as string]: "var(--blue)" }}>Shows you follow</p>
             <h2 id="l-scene-a">Know what's next.</h2>
-            <p>Mark a show as Watching and FlickCue keeps up: the next episode and when it airs, the ones you've seen, and where to stream it in your country.</p>
+            <p>Mark a show as Watching and FlickCue keeps up: the next episode to watch and where to stream it, the ones you've seen, and how far through the series you are.</p>
           </div>
           <figure className="l-window">
-            <Shot name="title" alt="FlickCue title details: next episode tomorrow, where to watch, and episode progress" />
+            <Shot name="title" alt="A show in FlickCue: up next season 1 episode 4, watch it on Netflix, series progress and this season's episodes" />
           </figure>
         </div>
       </section>
 
       <section className="l-scene l-scene-flip" aria-labelledby="l-scene-b">
         <div className="wrap l-scene-grid">
-          <p className="l-ghost" aria-hidden="true">02</p>
+          <p className="l-ghost" aria-hidden="true">05</p>
           <div className="l-scene-copy">
             <p className="l-eyebrow" style={{ ["--tone" as string]: "var(--orange)" }}>Tonight's search</p>
             <h2 id="l-scene-b">Find something good.</h2>
@@ -306,6 +307,20 @@ export function Landing() {
           </div>
           <figure className="l-window">
             <Shot name="discover" alt="FlickCue Discover: what's in cinemas and coming soon, and where to stream" />
+          </figure>
+        </div>
+      </section>
+
+      <section className="l-scene" aria-labelledby="l-scene-c">
+        <div className="wrap l-scene-grid">
+          <p className="l-ghost" aria-hidden="true">06</p>
+          <div className="l-scene-copy">
+            <p className="l-eyebrow" style={{ ["--tone" as string]: "var(--green)" }}>At the cinema</p>
+            <h2 id="l-scene-c">Keep the ticket.</h2>
+            <p>Booked a show? Add the ticket from a screenshot, a photo or the PDF, read right on your phone. FlickCue marks the film Booked, reminds you an hour before, keeps the ticket for the door, and asks afterwards how it was.</p>
+          </div>
+          <figure className="l-window">
+            <Shot name="ticket" alt="A booked film in FlickCue: Jailer 2 on Thursday at 7:30 PM, PVR Select Citywalk, Audi 5, seats H12 and H13" />
           </figure>
         </div>
       </section>

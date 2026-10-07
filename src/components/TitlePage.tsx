@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useDialog } from "../lib/useDialog";
 import * as actions from "../lib/actions";
 import { findExisting } from "../lib/editor";
 import {
-  displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, readerDate, seasonProgress, smartQuotes
+  displayTitle, formatRating, formatReminder, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, readerDate, seasonProgress, smartQuotes
 } from "../lib/rules";
 import { CALENDAR_MIRROR_ENABLED } from "../lib/config";
 import { getSessionGeneration, getState, sync as syncLibrary, useAppState } from "../lib/store";
@@ -132,6 +133,8 @@ function candidateAsMovie(candidate: Candidate): Movie {
   };
 }
 
+const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
 /** A button or link in the stub, icon then words. */
 function StubButton({ icon, children, href, onClick, kind = "plain", pressed, expanded, disabled }: {
   icon?: IconName;
@@ -178,6 +181,19 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const detailsWritten = useRef<{ result: TitleDetails; id: string; generation: number } | null>(null);
   const [detailsError, setDetailsError] = useState("");
   const [choosingReminder, setChoosingReminder] = useState(false);
+  const [confirmingFinish, setConfirmingFinish] = useState(false);
+  const confirmRef = useRef<HTMLDivElement>(null);
+  // The question opens under the buttons, which on a phone can be the bottom of the screen: bring it into view.
+  useEffect(() => {
+    if (confirmingFinish) confirmRef.current?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
+  }, [confirmingFinish]);
+  // A phone (where the dock is) gets the reminder choices as a sheet; decided as they open.
+  const [sheet, setSheet] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (choosingReminder) setSheet(window.matchMedia("(max-width: 900px)").matches);
+  }, [choosingReminder]);
+  useDialog(choosingReminder && sheet, sheetRef, () => setChoosingReminder(false));
   const syncedNote = movie?.personal?.note ?? "";
   const [draft, setDraft] = useState(() => noteDraft(syncedNote));
   const note = draft.text;
@@ -358,7 +374,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const seasons = details?.seasonCount ? `${details.seasonCount} season${details.seasonCount === 1 ? "" : "s"}` : "";
   const statusNamesSeasons = /\bseasons?\b/i.test(status?.text || "");
   const facts = show && details?.seasonCount
-    ? [statusNamesSeasons ? "" : seasons, details.episodeCount ? `${details.episodeCount} episodes` : "", isSaved && episodesSeen ? `${episodesSeen} watched` : ""].filter(Boolean).join(" · ")
+    ? [statusNamesSeasons ? "" : seasons, details.episodeCount ? `${details.episodeCount} episodes` : "", isSaved && episodesSeen && movie.watched ? `${episodesSeen} watched` : ""].filter(Boolean).join(" · ")
     : "";
 
   // Your own rating beats Letterboxd's, as in the other clients (SHARED.md, "Your take").
@@ -444,9 +460,13 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
         <StubButton key="interested" icon="bell" pressed={Boolean(movie.personal?.interested)} onClick={() => actions.setInterested(movie.id, !movie.personal?.interested)}>Interested</StubButton>
       );
     } else {
-      if (show || stub.primary !== "watched") secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.toggleWatched(movie.id)}>{show ? "Mark series finished" : "Watched it"}</StubButton>);
-      if (show) secondary.push(<StubButton key="watching" icon="play" pressed={watchingNow} onClick={() => actions.setWatching(movie.id, !watchingNow)}>Watching</StubButton>);
-      if (stub.primary !== "remind") secondary.push(<StubButton key="remind" icon="clock" pressed={reminderActive} expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>{reminderActive ? "Reminder" : "Remind me"}</StubButton>);
+      // Finishing a whole series is a big step for one tap: it asks first.
+      if (show) secondary.push(<StubButton key="watched" icon="eye" expanded={confirmingFinish} onClick={() => setConfirmingFinish((open) => !open)}>Mark series finished</StubButton>);
+      else if (stub.primary !== "watched") secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.toggleWatched(movie.id)}>Watched it</StubButton>);
+      // The label already says Watching; the button only starts or stops it.
+      if (show) secondary.push(<StubButton key="watching" icon={watchingNow ? "pause" : "play"} onClick={() => actions.setWatching(movie.id, !watchingNow)}>{watchingNow ? "Stop watching" : "Start watching"}</StubButton>);
+      // A set reminder shows its time rather than a lit button.
+      if (stub.primary !== "remind") secondary.push(<StubButton key="remind" icon="clock" expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>{reminderActive ? capitalize(formatReminder(Number(movie.remindAt))) : "Remind me"}</StubButton>);
     }
     // Beside a ticket's own "Remove ticket", say which thing goes.
     secondary.push(<StubButton key="remove" kind="danger" icon="trash" onClick={() => actions.removeTitle(movie.id)}>{movie.booking && !show ? "Remove from list" : "Remove"}</StubButton>);
@@ -502,11 +522,20 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             {credit && <p className="tp-credit">{credit}</p>}
             <div className="score-row">
               {formatRating(movie.rating || details?.rating) && <RatingScore value={movie.rating || details?.rating} className="score" size={13} />}
-              {imdbRating > 0 && (
-                <span className="score" title="IMDb" aria-label={`IMDb ${imdbRating.toFixed(1)}`}>
-                  <span className="imdb-mark" aria-hidden="true">IMDb</span> {imdbRating.toFixed(1)}
-                </span>
-              )}
+              {/* IMDb's page is linked from its score here, rather than as a lone button at the end of the page. */}
+              {imdbRating > 0 ? (
+                imdbId ? (
+                  <a className="score score-link" href={`https://www.imdb.com/title/${imdbId}/`} target="_blank" rel="noreferrer" title="Open on IMDb" aria-label={`IMDb ${imdbRating.toFixed(1)}, open on IMDb`}>
+                    <span className="imdb-mark" aria-hidden="true">IMDb</span> {imdbRating.toFixed(1)}
+                  </a>
+                ) : (
+                  <span className="score" title="IMDb" aria-label={`IMDb ${imdbRating.toFixed(1)}`}>
+                    <span className="imdb-mark" aria-hidden="true">IMDb</span> {imdbRating.toFixed(1)}
+                  </span>
+                )
+              ) : imdbId ? (
+                <a className="score score-link" href={`https://www.imdb.com/title/${imdbId}/`} target="_blank" rel="noreferrer" aria-label="Open on IMDb"><span className="imdb-mark" aria-hidden="true">IMDb</span></a>
+              ) : null}
               {Number(movie.criticScore) >= 0 && movie.criticScore != null && (
                 <span className="score score-critics" title="Critics" aria-label={`Critics ${movie.criticScore}%`}>
                   <Icon name="tomato" size={14} /> {movie.criticScore}%
@@ -538,6 +567,10 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             <p className="tp-stub-label">{stub.label}</p>
             {/* A phone shows the fields as one line under the state; the grid is for a wide screen. */}
             {stub.fields.length > 0 && <p className="tp-summary">{stub.fields.slice(0, 2).map((item) => item.value).join(" · ")}</p>}
+            {/* A booked film's screen and seats too: what you need at the door, without scrolling. */}
+            {stub.label === "Booked" && stub.fields.length > 2 && (
+              <p className="tp-summary tp-summary-sub">{stub.fields.slice(2).map((item) => (item.label === "Seats" ? `Seats ${item.value}` : item.value)).join(" · ")}</p>
+            )}
             {stub.fields.length > 0 && (
               <dl className="tp-fields">
                 {stub.fields.map((item) => (
@@ -563,9 +596,25 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             {secondary.length > 0 && (
               <div className="tp-secondary" onClickCapture={(event) => pop((event.target as Element).closest(".tp-button"))}>{secondary}</div>
             )}
+            {confirmingFinish && isSaved && show && !movie.watched && (
+              <div className="tp-confirm" ref={confirmRef} role="group" aria-label="Mark series finished">
+                <p>Mark all of {title} watched? It leaves your queue.</p>
+                <div className="tp-confirm-actions">
+                  <button type="button" className="tp-button tp-button-primary" onClick={() => { setConfirmingFinish(false); actions.toggleWatched(movie.id); }}>Mark finished</button>
+                  <button type="button" className="tp-button tp-button-plain" onClick={() => setConfirmingFinish(false)}>Cancel</button>
+                </div>
+              </div>
+            )}
             {choosingReminder && !movie.watched && (
+              // On a wide screen the choices open in the stub; on a phone they rise as a sheet over the page,
+              // since inline they'd open below the fold, behind the dock.
+              <div className={`tp-sheet${sheet ? " is-sheet" : ""}`} ref={sheetRef} role={sheet ? "dialog" : undefined} aria-modal={sheet || undefined} aria-label={isSaved ? "Reminder" : "Save"}>
+              {sheet && <div className="tp-sheet-scrim" aria-hidden="true" onClick={() => setChoosingReminder(false)} />}
               <div className="tp-choices">
-                <p className="popover-label">{isSaved ? "Remind me…" : "Save it, and remind me…"}</p>
+                <div className="tp-choices-head">
+                  <p className="popover-label">{isSaved ? "Remind me…" : "Save it, and remind me…"}</p>
+                  <button type="button" className="tp-choices-close" aria-label="Close" onClick={() => setChoosingReminder(false)}><Icon name="close" size={18} /></button>
+                </div>
                 <ReminderChoices
                   releaseDate={unreleased ? movie.releaseDate : undefined}
                   onPick={(at) => {
@@ -583,6 +632,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
                   noneLabel={isSaved ? "Clear reminder" : "Just save it"}
                 />
                 {isSaved && CALENDAR_MIRROR_ENABLED && settings.calendarMirror && <p className="muted small-print">This reminder also goes on your Google Calendar.</p>}
+              </div>
               </div>
             )}
           </div>
@@ -753,10 +803,11 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             </section>
           )}
 
-          <div className="sheet-links">
-            {imdbId && <a className="link-chip" href={`https://www.imdb.com/title/${imdbId}/`} target="_blank" rel="noreferrer">IMDb</a>}
-            {safeLink(movie.sourceUrl) && <a className="link-chip" href={safeLink(movie.sourceUrl)} target="_blank" rel="noreferrer">Where you found it</a>}
-          </div>
+          {safeLink(movie.sourceUrl) && (
+            <div className="sheet-links">
+              <a className="link-chip" href={safeLink(movie.sourceUrl)} target="_blank" rel="noreferrer">Where you found it</a>
+            </div>
+          )}
         </div>
       </div>
 

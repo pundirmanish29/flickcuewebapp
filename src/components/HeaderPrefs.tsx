@@ -67,7 +67,7 @@ export function AccountPrefs() {
         </label>
       )}
       <label className="am-row" onClick={openList}>
-        <span className="am-row-label">Language</span>
+        <span className="am-row-label">Title language</span>
         <select aria-label="Title language" title="Title language: titles, overviews and taglines" value={settings.language ?? "en-US"} onChange={(event) => updateSettings({ language: event.target.value })}>
           {LANGUAGES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
         </select>
