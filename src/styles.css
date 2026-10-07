@@ -812,6 +812,16 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 }
 
 .empty { padding: 48px 0; color: var(--ink-soft); font-size: 17px; }
+/* A page with nothing on it yet (components/EmptyStart.tsx): the serif line says so, the sentence says what it's for, the buttons fill it. */
+.empty-start { max-width: 40rem; padding: clamp(36px, 7vw, 80px) 0 clamp(28px, 5vw, 56px); }
+.empty-start-lead { margin: 0; color: var(--ink-soft); font-size: clamp(1.125rem, 1rem + 0.6vw, 1.375rem); line-height: 1.45; text-wrap: pretty; }
+.empty-start-lead em { display: block; margin-bottom: 10px; color: var(--ink); font-family: var(--font-display); font-size: clamp(2.25rem, 1.4rem + 3.6vw, 3.75rem); font-style: italic; font-weight: 400; line-height: 1.02; letter-spacing: -0.02em; text-wrap: balance; }
+.empty-start .button-row { margin-top: 28px; }
+.empty-start-note { margin: 24px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.empty-start-note a { color: var(--ink); font-weight: 700; text-underline-offset: 3px; }
+.when-narrow { display: none; }
+@media (max-width: 900px) { .when-wide { display: none; } .when-narrow { display: inline; } }
+@media (max-width: 600px) { .empty-start .button-row .button { flex: 1 1 100%; justify-content: center; } }
 
 /* ---- Notifications: a card for each, two to a row on a wide screen ---- */
 
@@ -1481,6 +1491,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .ticket-when { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
 .ticket-where { font-weight: 600; }
 .ticket-seats { color: var(--ink-soft); font-size: 14px; }
+/* On a wide screen the stub beside it already lists the show, cinema and seats; the panel keeps only the rest. */
+@media (min-width: 901px) { .tp-body .ticket-card-head { display: none; } .tp-body .ticket-card > p:first-of-type { margin-top: 0; } }
+.ticket-confirm { flex-basis: 100%; margin: 0; font-weight: 600; }
 .ticket-id { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 14px; color: var(--ink-soft); }
 .ticket-id code { padding: 2px 8px; border-radius: 6px; background: var(--paper-deep, rgba(0,0,0,.05)); color: var(--ink); font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; }
 /* Phones: small text buttons keep their look but get a 44px tap area. */
@@ -1655,7 +1668,7 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   /* The tab bar would sit on top of the keyboard while typing. */
   body:has(input:not([type="checkbox"]):focus, select:focus, textarea:focus) .dock { display: none; }
 
-  /* The dock: icons only, floating. A lime highlight glides to the chosen one and its icon springs; the header names the page. */
+  /* The dock: floating, each page named under its icon. A lime highlight glides to the chosen one. */
   .dock {
     position: fixed; left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); z-index: 30;
     display: flex; align-items: center; gap: 10px;
@@ -1668,14 +1681,15 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   }
   .dock-hl[data-none="true"] { opacity: 0; }
   .dock-bar a {
-    position: relative; z-index: 1; display: grid; place-items: center; height: 58px; border-radius: 28px; color: var(--dark-muted); text-decoration: none;
+    position: relative; z-index: 1; display: grid; place-content: center; justify-items: center; gap: 3px; height: 58px; border-radius: 28px; color: var(--dark-muted); text-decoration: none;
     transition: color var(--dur-fast) ease;
   }
+  .dock-label { font-size: 11.5px; font-weight: 600; line-height: 1; letter-spacing: 0.01em; }
   .dock-bar a svg { transition: transform var(--dur-base) var(--ease-out); }
   .dock-bar a:active svg { transform: scale(0.86); }
   .dock-bar a[aria-current="page"] { color: var(--lime); }
-  .dock-bar a[aria-current="page"] svg { animation: dock-pop 620ms var(--ease-spring); }
-  @keyframes dock-pop { 0% { transform: scale(1) rotate(0); } 30% { transform: scale(1.34) rotate(-8deg); } 65% { transform: scale(0.94) rotate(3deg); } 100% { transform: scale(1) rotate(0); } }
+  .dock-bar a[aria-current="page"] svg { animation: dock-pop 420ms var(--ease-out); }
+  @keyframes dock-pop { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-2px) scale(1.12); } 100% { transform: translateY(0) scale(1); } }
   /* The header says where you are, and holds search, the bell and the account. */
   .page-label { display: block; margin-left: 8px; }
   .header-inner:has(.page-label) .brand-name { display: none; }
@@ -1984,5 +1998,10 @@ body:has(.popover[aria-modal="true"]) .dock { visibility: hidden; }
  .tonight-actions .button-green { flex-basis: 100%; }
  .tonight-actions .icon-when-small { flex: 1; width: auto; }
  .tonight-actions .icon-when-small span { display: inline; }
+ /* With a Watch button on its own row, the rest share one: the title above already opens the details. */
+ .tonight-actions.has-watch .tonight-details { display: none; }
+ .tonight-actions.has-watch { gap: 6px; }
+ .tonight-actions.has-watch .button:not(.button-green) { flex: 1; gap: 6px; padding-inline: 8px; font-size: 14px; }
+ .tonight-actions.has-watch .tonight-long { display: none; }
  .tonight-stats { margin-top: 16px; }
 }

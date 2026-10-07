@@ -11,8 +11,12 @@ import {
 } from "../lib/rules";
 import { updateSettings, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
+import { EmptyStart } from "../components/EmptyStart";
+import { AddByHand } from "./DiscoverPage";
+import { extensionStore } from "../lib/extensionStore";
 import { fetchDetails, fetchSharpBackdrop, findBackdropByName, upscale } from "../lib/tmdb";
 import { safeImage } from "../lib/safe";
+import { providerLink, splitChannel } from "../lib/providers";
 import { pop, useSwap } from "../lib/motion";
 import { useShowScheduleRefresh } from "../lib/showSync";
 import { syncReady } from "../lib/syncReady";
@@ -121,6 +125,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   const sort: SortMode = settings.sort ?? (readLegacySort() || "added");
   const [skip, setSkip] = useState(0);
   const [limit, setLimit] = useState(PAGE);
+  const [adding, setAdding] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
   useSwap(gridRef, `${kind}:${sort}`);
 
@@ -162,6 +167,23 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   }, [tonight?.id, tonight?.tmdbId, tonight?.tmdbType, needsBackdrop, settings.region]);
   const tonightBackdrop = safeImage(tonight?.backdrop) || (fetchedBackdrop.id === tonight?.id ? fetchedBackdrop.url : "");
 
+  // Where tonight's pick streams, so the hero's main button starts watching (as the title page's stub does);
+  // the same lookup the title page makes, so opening it costs nothing more.
+  const [tonightWhere, setTonightWhere] = useState<{ id: string; name: string; included: boolean } | null>(null);
+  const canStream = Boolean(tonight?.tmdbId && !isUnreleased(tonight) && !hasUpcomingBooking(tonight));
+  useEffect(() => {
+    if (!tonight || !canStream) return;
+    let current = true;
+    fetchDetails(tonight, settings.region || "IN")
+      .then((details) => {
+        const first = details.streaming[0] ? { name: details.streaming[0].name, included: true } : details.rentOrBuy[0] ? { name: details.rentOrBuy[0].name, included: false } : null;
+        if (current) setTonightWhere(first ? { id: tonight.id, ...first } : null);
+      })
+      .catch(() => {});
+    return () => { current = false; };
+  }, [tonight?.id, canStream, settings.region]);
+  const watchWhere = canStream && tonightWhere?.id === tonight?.id ? tonightWhere : null;
+
   const watching = useMemo(() => watchingShows(library.movies), [library.movies, settings.region]);
   const airing = useMemo(() => airingToday(library.movies, readDismissed()), [library.movies, settings.region]);
   const due = queueDue(queue.filter(movie => isDueNow(movie)), airing, tonight?.id);
@@ -191,7 +213,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
       ) : (
         <PageHeader
           title="What are we watching?"
-          meta={[dueToday ? `${dueToday} due today` : "", `${queue.length} in your queue`, library.movies.length > queue.length ? `${library.movies.length - queue.length} watched` : ""].filter(Boolean).join(" · ")}
+          meta={queue.length ? [dueToday ? `${dueToday} due today` : "", `${queue.length} in your queue`, library.movies.length > queue.length ? `${library.movies.length - queue.length} watched` : ""].filter(Boolean).join(" · ") : library.movies.length ? `${library.movies.length} watched` : undefined}
         />
       )}
 
@@ -218,14 +240,27 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                 </span>
               </button>
               {tonight.tagline && <p className="tonight-tagline">{tonight.tagline}</p>}
-              <div className="button-row tonight-actions" onClickCapture={(event) => pop((event.target as Element).closest(".button"))}>
-                <button type="button" className="button button-green" onClick={() => isShow(tonight) ? watchEpisode ? actions.toggleEpisode(tonight.id, watchEpisode.season, watchEpisode.episode) : onOpen(tonight.id) : actions.toggleWatched(tonight.id)}>
-                  <Icon name="eye" size={16} /> {isShow(tonight) ? watchEpisode ? `Mark S${watchEpisode.season} E${watchEpisode.episode} watched` : "Episode progress" : "Watched it"}
-                </button>
-                <button type="button" className="button button-outline-light" onClick={() => onOpen(tonight.id)}>Details</button>
+              <div className={`button-row tonight-actions${watchWhere ? " has-watch" : ""}`} onClickCapture={(event) => pop((event.target as Element).closest(".button"))}>
+                {/* Watching comes first; marking it watched is for afterwards. */}
+                {watchWhere && (
+                  <a className="button button-green" href={providerLink(watchWhere.name, tonight.title)} target="_blank" rel="noreferrer">
+                    <Icon name="play" size={16} /> {watchWhere.included ? "Watch" : "Rent"} on {splitChannel(watchWhere.name)[0]}
+                  </a>
+                )}
+                {/* Beside a Watch button, marking it watched is a second button, and only when it does something Details doesn't. */}
+                {(!watchWhere || !isShow(tonight) || watchEpisode) && (
+                  <button
+                    type="button"
+                    className={watchWhere ? "button button-outline-light" : "button button-green"}
+                    onClick={() => isShow(tonight) ? watchEpisode ? actions.toggleEpisode(tonight.id, watchEpisode.season, watchEpisode.episode) : onOpen(tonight.id) : actions.toggleWatched(tonight.id)}
+                  >
+                    <Icon name="eye" size={16} /> {isShow(tonight) ? watchEpisode ? watchWhere ? `S${watchEpisode.season} E${watchEpisode.episode} watched` : `Mark S${watchEpisode.season} E${watchEpisode.episode} watched` : "Episode progress" : "Watched it"}
+                  </button>
+                )}
+                <button type="button" className="button button-outline-light tonight-details" onClick={() => onOpen(tonight.id)}>Details</button>
                 {isDueNow(tonight) && (
                   <button type="button" className="button button-outline-light icon-when-small" aria-label="Snooze a day" title="Snooze a day" onClick={() => actions.snooze(tonight.id)}>
-                    <Icon name="clock" size={16} /> <span>Snooze a day</span>
+                    <Icon name="clock" size={16} /> <span>Snooze<span className="tonight-long"> a day</span></span>
                   </button>
                 )}
                 {queue.length > 1 && (
@@ -308,7 +343,27 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
         </section>
       )}
 
-      {sync.connected && <section className="paper titles queue-titles" id="titles" tabIndex={-1}>
+      {/* Nothing to sort or filter yet: the ways to save something instead. */}
+      {sync.connected && !queue.length && (
+        <section className="paper titles queue-titles" id="titles" tabIndex={-1}>
+          <div className="wrap">
+            <EmptyStart
+              lead={library.movies.length ? "You've watched everything you saved." : "Nothing saved yet."}
+              text="Save a few things you're curious about, and FlickCue reminds you when it's time to watch."
+              footnote={<>
+                <span className="when-wide">Reading a review or watching a trailer? With the <a href={extensionStore().url} target="_blank" rel="noreferrer">{extensionStore().browser} extension</a>, one click saves it here.</span>
+                <span className="when-narrow">On your computer, the FlickCue extension saves films and shows from any page.</span>
+              </>}
+            >
+              <a className="button button-ink" href="#/discover"><Icon name="compass" size={16} /> Find something in Discover</a>
+              {!adding && <button type="button" className="button button-quiet" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Add a title by hand</button>}
+            </EmptyStart>
+            {adding && <AddByHand onDone={() => setAdding(false)} onOpen={onOpen} />}
+          </div>
+        </section>
+      )}
+
+      {sync.connected && queue.length > 0 && <section className="paper titles queue-titles" id="titles" tabIndex={-1}>
         <div className="wrap">
           <div className="toolbar">
             <h2 className="section-title">Queue <span className="count">{matches.length}</span></h2>
@@ -343,7 +398,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
             <p className="empty">Everything here is in the rows above.</p>
           ) : (
             <p className="empty">
-              {query ? `Nothing in your queue matches “${query}”.` : queue.length ? "Nothing matches this filter." : "Your queue is empty. Find something in Discover."}
+              {query ? `Nothing in your queue matches “${query}”.` : "Nothing matches this filter."}
             </p>
           )}
         </div>

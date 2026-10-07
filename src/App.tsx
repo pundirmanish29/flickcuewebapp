@@ -460,15 +460,15 @@ export default function App() {
         </div>
       </footer>
 
-      {/* The phone's dock: the four pages, icons only (search is the round button in the header, beside the bell). The highlight glides to the chosen one (CSS, from --i), the icon springs, and the header names the page. */}
+      {/* The phone's dock: the four pages, each named under its icon (search is the round button in the header, beside the bell). The highlight glides to the chosen one (CSS, from --i). */}
       {sync.connected && (
         <div className="dock">
           <nav className="dock-bar" aria-label="Main" style={{ ["--i" as string]: Math.max(activeDock, 0), ["--n" as string]: DOCK.length }}>
             <span className="dock-hl" aria-hidden="true" data-none={activeDock < 0} />
             {DOCK.map((item) => (
-              <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined} title={item.label}>
-                <Icon name={item.icon} size={27} />
-                <span className="visually-hidden">{item.label}</span>
+              <a key={item.route} href={`#/${item.route === "queue" ? "" : item.route}`} aria-current={route === item.route ? "page" : undefined}>
+                <Icon name={item.icon} size={23} />
+                <span className="dock-label">{item.label}</span>
               </a>
             ))}
           </nav>
