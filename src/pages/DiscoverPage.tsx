@@ -28,7 +28,7 @@ type Load =
  * title service are offered, so a known film or show is saved with its poster
  * and details rather than as bare text; typing on still saves it by hand.
  */
-function AddByHand({ onDone, onOpen, initialTitle = "" }: { onDone: () => void; onOpen: (id: string) => void; initialTitle?: string }) {
+export function AddByHand({ onDone, onOpen, initialTitle = "" }: { onDone: () => void; onOpen: (id: string) => void; initialTitle?: string }) {
   const { library } = useAppState();
   const [title, setTitle] = useState(initialTitle);
   const [year, setYear] = useState("");

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { CALENDAR_MIRROR_ENABLED } from "../lib/config";
 import { BOOKING_LEAD, formatReminder, formatShowTime, localIsoDate } from "../lib/rules";
 import { loadTicketFile, removeTicket, saveTicket, useAppState } from "../lib/store";
@@ -8,6 +8,14 @@ import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
 import { toast } from "./Toast";
 import { useDialog } from "../lib/useDialog";
+
+/** What the title page's stub button does with the ticket: show it, or add its file. */
+export interface TicketHandle {
+  open: () => void;
+}
+
+/** A booking that has its ticket file (on this device or in Drive), so it can be shown at the door. */
+export const hasTicketFile = (movie: Movie) => Boolean(movie.booking?.ticketFileId || movie.booking?.ticketFileName);
 
 interface Draft {
   date: string;
@@ -46,7 +54,7 @@ type Mode =
  * A film's cinema ticket: add one from a screenshot, photo or PDF (read on this device) or by typing it in,
  * check what was read, and then see it as a card with the showtime, cinema, seats and the ticket itself.
  */
-export function TicketPanel({ movie }: { movie: Movie }) {
+export function TicketPanel({ movie, ref }: { movie: Movie; ref?: Ref<TicketHandle> }) {
   const { sync, settings } = useAppState();
   const [mode, setMode] = useState<Mode>({ step: "idle" });
   const [saving, setSaving] = useState(false);
@@ -129,6 +137,9 @@ export function TicketPanel({ movie }: { movie: Movie }) {
       toast("Couldn't open the ticket. Check your connection and try again.");
     }
   };
+
+  // The stub's main button: the ticket itself when there is one, else the file picker (both inside the tap).
+  useImperativeHandle(ref, () => ({ open: () => (hasTicketFile(movie) ? void show() : startUpload()) }));
 
   const remove = async () => {
     setConfirmingRemove(false);
@@ -216,18 +227,16 @@ export function TicketPanel({ movie }: { movie: Movie }) {
         )}
         {confirmingRemove ? (
           <div className="button-row">
+            <p className="ticket-confirm">Remove this ticket? The film stays on your list.</p>
             <button type="button" className="button button-danger" onClick={() => void remove()}>Remove ticket</button>
             <button type="button" className="button button-quiet" onClick={() => setConfirmingRemove(false)}>Keep it</button>
           </div>
         ) : (
+          // Showing the ticket, or adding its file, is the stub's main button; these are the rest.
           <div className="button-row">
-            {booking.ticketFileId || booking.ticketFileName ? (
-              <button type="button" className="button button-ink" onClick={() => void show()}><Icon name="ticket" size={16} /> Show ticket</button>
-            ) : (
-              <button type="button" className="button button-ink" onClick={startUpload}>Add the ticket file</button>
-            )}
-            <button type="button" className="button button-quiet" onClick={() => setMode({ step: "form", draft: draftFrom(movie), file: null, found: false, keep: Boolean(booking.ticketFileId) })}>Edit</button>
-            <button type="button" className="button button-quiet" onClick={() => setConfirmingRemove(true)}>Remove</button>
+            <button type="button" className="button button-quiet" onClick={() => setMode({ step: "form", draft: draftFrom(movie), file: null, found: false, keep: Boolean(booking.ticketFileId) })}>Edit details</button>
+            {hasTicketFile(movie) && <button type="button" className="button button-quiet" onClick={startUpload}>Replace file</button>}
+            <button type="button" className="button button-quiet" onClick={() => setConfirmingRemove(true)}>Remove ticket</button>
           </div>
         )}
         {viewing && (

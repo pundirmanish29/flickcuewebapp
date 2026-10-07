@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from "react";
 import { TitleCard } from "../components/TitleCard";
 import { importDays, knownWatchedAt, matchesKind, matchesSearch, watchedGroups } from "../lib/rules";
 import { PageHeader } from "../components/PageHeader";
+import { EmptyStart } from "../components/EmptyStart";
+import { Icon } from "../components/Icon";
 import { useAppState } from "../lib/store";
 import { useSwap } from "../lib/motion";
 import type { KindFilter } from "../lib/types";
@@ -48,18 +50,24 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
       <PageHeader
         title="Watched"
         className="watched-head"
-        stats={[
+        stats={watched.length ? [
           { value: watched.length, label: "in all" },
           ...(stats.month ? [{ value: stats.month, label: "this month" }] : []),
           ...(stats.year ? [{ value: stats.year, label: "this year" }] : []),
           // Hours only count titles with a known runtime, so they wait until there are some.
           ...(stats.hours ? [{ value: stats.hours, label: "estimated hours" }] : [])
-        ]}
+        ] : undefined}
       />
 
       <section className="paper titles">
         <div className="wrap">
           {stats.hours > 0 && <p className="muted small-print">Time is estimated from titles with a known runtime; individual episodes and missing runtimes aren't included.</p>}
+          {!watched.length ? (
+            <EmptyStart lead="Nothing watched yet." text="Titles you mark watched gather here, month by month, with your verdict on each.">
+              <a className="button button-ink" href="#/"><Icon name="queue" size={16} /> Go to your queue</a>
+              <a className="button button-quiet" href="#/settings">Bring in your Letterboxd diary</a>
+            </EmptyStart>
+          ) : <>
           <div className="toolbar watched-toolbar">
             <div className="segmented" role="group" aria-label="Show">
               {(["all", "movie", "tv"] as KindFilter[]).map((value) => (
@@ -93,8 +101,9 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
               )}
             </>
           ) : (
-            <p className="empty">{query ? `Nothing watched matches “${query}”.` : "Titles you mark watched show up here."}</p>
+            <p className="empty">{query ? `Nothing watched matches “${query}”.` : "Nothing of that kind watched yet."}</p>
           )}
+          </>}
         </div>
       </section>
     </>

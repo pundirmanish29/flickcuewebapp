@@ -10,7 +10,7 @@ import { syncReady } from "../lib/syncReady";
 import { editNoteDraft, noteDraft, noteSavePlan, reconcileNoteDraft } from "../lib/noteDraft";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { FilmShowtimes } from "./Showtimes";
-import { TicketPanel } from "./TicketPanel";
+import { TicketPanel, hasTicketFile, type TicketHandle } from "./TicketPanel";
 import { cinemaKey, fetchCandidate, fetchDetails, genreIdFor, upscale, type Provider, type TitleDetails } from "../lib/tmdb";
 import type { Candidate, Movie } from "../lib/types";
 import { CandidateCard } from "./CandidateCard";
@@ -193,6 +193,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const stubRef = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const ticketRef = useRef<HTMLElement>(null);
+  const ticketPanel = useRef<TicketHandle>(null);
 
   // A link to a title that isn't saved, opened cold: look it up.
   useEffect(() => {
@@ -398,7 +399,12 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     setChoosingReminder(true);
     if (fromBar) stubRef.current?.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
   };
-  const showTicket = () => ticketRef.current?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
+  // At the door: the ticket opens straight away. Without its file, the button adds one, and the panel below shows what was read.
+  const ticketFile = hasTicketFile(movie);
+  const showTicket = () => {
+    if (!ticketFile) ticketRef.current?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
+    ticketPanel.current?.open();
+  };
 
   const primary = (where: "stub" | "bar"): ReactNode => {
     const fromBar = where === "bar";
@@ -407,7 +413,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
       remind: <StubButton kind="primary" icon="clock" expanded={choosingReminder} onClick={() => (fromBar ? openChoices(true) : setChoosingReminder((open) => !open))}>{reminderActive ? "Change reminder" : "Remind me"}</StubButton>,
       watch: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : provider?.included ? `Watch on ${providerName}` : `Rent on ${providerName}`}</StubButton>,
       watched: <StubButton kind="primary" icon="eye" onClick={() => isSaved && actions.toggleWatched(movie.id)}>{show ? "Mark series finished" : "Watched it"}</StubButton>,
-      ticket: <StubButton kind="primary" icon="ticket" onClick={showTicket}>{fromBar ? "Ticket" : "Show ticket"}</StubButton>,
+      ticket: <StubButton kind="primary" icon="ticket" onClick={showTicket}>{ticketFile ? (fromBar ? "Ticket" : "Show ticket") : fromBar ? "Add ticket" : "Add ticket file"}</StubButton>,
       watchAgain: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? "Watch again" : `Watch again on ${providerName}`}</StubButton>,
       none: null
     };
@@ -433,7 +439,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
       if (show) secondary.push(<StubButton key="watching" icon="play" pressed={watchingNow} onClick={() => actions.setWatching(movie.id, !watchingNow)}>Watching</StubButton>);
       if (stub.primary !== "remind") secondary.push(<StubButton key="remind" icon="clock" pressed={reminderActive} expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>{reminderActive ? "Reminder" : "Remind me"}</StubButton>);
     }
-    secondary.push(<StubButton key="remove" kind="danger" icon="trash" onClick={() => actions.removeTitle(movie.id)}>Remove</StubButton>);
+    // Beside a ticket's own "Remove ticket", say which thing goes.
+    secondary.push(<StubButton key="remove" kind="danger" icon="trash" onClick={() => actions.removeTitle(movie.id)}>{movie.booking && !show ? "Remove from list" : "Remove"}</StubButton>);
   } else if (candidate && !unreleased) {
     secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.saveWatched(candidate)}>{show ? "Mark series finished" : "Watched it"}</StubButton>);
     if (show) secondary.push(<StubButton key="watching" icon="play" onClick={() => actions.saveWatching(candidate)}>Watching</StubButton>);
@@ -567,7 +574,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
           {isSaved && !show && movie.booking && (
             <section className="sheet-section" id="your-ticket" ref={ticketRef}>
               <h2 className="section-label">Your ticket</h2>
-              <TicketPanel movie={movie} />
+              <TicketPanel movie={movie} ref={ticketPanel} />
             </section>
           )}
 
