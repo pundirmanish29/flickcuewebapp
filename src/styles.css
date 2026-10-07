@@ -424,6 +424,11 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 .stat b { font-size: var(--step-3); font-weight: 800; line-height: 0.95; letter-spacing: -0.045em; font-variant-numeric: tabular-nums; }
 .stat span { color: var(--muted); font-family: var(--font-mono); font-size: 0.6875rem; letter-spacing: 0.12em; text-transform: uppercase; }
 .page-head + .titles, .page-head + .notifications, .page-head + .settings-body { padding-top: clamp(12px, 2vw, 20px); }
+.watched-head { padding-top: clamp(24px, 3vw, 40px); }
+.watched-head h1 { font-size: clamp(36px, 5vw, 64px); }
+.watched-head .stat-row { gap: 12px 28px; margin-top: 20px; padding-top: 14px; }
+.watched-head .stat { flex-direction: row; align-items: baseline; gap: 8px; }
+.watched-head .stat b { font-size: clamp(22px, 2.3vw, 30px); }
 .toolbar-label { margin: 0; font-size: 17px; font-weight: 700; display: flex; align-items: baseline; gap: 8px; }
 
 .display {
@@ -615,6 +620,9 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 .radar-when.tone-neutral { color: #e8e4da; }
 .radar-sub { margin-top: 2px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .radar-when.tone-due { color: var(--orange); }
+.due-episode-card { position: relative; }
+.due-episode-card .tonight-watched { top: auto; bottom: 8px; right: 4px; width: 36px; height: 36px; }
+.due-episode-card .radar-sub { padding-right: 44px; min-height: 40px; }
 /* Also due, Watching and On your radar: stacked on a phone, side by side when there's room. */
 .rails-grid { display: grid; gap: clamp(24px, 3vw, 32px); }
 .rail { min-width: 0; }
@@ -1682,7 +1690,7 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   .header-inner:has(.search) .brand-name { display: none; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* Tonight's pick in one screen: the title over the backdrop, actions in one row, the numbers under them. */
-  .tonight-inner { grid-template-columns: 1fr; min-height: min(86svh, 660px); padding-top: calc(var(--header) + var(--space-l)); }
+  .tonight-inner { grid-template-columns: 1fr; min-height: clamp(360px, 58svh, 480px); padding-top: calc(var(--header) + var(--space-l)); }
   /* With the sync banner above it the hero starts below the header, not under it, and must end above the tab bar rather than run beneath it. */
   .sync-banner ~ main .tonight-inner { min-height: clamp(420px, calc(100svh - 230px - env(safe-area-inset-bottom)), 660px); padding-top: var(--space-l); }
   .tonight-poster, .tonight-tagline { display: none; }
@@ -1762,10 +1770,10 @@ html[data-transition="title"] .site-header .header-inner, html[data-transition="
 /* Moving between pages: the old one slides away from the tab you chose, the new one in from it. */
 html[data-direction="forward"] { --vt-out: -36px; --vt-in: 56px; }
 html[data-direction="back"] { --vt-out: 36px; --vt-in: -56px; }
-html[data-direction] ::view-transition-old(root) { animation: vt-out 300ms var(--ease-in) both; }
-html[data-direction] ::view-transition-new(root) { animation: vt-in 560ms var(--ease-out) both; }
-@keyframes vt-out { to { opacity: 0; transform: translateX(var(--vt-out)) scale(0.98); } }
-@keyframes vt-in { from { opacity: 0; transform: translateX(var(--vt-in)) scale(0.98); } }
+html[data-direction] ::view-transition-old(root) { animation: vt-out 100ms ease-out both; }
+html[data-direction] ::view-transition-new(root) { animation: vt-in 160ms ease-out 100ms both; }
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-in { from { opacity: 0; } }
 ::view-transition-old(site-header), ::view-transition-new(site-header), ::view-transition-old(bottom-nav), ::view-transition-new(bottom-nav) { animation: none; }
 
 /* Changing lists and picks: the new content settles in. */
@@ -1958,4 +1966,23 @@ html[data-direction] ::view-transition-new(root) { animation: vt-in 560ms var(--
 /* Narrowest phones: the sync banner stacks and is taller, so the hero gives up a little more height (after the hero's own rule, so it wins). */
 @media (max-width: 359px) {
   .sync-banner ~ main .tonight-inner { min-height: clamp(320px, calc(100svh - 265px - env(safe-area-inset-bottom)), 660px); }
+}
+
+/* Dialogs and compact phone navigation. */
+.dialog-close { display: block; margin: 0 0 8px auto; min-height: 44px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper-surface); color: var(--ink); font: inherit; cursor: pointer; }
+.title-reminder .popover { position: fixed; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); max-height: 80dvh; overflow: auto; z-index: 100; animation: none; }
+.reminder-scrim { position: fixed; inset: 0; z-index: 99; background: rgba(11, 13, 15, 0.62); animation: fade-in 160ms ease; }
+.note-conflict { margin-top: 12px; padding: 14px; border: 1px solid var(--rule); border-radius: 12px; }
+.note-conflict p { white-space: pre-wrap; overflow-wrap: anywhere; }
+body:has(.popover[aria-modal="true"]) .dock { visibility: hidden; }
+.rail .tonight-list { margin-bottom: 20px; }
+@media (max-width: 600px) {
+ .cinema-shelf-head:has(.cinema-shelf-title .segmented) { display: grid; grid-template-columns: 1fr; gap: 8px; }
+ .cinema-shelf-head:has(.cinema-shelf-title .segmented) .shelf-tools { justify-content: flex-end; }
+ .cinema-shelf-title .segmented button { white-space: nowrap; padding-inline: 16px; }
+ .tonight-actions { flex-wrap: wrap; }
+ .tonight-actions .button-green { flex-basis: 100%; }
+ .tonight-actions .icon-when-small { flex: 1; width: auto; }
+ .tonight-actions .icon-when-small span { display: inline; }
+ .tonight-stats { margin-top: 16px; }
 }

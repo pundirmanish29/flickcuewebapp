@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { releaseDayReminder, tomorrowReminder, tonightReminder, weekendReminder } from "../lib/rules";
+import { useDialog } from "../lib/useDialog";
 
 function toInputValue(time: number) {
   const date = new Date(time);
@@ -27,15 +28,14 @@ export function ReminderChoices({
 
   return (
     <div className="reminder-choices">
-      {releaseDay ? (
+      {releaseDay && (
         <button type="button" className="chip-button" onClick={() => onPick(releaseDay)}>On release day</button>
-      ) : (
+      )}
         <>
           <button type="button" className="chip-button" onClick={() => onPick(tonightReminder())}>Tonight</button>
           <button type="button" className="chip-button" onClick={() => onPick(tomorrowReminder())}>Tomorrow</button>
           <button type="button" className="chip-button" onClick={() => onPick(weekendReminder())}>This weekend</button>
         </>
-      )}
       <form
         className="reminder-custom"
         onSubmit={(event) => {
@@ -57,7 +57,7 @@ export function ReminderChoices({
  * trigger as `anchor` when it toggles the popover, so pressing it counts as the
  * toggle rather than as a press outside that closes and then reopens it.
  */
-export function Popover({ open, onClose, children, label, anchor, focusFirst = false }: {
+export function Popover({ open, onClose, children, label, anchor, focusFirst = false, modal = false }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
@@ -65,8 +65,10 @@ export function Popover({ open, onClose, children, label, anchor, focusFirst = f
   anchor?: React.RefObject<HTMLElement | null>;
   /** Opened from the keyboard: the first control takes focus, so Tab doesn't start from the trigger. */
   focusFirst?: boolean;
+  modal?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  useDialog(open && modal, ref, onClose);
 
   useEffect(() => {
     if (open && focusFirst) ref.current?.querySelector<HTMLElement>("a[href], button:not(:disabled), select")?.focus();
@@ -96,7 +98,8 @@ export function Popover({ open, onClose, children, label, anchor, focusFirst = f
 
   if (!open) return null;
   return (
-    <div className="popover" ref={ref} role="dialog" aria-label={label}>
+    <div className="popover" ref={ref} role="dialog" aria-modal={modal || undefined} aria-label={label} tabIndex={-1}>
+      {modal && <button type="button" className="dialog-close" onClick={onClose} aria-label={`Close ${label}`}>Close</button>}
       {children}
     </div>
   );

@@ -310,7 +310,7 @@ export function placeholderTint(title: string): string {
 // ---- Show status (shared.js getShowStatus) ----
 
 export interface ShowStatus {
-  kind: "premiere" | "season" | "airing" | "new-episode" | "ended" | "returning";
+  kind: "premiere" | "season" | "airing" | "new-episode" | "caught-up" | "ended" | "returning";
   tone: "amber" | "green" | "neutral";
   text: string;
   badge: string;
@@ -369,7 +369,12 @@ export function scheduleFromAppFields(movie: Movie): ShowSchedule | null {
  * shared.js getShowSchedule.
  */
 export function getShowSchedule(movie: Movie): ShowSchedule | null {
-  return onReaderCalendar(newerSchedule(movie));
+  return onReaderCalendar(getRawShowSchedule(movie));
+}
+
+/** TMDB dates before reader-calendar normalization, for functions that normalize their own input. */
+export function getRawShowSchedule(movie: Movie): ShowSchedule | null {
+  return newerSchedule(movie);
 }
 
 function newerSchedule(movie: Movie): ShowSchedule | null {
@@ -452,6 +457,9 @@ export function getShowStatus(movie: Movie, now = Date.now()): ShowStatus | null
 
   const last = schedule?.last;
   if (last?.date && last.date <= today && daysBetween(last.date, today) <= 7) {
+    if (movie.personal?.episodes?.includes(`${last.season}:${last.episode}`)) {
+      return { kind: "caught-up", tone: "neutral", text: "Caught up", badge: "" };
+    }
     return last.finale && last.season
       ? { kind: "new-episode", tone: "green", text: `Season ${last.season} finale out`, badge: "NEW EP" }
       : { kind: "new-episode", tone: "green", text: "New episode out", badge: "NEW EP" };
@@ -528,6 +536,8 @@ export function watchingShows(movies: Movie[], now = Date.now()): WatchingEntry[
       const day = shortDay(new Date(`${next.date}T20:00:00`).getTime(), now, false);
       const detail = next.episode === 1 ? `Season ${next.season} premiere` : `Next: S${next.season} E${next.episode}`;
       entries.push({ movie, nextDate: next.date, label: day, detail, tone: next.episode === 1 ? "amber" : "green", rank: 0 });
+    } else if (status?.kind === "caught-up") {
+      entries.push({ movie, nextDate: "", label: "Caught up", detail: "", tone: "neutral", rank: 2 });
     } else if (status?.kind === "new-episode") {
       entries.push({ movie, nextDate: "", label: "New episode", detail: "", tone: "green", rank: 1 });
     } else {

@@ -157,11 +157,11 @@ function describeError(code: string | undefined, fallback?: string): string {
  * picker and consent screen; an empty prompt reuses an earlier grant and only
  * flashes a popup. Must be called from a click, or the popup is blocked.
  */
-export function requestToken({ consent = false, hint = "", calendar = false } = {}): Promise<StoredToken> {
+export function requestToken({ consent = false, hint = "", calendar = false, persist = true } = {}): Promise<StoredToken> {
   // With the script already loaded, Google's window opens inside the tap itself. Waiting for a download first
   // lets some phones' browsers (Safari's, notably) treat the window as unasked-for and block it.
-  if (window.google?.accounts?.oauth2) return openGoogleWindow(consent, hint, calendar);
-  return loadScript().then(() => openGoogleWindow(consent, hint, calendar));
+  if (window.google?.accounts?.oauth2) return openGoogleWindow(consent, hint, calendar, persist);
+  return loadScript().then(() => openGoogleWindow(consent, hint, calendar, persist));
 }
 
 /**
@@ -174,7 +174,7 @@ export function preloadGoogleSignIn() {
   });
 }
 
-function openGoogleWindow(consent: boolean, hint: string, calendar: boolean): Promise<StoredToken> {
+function openGoogleWindow(consent: boolean, hint: string, calendar: boolean, persist: boolean): Promise<StoredToken> {
   const oauth2 = window.google!.accounts.oauth2;
 
   return new Promise((resolve, reject) => {
@@ -193,9 +193,9 @@ function openGoogleWindow(consent: boolean, hint: string, calendar: boolean): Pr
           source: "google",
           ...(response.scope ? { scope: response.scope } : {})
         };
-        storeToken(token);
+        if (persist) storeToken(token);
         // Only what Google says was granted counts: Calendar can be unticked at the consent screen.
-        if (grantsCalendar(token.scope)) storeCalendarToken(token);
+        if (persist && grantsCalendar(token.scope)) storeCalendarToken(token);
         resolve(token);
       },
       error_callback: (error) => reject(new Error(describeError(error.type, error.message)))

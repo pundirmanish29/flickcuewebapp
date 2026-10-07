@@ -24,7 +24,8 @@ describe("titleStub", () => {
     expect(off.primary).toBe("remind");
     expect(values(off).Reminder).toBe("Off");
     const on = titleStub(input({ movie: film({ remindAt: new Date(2026, 9, 15, 9, 0).getTime() }), unreleased: true, releaseDate: "2026-10-15" }));
-    expect(values(on).Reminder).toMatch(/Oct 15/);
+    const localized = new Date(2026, 9, 15).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    expect(values(on).Reminder).toContain(localized);
   });
 
   it("calls a show that hasn't started a premiere", () => {
@@ -74,7 +75,8 @@ describe("titleStub", () => {
       provider: { name: "Prime Video", included: false }
     }));
     expect(stub).toMatchObject({ tone: "green", label: "Watched", primary: "watchAgain" });
-    expect(values(stub)).toMatchObject({ When: "Aug 20", "Your take": "Timepass, liked", "Watch again": "Prime Video · rent or buy" });
+    const localized = new Date(2026, 7, 20).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    expect(values(stub)).toMatchObject({ When: localized, "Your take": "Timepass, liked", "Watch again": "Prime Video · rent or buy" });
   });
 
   it("has no main button for a watched title nothing streams", () => {

@@ -5,6 +5,14 @@ import { CALENDAR_SCOPE, GOOGLE_SCOPE } from "./config";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("requestToken", () => {
+  it("can return a token without storing it before account verification", async () => {
+    const env = stubGoogle((asked) => asked);
+    const token = await requestToken({ consent: true, calendar: true, persist: false });
+    expect(token.accessToken).toBeTruthy();
+    expect(getStoredToken()).toBeNull();
+    expect(getCalendarToken()).toBeNull();
+    expect(env.store.size).toBe(0);
+  });
   it("opens Google's window inside the tap when the sign-in script is already loaded", async () => {
     let opened = 0;
     vi.stubGlobal("window", {

@@ -61,7 +61,8 @@ export async function readRemote(fileId: string, token: string): Promise<Library
 /** Drive's version number for the file: it goes up with every save, from any device. */
 export async function fileVersion(fileId: string, token: string): Promise<string> {
   const data = await (await driveFetch(`${DRIVE_FILES_URL}/${fileId}?fields=version`, token)).json();
-  return String(data.version ?? "");
+  if (data.version == null) throw new DriveError("Couldn't verify the synced list's version. Sync again shortly.", 0);
+  return String(data.version);
 }
 
 export interface Revision {

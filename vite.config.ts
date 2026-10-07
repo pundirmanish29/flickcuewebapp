@@ -42,5 +42,6 @@ export default defineConfig({
   // Shown in Settings > About.
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [react(), securityPolicy()],
-  test: { environment: "node" }
+  // Only this app's tests: a local nested checkout must not join the suite.
+  test: { environment: "node", include: ["src/**/*.test.{ts,tsx}"] }
 });

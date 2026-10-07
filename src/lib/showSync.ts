@@ -9,14 +9,16 @@ import { useEffect } from "react";
 import { enrich } from "./editor";
 import { freshFields, metaIsStale, staleTitles } from "./metaRefresh";
 import { showsToRefresh } from "./rules";
-import { commit, getState, type SyncStatus } from "./store";
+import { commit, getSessionGeneration, getState, type SyncStatus } from "./store";
+import { syncReady } from "./syncReady";
 import { fetchDetails, type TitleDetails } from "./tmdb";
 import type { EpisodeAir, Movie } from "./types";
 
 const air = (episode: TitleDetails["nextEpisode"]): EpisodeAir | undefined =>
   episode ? { season: episode.season, episode: episode.episode, airDate: episode.date, ...(episode.name ? { name: episode.name } : {}) } : undefined;
 
-export function writeBack(movie: Movie, details: TitleDetails) {
+export function writeBack(movie: Movie, details: TitleDetails, generation = getSessionGeneration()): boolean {
+  if (generation !== getSessionGeneration() || !syncReady(getState().sync)) return false;
   const library = getState().library;
   const isTv = movie.tmdbType === "tv";
   // Due a refresh: TMDB's current details replace the stored ones. Otherwise only gaps are filled,
@@ -53,17 +55,21 @@ export function writeBack(movie: Movie, details: TitleDetails) {
     }
   }
   if (document !== library) commit(document);
+  return true;
 }
 
 // Per visit: each show is looked up at most once, a batch at a time.
 const checked = new Set<string>();
+let checkedGeneration = -1;
 const BATCH = 16;
 const AT_ONCE = 3;
 
 /** Looks up started shows whose schedule is unknown or stale, a few at a time. */
 export function useShowScheduleRefresh(movies: Movie[], region: string, enabled: boolean) {
+  const generation = getSessionGeneration();
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !syncReady(getState().sync)) return;
+    if (checkedGeneration !== generation) { checked.clear(); checkedGeneration = generation; }
     const due = showsToRefresh(movies).filter((movie) => !checked.has(movie.id)).slice(0, BATCH);
     if (!due.length) return;
     due.forEach((movie) => checked.add(movie.id));
@@ -76,7 +82,7 @@ export function useShowScheduleRefresh(movies: Movie[], region: string, enabled:
         try {
           const details = await fetchDetails(movie, region);
           const current = getState().library.movies.find((item) => item.id === movie.id);
-          if (current) writeBack(current, details);
+          if (current && !writeBack(current, details, generation) && checkedGeneration === generation) checked.delete(movie.id);
         } catch {
           // Left as checked: a failed lookup waits for the next visit rather than retrying at once.
         }
@@ -84,12 +90,11 @@ export function useShowScheduleRefresh(movies: Movie[], region: string, enabled:
     };
     void Promise.all(Array.from({ length: AT_ONCE }, worker));
     // Movies change as results are written back; the checked set keeps it to one pass.
-  }, [movies, region, enabled]);
+  }, [movies, region, enabled, generation]);
 }
 
 // Once this tab has synced with Drive: a refresh written before that could
 // stamp a stale copy newer than an edit another device already made.
-const openedAt = Date.now();
 const refreshed = new Set<string>();
 // Up to this many a visit, a few at a time, so a long list catches up over a few visits without a burst.
 const META_PER_VISIT = 24;
@@ -97,9 +102,10 @@ let metaStarted = 0;
 
 /** Refreshes saved titles whose TMDB details are due again, after this tab's first sync. */
 export function useMetaRefresh(movies: Movie[], region: string, sync: { connected: boolean; lastSyncAt: number; status: SyncStatus; held?: number }) {
-  const synced = sync.connected && sync.lastSyncAt >= openedAt && sync.status === "idle" && !sync.held;
+  const synced = syncReady(sync);
   useEffect(() => {
     if (!synced || metaStarted >= META_PER_VISIT) return;
+    const generation = getSessionGeneration();
     const due = staleTitles(movies).filter((movie) => !refreshed.has(movie.id)).slice(0, META_PER_VISIT - metaStarted);
     if (!due.length) return;
     due.forEach((movie) => refreshed.add(movie.id));
@@ -111,7 +117,10 @@ export function useMetaRefresh(movies: Movie[], region: string, sync: { connecte
         try {
           const details = await fetchDetails(movie, region);
           const current = getState().library.movies.find((item) => item.id === movie.id);
-          if (current && metaIsStale(current)) writeBack(current, details);
+          if (current && metaIsStale(current) && !writeBack(current, details, generation)) {
+            refreshed.delete(movie.id);
+            metaStarted--;
+          }
         } catch {
           // Left for the next visit: a failed lookup changes nothing.
         }

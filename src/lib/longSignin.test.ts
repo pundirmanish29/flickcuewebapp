@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getCalendarToken, getStoredToken } from "./auth";
 import { CALENDAR_SCOPE, GOOGLE_SCOPE, PROXY_BASE_URL } from "./config";
-import { forgetGrant, getGrant, renewAccess, revokeGrant, signInForLong } from "./longSignin";
+import { acceptLongSignIn, forgetGrant, getGrant, renewAccess, revokeGrant, signInForLong } from "./longSignin";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -48,6 +48,16 @@ function setup(replies: Array<Response | Error>, code = "the-code") {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
 describe("signInForLong", () => {
+  it("can stage credentials until the selected account has been verified", async () => {
+    const env = setup([json({ access_token: "a1", expires_in: 3600, refresh_token: "r1" })]);
+    const token = await signInForLong("", false, false);
+    expect(getStoredToken()).toBeNull();
+    expect(getGrant()).toBeNull();
+    acceptLongSignIn(token);
+    expect(getStoredToken()?.accessToken).toBe("a1");
+    expect(getGrant()?.token).toBe("r1");
+    expect(env.store.get("flickcue.googleToken")).not.toContain("r1");
+  });
   it("opens Google's window inside the tap, asking only for Drive", async () => {
     const env = setup([json({ access_token: "a1", expires_in: 3600, refresh_token: "r1" })]);
     const pending = signInForLong("me@example.com");

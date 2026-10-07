@@ -7,6 +7,7 @@ import type { ReadStage } from "../lib/ticketReader";
 import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
 import { toast } from "./Toast";
+import { useDialog } from "../lib/useDialog";
 
 interface Draft {
   date: string;
@@ -53,6 +54,8 @@ export function TicketPanel({ movie }: { movie: Movie }) {
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const booking = movie.booking;
+  const viewerRef = useRef<HTMLDivElement>(null);
+  useDialog(Boolean(viewing), viewerRef, () => setViewing(null));
 
   useEffect(() => () => {
     if (viewing) URL.revokeObjectURL(viewing);
@@ -228,7 +231,7 @@ export function TicketPanel({ movie }: { movie: Movie }) {
           </div>
         )}
         {viewing && (
-          <div className="ticket-viewer" role="dialog" aria-modal="true" aria-label="Your ticket" onClick={() => setViewing(null)}>
+          <div className="ticket-viewer" ref={viewerRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Your ticket" onClick={(event) => { if (event.target === event.currentTarget) setViewing(null); }}>
             <img src={viewing} alt={`Ticket for ${movie.title}`} />
             <button type="button" className="ticket-viewer-close" onClick={() => setViewing(null)} aria-label="Close ticket"><Icon name="close" size={20} /></button>
           </div>
