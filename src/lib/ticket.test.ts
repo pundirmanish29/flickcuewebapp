@@ -82,6 +82,12 @@ D4 D5`;
     expect(ticket.seats).toEqual(["D4", "D5"]);
   });
 
+  it("copes with text recognition reading the comma between seat numbers as ; or .", () => {
+    expect(parseTicket("Row H Seats 5; 6", now).seats).toEqual(["H5", "H6"]);
+    expect(parseTicket("Row H Seats 5. 6", now).seats).toEqual(["H5", "H6"]);
+    expect(parseTicket("Row K; Seats 10/11/12", now).seats).toEqual(["K10", "K11", "K12"]);
+  });
+
   it("copes with text recognition reading a 0 as an O", () => {
     expect(parseTicket("Sat, 11 Oct  O7:3O PM", now).time).toBe("19:30");
   });
