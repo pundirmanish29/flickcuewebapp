@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { getShowSchedule, getShowStatus, setScheduleShift } from "./rules";
+import { getRawShowSchedule, getShowSchedule, getShowStatus, gridBadge, setScheduleShift, watchingShows } from "./rules";
+import { upNextEpisode } from "./newEpisode";
 import type { Movie, ShowSchedule } from "./types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -40,6 +41,16 @@ describe("a show's schedule as the phone writes it", () => {
 
   it("calls an episode that aired this week new", () => {
     expect(getShowStatus(phoneShow({ lastEpisode: { season: 2, episode: 4, airDate: isoDate(-2) } }))?.kind).toBe("new-episode");
+  });
+
+  it("says caught up once the latest episode has been watched, instead of showing a new-episode badge", () => {
+    const show = phoneShow({
+      lastEpisode: { season: 2, episode: 10, airDate: isoDate(-1) },
+      personal: { status: "watching", episodes: ["2:10"] }
+    });
+    expect(getShowStatus(show)).toMatchObject({ kind: "caught-up", text: "Caught up", badge: "" });
+    expect(watchingShows([show])[0].label).toBe("Caught up");
+    expect(gridBadge(show)).toBeNull();
   });
 
   it("says an ended show has ended, with its season count", () => {
@@ -83,6 +94,20 @@ describe("choosing between the extension's schedule and the phone's", () => {
 });
 
 describe("episode dates on the reader's calendar", () => {
+  it("normalizes Queue's raw schedule once when deciding whether the episode has aired", () => {
+    const movie = phoneShow({
+      personal: { status: "watching", episodes: ["2:5"] },
+      lastEpisode: { season: 2, episode: 6, airDate: isoDate(-1) }
+    });
+    setScheduleShift(1);
+    try {
+      const raw = getRawShowSchedule(movie)!;
+      expect(raw.last!.date).toBe(isoDate(-1));
+      expect(getShowSchedule(movie)!.last!.date).toBe(isoDate(0));
+      expect(upNextEpisode(movie, { ...raw.last!, name: "" }, null, [])).toMatchObject({ episode: 6, state: "new" });
+      expect(movie.lastEpisode!.airDate).toBe(isoDate(-1));
+    } finally { setScheduleShift(0); }
+  });
   it("runs a day past TMDB's date in India, without touching the stored one", () => {
     const movie = phoneShow({ nextEpisode: { season: 2, episode: 6, airDate: isoDate(0), name: "Attila" } });
     expect(getShowSchedule(movie)?.next?.date).toBe(isoDate(0));

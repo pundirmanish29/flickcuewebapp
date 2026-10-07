@@ -15,6 +15,7 @@ import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/
 import { useTheme, type ThemeChoice } from "../lib/theme";
 import { REGIONS } from "../lib/regions";
 import type { LibraryDocument } from "../lib/types";
+import { backupPreview } from "../lib/backupPreview";
 
 /** Removing every watched title, which syncs to every device: asked twice, with the number spelled out. */
 function ClearWatched() {
@@ -402,6 +403,8 @@ function Letterboxd() {
 function Backup() {
   const { library } = useAppState();
   const fileInput = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<LibraryDocument | null>(null);
+  const preview = pending ? backupPreview(library, pending) : null;
 
   const exportBackup = () => {
     const blob = new Blob([JSON.stringify({ version: 1, exportedAt: Date.now(), ...library }, null, 2)], { type: "application/json" });
@@ -416,8 +419,8 @@ function Backup() {
     try {
       const data = JSON.parse(await file.text()) as Partial<LibraryDocument>;
       if (!Array.isArray(data.movies)) throw new Error("That file isn't a FlickCue backup.");
-      importLibrary({ movies: data.movies, deleted: Array.isArray(data.deleted) ? data.deleted : [] });
-      toast(`Imported ${data.movies.length} titles`);
+      if (data.movies.some(movie => !movie || typeof movie.id !== "string" || typeof movie.title !== "string")) throw new Error("That backup contains invalid titles.");
+      setPending({ movies: data.movies, deleted: Array.isArray(data.deleted) ? data.deleted : [] });
     } catch (error) {
       toast(error instanceof Error ? error.message : "Couldn't read that file.");
     }
@@ -427,7 +430,7 @@ function Backup() {
     <article className="card">
       <h2>Backup</h2>
       <p className="muted">
-        {library.movies.length === 1 ? "Your 1 title is" : `Your ${library.movies.length} titles are`} kept in your Google Drive. Download a copy any time; restoring one adds back anything missing and changes nothing else.
+        {library.movies.length === 1 ? "Your 1 title is" : `Your ${library.movies.length} titles are`} kept in your Google Drive. Download a copy any time. Restoring merges the backup with your list: newer edits win, and saved removals may remove titles. Changes sync to your other devices.
       </p>
       <div className="button-row">
         <button type="button" className="button button-quiet" onClick={exportBackup}>Download a copy</button>
@@ -444,6 +447,14 @@ function Backup() {
           }}
         />
       </div>
+      {pending && preview && <div className="restore-preview" role="status">
+        <p><b>Restore preview</b></p>
+        <p>{preview.added} titles added · {preview.updated} updated · {preview.removed} removed.</p>
+        <div className="button-row">
+          <button type="button" className="button button-ink" onClick={() => { importLibrary(pending); setPending(null); toast("Backup merged with your list"); }}>Restore this backup</button>
+          <button type="button" className="button button-quiet" onClick={() => setPending(null)}>Cancel</button>
+        </div>
+      </div>}
       <RestoreHistory />
       <ClearWatched />
     </article>

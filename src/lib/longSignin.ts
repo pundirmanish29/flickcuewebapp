@@ -87,7 +87,16 @@ function asToken(reply: TokenReply): StoredToken {
  * With no refresh token in the reply (Google only sends one when it newly asks for offline access) any grant
  * already held is kept, and this sign-in lasts an hour like any other.
  */
-export async function signInForLong(hint = "", calendar = false): Promise<StoredToken> {
+export type LongSignInToken = StoredToken & { refreshToken?: string };
+
+/** Keep credentials only after the caller has accepted the Google account. */
+export function acceptLongSignIn(token: LongSignInToken) {
+  const { refreshToken, ...access } = token;
+  keepToken(access);
+  if (refreshToken) storeGrant(refreshToken);
+}
+
+export async function signInForLong(hint = "", calendar = false, persist = true): Promise<LongSignInToken> {
   const { code } = await requestCode({ hint, calendar });
   let reply: { status: number; data: TokenReply };
   try {
@@ -98,9 +107,8 @@ export async function signInForLong(hint = "", calendar = false): Promise<Stored
   if (reply.status !== 200 || !reply.data.access_token) {
     throw new Error(reply.data.error_description || reply.data.error || "Couldn't finish signing in.");
   }
-  const token = asToken(reply.data);
-  keepToken(token);
-  if (reply.data.refresh_token) storeGrant(reply.data.refresh_token);
+  const token: LongSignInToken = { ...asToken(reply.data), ...(reply.data.refresh_token ? { refreshToken: reply.data.refresh_token } : {}) };
+  if (persist) acceptLongSignIn(token);
   return token;
 }
 

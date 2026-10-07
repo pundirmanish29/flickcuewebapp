@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DRIVE_TIMEOUT, DriveError, deleteAppFile, downloadAppFile, findRemoteFileId, uploadAppFile } from "./drive";
+import { DRIVE_TIMEOUT, DriveError, deleteAppFile, downloadAppFile, fileVersion, findRemoteFileId, uploadAppFile } from "./drive";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -33,6 +33,11 @@ describe("Drive requests", () => {
     const error = await findRemoteFileId("token").then(() => null, (e: unknown) => e);
     expect(error).toBeInstanceOf(DriveError);
     expect((error as DriveError).status).toBe(401);
+  });
+
+  it("refuses to claim a stable version when Drive returned no version", async () => {
+    vi.stubGlobal("fetch", async () => new Response("{}", { status: 200 }));
+    await expect(fileVersion("list", "token")).rejects.toThrow(/verify/);
   });
 });
 

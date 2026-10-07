@@ -1,5 +1,6 @@
+import { TitleReminder } from "./TitleReminder";
 import * as actions from "../lib/actions";
-import { cardLine, displayTitle, formatRating, getShowStatus, gridBadge, isStartedShow, isUnreleased, yourTake } from "../lib/rules";
+import { cardLine, displayTitle, formatRating, getShowStatus, isShow, gridBadge, isStartedShow, isUnreleased, yourTake } from "../lib/rules";
 import { upscale } from "../lib/tmdb";
 import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
@@ -58,22 +59,12 @@ export function TitleCard({ movie, onOpen, priority = false }: { movie: Movie; o
           className="icon-button"
           onClick={() => actions.toggleWatched(movie.id)}
           disabled={!movie.watched && unreleased}
-          title={movie.watched ? "Move back to queue" : unreleased ? "Not released yet" : "Mark watched"}
-          aria-label={movie.watched ? "Move back to queue" : "Mark watched"}
+          title={movie.watched ? "Move back to queue" : unreleased ? "Not released yet" : isShow(movie) ? "Mark series finished" : "Mark watched"}
+          aria-label={movie.watched ? "Move back to queue" : isShow(movie) ? "Mark series finished" : "Mark watched"}
         >
           <Icon name={movie.watched ? "eyeOff" : "eye"} />
         </button>
-        {!movie.watched && (
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => (Number(movie.remindAt) > Date.now() ? actions.clearReminder(movie.id) : actions.snooze(movie.id))}
-            title={Number(movie.remindAt) > Date.now() ? "Clear reminder" : unreleased ? "Remind on release day" : "Remind tomorrow"}
-            aria-label={Number(movie.remindAt) > Date.now() ? "Clear reminder" : "Set reminder"}
-          >
-            <Icon name="clock" />
-          </button>
-        )}
+        {!movie.watched && <TitleReminder movie={movie} />}
         <button type="button" className="icon-button danger" onClick={() => actions.removeTitle(movie.id)} title="Remove" aria-label="Remove">
           <Icon name="trash" />
         </button>

@@ -7,7 +7,7 @@ import { useSyncExternalStore } from "react";
 import { canAskExtension, getCalendarToken, getStoredToken, forgetToken, grantsCalendar, requestExtensionSession, requestToken, revokeToken, storeCalendarToken, storeToken } from "./auth";
 import { createCalendarMirror, type CalendarState, type PersistedCalendar } from "./calendarMirror";
 import { CALENDAR_MIRROR_ENABLED, LONG_SIGNIN_ENABLED } from "./config";
-import { getGrant, renewAccess, revokeGrant, signInForLong } from "./longSignin";
+import { acceptLongSignIn, getGrant, renewAccess, revokeGrant, signInForLong } from "./longSignin";
 import { needsConfirmation, newRemovals } from "./syncGuard";
 import { deleteAppFile, downloadAppFile, DriveError, fetchAccount, fileVersion, findRemoteFileId, findSettingsFileId, readRemote, readRemoteSettings, uploadAppFile, writeRemote, writeRemoteSettings, type Account } from "./drive";
 import { clearBooking, setBooking } from "./editor";
@@ -24,12 +24,17 @@ const LIBRARY_KEY = "flickcue.library";
 const SYNC_KEY = "flickcue.sync";
 const SETTINGS_KEY = "flickcue.settings";
 const CALENDAR_STATE_KEY = "flickcue.calendarState";
+// Kept across sign-out: a known account's local data must never be silently
+// uploaded into another account. Old anonymous libraries still merge once.
+const LIBRARY_ACCOUNT_KEY = "flickcue.libraryAccount";
 // Set when someone signs out here, so the extension's session isn't picked up
 // again on the next visit; signing in here clears it.
 const EXTENSION_OFF_KEY = "flickcue.extensionSignInOff";
 
 const PUSH_DELAY = 4000;
 const POLL_INTERVAL = 5 * 60 * 1000;
+const SYNC_CONFLICT_ATTEMPTS = 4;
+const SYNC_CONFLICT_MESSAGE = "Your list changed on another device during sync. Your changes are safe here; sync again shortly.";
 
 // "connecting": asking the FlickCue extension for its session on load.
 export type SyncStatus = "local" | "connecting" | "idle" | "syncing" | "needs-auth" | "error";
@@ -151,6 +156,34 @@ function initialState(onLoad = true): AppState {
 }
 
 let state: AppState = initialState();
+let sessionGeneration = 0;
+let accountChanging = false;
+let retainedAccount = String(state.sync.account?.email || "").toLowerCase();
+
+/** Async UI work is discarded if sign-in or sign-out happened meanwhile. */
+export function getSessionGeneration() { return sessionGeneration; }
+
+function libraryAccount(): string {
+  try {
+    return String(localStorage.getItem(LIBRARY_ACCOUNT_KEY) || retainedAccount || "").toLowerCase();
+  } catch {
+    return retainedAccount;
+  }
+}
+
+function rememberAccount(account: Account) {
+  const email = account.email.trim().toLowerCase();
+  if (!email) throw new Error("Couldn't verify your Google account. Try signing in again.");
+  const owner = libraryAccount();
+  if (owner && owner !== email) {
+    throw new Error(`This browser keeps your list for ${owner}. Sign in with that account, or use a separate browser profile for another account.`);
+  }
+  retainedAccount = email;
+  try { localStorage.setItem(LIBRARY_ACCOUNT_KEY, email); } catch { /* the in-memory account still guards this visit */ }
+}
+if (state.sync.account?.email) {
+  try { rememberAccount(state.sync.account); } catch { /* a mismatched stored session must reconnect */ }
+}
 applyRegionAndLanguage(state.settings);
 const listeners = new Set<() => void>();
 let pushTimer: ReturnType<typeof setTimeout> | undefined;
@@ -261,9 +294,28 @@ calendarMirror.restore();
  * Calendar), otherwise the one-hour token sign-in. Call it from a tap, and call it first: the window opens right here.
  */
 function askGoogle({ consent, calendar }: { consent: boolean; calendar: boolean }) {
-  return LONG_SIGNIN_ENABLED
-    ? signInForLong(state.sync.account?.email, calendar)
-    : requestToken({ consent, hint: state.sync.account?.email, calendar });
+  const generation = ++sessionGeneration;
+  accountChanging = true;
+  // Google's popup still opens inside the original tap. Credentials stay
+  // staged until Drive has identified the selected account.
+  const asked = LONG_SIGNIN_ENABLED
+    ? signInForLong(state.sync.account?.email, calendar, false)
+    : requestToken({ consent, hint: state.sync.account?.email, calendar, persist: false });
+  return asked.then(async (token) => {
+    const account = await fetchAccount(token.accessToken);
+    if (generation !== sessionGeneration) throw new Error("Sign-in changed while Google was answering. Try again.");
+    if (!account) throw new Error("Couldn't verify your Google account. Try signing in again.");
+    rememberAccount(account);
+    if (LONG_SIGNIN_ENABLED) acceptLongSignIn(token);
+    else {
+      storeToken(token);
+      if (grantsCalendar(token.scope)) storeCalendarToken(token);
+    }
+    patchSync({ account });
+    return token;
+  }).finally(() => {
+    if (generation === sessionGeneration) accountChanging = false;
+  });
 }
 
 /**
@@ -343,23 +395,36 @@ function syncedSettings(): SyncedSettings {
 
 /** Settings sync: whichever side changed last wins. Its failure never fails the list's sync. */
 async function syncSettings(token: string) {
+  const generation = sessionGeneration;
+  const currentSession = () => !accountChanging && state.sync.connected && generation === sessionGeneration;
   try {
-    const fileId = state.sync.settingsFileId || await findSettingsFileId(token);
-    const remote = fileId ? await readRemoteSettings(fileId, token) : null;
-    const direction = settingsDirection(Number(state.settings.settingsUpdatedAt) || 0, remote);
-    if (direction === "pull" && remote) {
-      const values = readSynced(remote.settings, syncedSettings());
-      updateSettings({ ...values, settingsUpdatedAt: remote.updatedAt }, true);
-      if (values.theme !== getThemeChoice()) setThemeChoice(values.theme);
-    } else if (direction === "push") {
-      // A device's first push is stamped now, so its other devices take it.
-      const at = Number(state.settings.settingsUpdatedAt) || Date.now();
-      if (!state.settings.settingsUpdatedAt) updateSettings({ settingsUpdatedAt: at }, true);
-      const nextId = await writeRemoteSettings(fileId, token, at, { ...syncedSettings() });
-      if (nextId !== state.sync.settingsFileId) patchSync({ settingsFileId: nextId });
+    let fileId = state.sync.settingsFileId || await findSettingsFileId(token);
+    for (let attempt = 0; attempt < SYNC_CONFLICT_ATTEMPTS; attempt++) {
+      const version = fileId ? await fileVersion(fileId, token) : "";
+      const remote = fileId ? await readRemoteSettings(fileId, token) : null;
+      if (fileId && await fileVersion(fileId, token) !== version) continue;
+      if (!currentSession()) return;
+      const direction = settingsDirection(Number(state.settings.settingsUpdatedAt) || 0, remote);
+      if (direction === "pull" && remote) {
+        const values = readSynced(remote.settings, syncedSettings());
+        updateSettings({ ...values, settingsUpdatedAt: remote.updatedAt }, true);
+        if (values.theme !== getThemeChoice()) setThemeChoice(values.theme);
+      } else if (direction === "push") {
+        const at = Number(state.settings.settingsUpdatedAt) || Date.now();
+        if (!state.settings.settingsUpdatedAt) updateSettings({ settingsUpdatedAt: at }, true);
+        if (fileId && await fileVersion(fileId, token) !== version) continue;
+        if (!currentSession()) return;
+        if (Number(state.settings.settingsUpdatedAt) !== at) continue;
+        fileId = await writeRemoteSettings(fileId, token, at, { ...syncedSettings() });
+        if (!currentSession()) return;
+        if (fileId !== state.sync.settingsFileId) patchSync({ settingsFileId: fileId });
+        // Reconcile a remote or local setting changed during the upload.
+        const echoed = await readRemoteSettings(fileId, token);
+        if (!echoed || settingsDirection(Number(state.settings.settingsUpdatedAt) || 0, echoed) !== "none") continue;
+      }
+      if (fileId && fileId !== state.sync.settingsFileId) patchSync({ settingsFileId: fileId });
       return;
     }
-    if (fileId && fileId !== state.sync.settingsFileId) patchSync({ settingsFileId: fileId });
   } catch (error) {
     // A settings file removed elsewhere is found or made again next time.
     if (error instanceof DriveError && error.status === 404) patchSync({ settingsFileId: "" });
@@ -393,11 +458,16 @@ export function sync(): Promise<void> {
  */
 async function adoptExtensionSession(): Promise<boolean> {
   if (!willAskExtension()) return false;
+  const generation = sessionGeneration;
   const session = await requestExtensionSession();
-  if (!session) return false;
-  const current = state.sync.account?.email?.toLowerCase();
-  const offered = session.account.email.toLowerCase();
-  if (state.sync.connected && current && offered && current !== offered) return false;
+  if (!session || generation !== sessionGeneration || accountChanging) return false;
+  // The extension's displayed profile may be cached from an older grant.
+  // Verify the token itself before retaining account-specific Drive IDs.
+  const account = await fetchAccount(session.token.accessToken);
+  if (!account) throw new Error("Couldn't verify your Google account. Try signing in again.");
+  if (generation !== sessionGeneration || accountChanging) return false;
+  rememberAccount(account);
+  sessionGeneration++;
   storeToken(session.token);
   // The extension's Letterboxd profile links here too, unless one is already
   // linked or was unlinked on this device.
@@ -406,7 +476,7 @@ async function adoptExtensionSession(): Promise<boolean> {
   }
   patchSync({
     connected: true,
-    account: session.account.email ? session.account : state.sync.account,
+    account,
     status: "idle",
     error: ""
   });
@@ -414,10 +484,17 @@ async function adoptExtensionSession(): Promise<boolean> {
 }
 
 async function runSync(retried = false) {
-  if (!state.sync.connected) return;
+  if (!state.sync.connected || accountChanging) return;
   // An expired token is renewed from the extension when it can be, then from a long-lived grant,
   // so only someone with neither is asked to reconnect.
-  let token = getStoredToken() ?? (await adoptExtensionSession() ? getStoredToken() : null);
+  let token = getStoredToken();
+  if (!token) {
+    try { token = await adoptExtensionSession() ? getStoredToken() : null; }
+    catch (error) {
+      patchSync({ status: "needs-auth", error: error instanceof Error ? error.message : "Couldn't verify the extension's account." });
+      return;
+    }
+  }
   if (!token && LONG_SIGNIN_ENABLED) {
     const renewal = await renewAccess();
     if (renewal.ok) token = renewal.token;
@@ -431,15 +508,22 @@ async function runSync(retried = false) {
     return;
   }
 
+  const generation = sessionGeneration;
+  const currentSession = () => !accountChanging && state.sync.connected && generation === sessionGeneration;
+
   patchSync({ status: "syncing", error: "", held: 0 });
   try {
-    const fileId = state.sync.fileId || await findRemoteFileId(token.accessToken);
+    let fileId = state.sync.fileId || await findRemoteFileId(token.accessToken);
     let nextFileId = fileId;
     // Read, merge, and save only if Drive's copy is still the one read: when
     // another device saved in between, go round again with its copy.
-    for (let attempt = 0; ; attempt++) {
+    let settled = false;
+    for (let attempt = 0; attempt < SYNC_CONFLICT_ATTEMPTS; attempt++) {
       const version = fileId ? await fileVersion(fileId, token.accessToken) : "";
       const remote = fileId ? await readRemote(fileId, token.accessToken) : { movies: [], deleted: [] };
+      if (!currentSession()) return;
+      if (fileId && await fileVersion(fileId, token.accessToken) !== version) continue;
+      if (!currentSession()) return;
       // Read the local copy after the network round trip, so an edit made while
       // Drive was answering is part of the merge rather than overwritten by it.
       const local = state.library;
@@ -457,19 +541,37 @@ async function runSync(retried = false) {
 
       const remoteChanged = JSON.stringify(remote.movies) !== JSON.stringify(merged.movies)
         || JSON.stringify(remote.deleted ?? []) !== JSON.stringify(merged.deleted);
-      if (!remoteChanged && fileId) break;
-      if (fileId && attempt < 3 && await fileVersion(fileId, token.accessToken) !== version) continue;
+      if (!remoteChanged && fileId) { settled = true; break; }
+      if (fileId && await fileVersion(fileId, token.accessToken) !== version) continue;
+      if (!currentSession()) return;
+      if (JSON.stringify(state.library) !== JSON.stringify(merged)) continue;
       nextFileId = await writeRemote(fileId, token.accessToken, merged);
+      fileId = nextFileId;
+      if (!currentSession()) return;
+      // Verify the published copy and merge again if another device or a
+      // local edit raced the upload. The preflight/upload pair is not atomic.
+      const echoedVersion = await fileVersion(fileId, token.accessToken);
+      const echoed = await readRemote(fileId, token.accessToken);
+      if (await fileVersion(fileId, token.accessToken) !== echoedVersion) continue;
+      if (!currentSession()) return;
+      const latest = mergeWatchlists(state.library, echoed);
+      if (JSON.stringify(latest) !== JSON.stringify(state.library)) setLibrary(latest);
+      if (JSON.stringify(latest) !== JSON.stringify(echoed)) continue;
+      settled = true;
       break;
     }
+    if (!settled) throw new DriveError(SYNC_CONFLICT_MESSAGE, 409);
+    if (!currentSession()) return;
     const account = state.sync.account?.email ? state.sync.account : await fetchAccount(token.accessToken);
 
     await syncSettings(token.accessToken);
+    if (!currentSession()) return;
     patchSync({ fileId: nextFileId, account: account ?? state.sync.account, lastSyncAt: Date.now(), status: "idle", error: "" });
     syncedOnce = true;
     // Soon, not after the usual wait for a burst of edits: this is the moment the library is known to be whole.
     calendarMirror.schedule(300);
   } catch (error) {
+    if (!currentSession()) return;
     if (error instanceof DriveError && error.status === 401) {
       forgetToken();
       // Google turned the token down before it ran out: with a grant, ask for another once before giving up.
@@ -493,9 +595,7 @@ export async function connect() {
     // With the Calendar mirror on, Resume asks for Calendar too, so the hourly sign-in stays one window.
     const wantCalendar = CALENDAR_MIRROR_ENABLED && Boolean(state.settings.calendarMirror) && !calendarMirror.getState().declined;
     // A long-lived sign-in asks for Calendar in the same window, so one grant keeps both alive.
-    const token = LONG_SIGNIN_ENABLED
-      ? await signInForLong(state.sync.account?.email, wantCalendar)
-      : await requestToken({ consent: !state.sync.connected, hint: state.sync.account?.email, calendar: wantCalendar });
+    const token = await askGoogle({ consent: !state.sync.connected, calendar: wantCalendar });
     if (wantCalendar && !grantsCalendar(token.scope)) calendarMirror.declined();
     patchSync({ connected: true, status: "idle", error: "" });
     await sync();
@@ -518,6 +618,8 @@ export async function connectWithExtension(): Promise<boolean> {
 
 /** Only the credentials go. The local list and the Drive copy both stay. */
 export async function disconnect() {
+  sessionGeneration++;
+  accountChanging = false;
   const token = getStoredToken();
   // A token the extension lent is only dropped: revoking it would sign the
   // extension out too.
@@ -676,7 +778,7 @@ export function startBackgroundSync() {
         if (adopted) return sync();
         patchSync({ status: "local" });
       })
-      .catch(() => patchSync({ status: "local" }));
+      .catch((error) => patchSync({ status: "local", error: error instanceof Error ? error.message : "Couldn't verify the extension's account." }));
   } else {
     void sync();
   }
@@ -689,7 +791,9 @@ export function startBackgroundSync() {
   // Another tab of this app edited the library or signed in.
   window.addEventListener("storage", (event) => {
     if (event.key === LIBRARY_KEY || event.key === SYNC_KEY || event.key === SETTINGS_KEY) {
+      if (event.key === SYNC_KEY) sessionGeneration++;
       state = { ...initialState(false), calendar: state.calendar };
+      applyRegionAndLanguage(state.settings);
       emit();
     }
   });

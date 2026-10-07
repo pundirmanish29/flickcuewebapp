@@ -93,11 +93,11 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank,
             <Icon name="clock" size={14} /> Showtimes
           </button>
         )}
-        <Popover open={showing} onClose={() => setShowing(false)} label={`Showtimes for ${title}`}>
+        <Popover open={showing} onClose={() => setShowing(false)} label={`Showtimes for ${title}`} modal>
           <p className="popover-label">{title} · showtimes in {place}</p>
           <ShowtimeLinks title={candidate.title} year={candidate.year} />
         </Popover>
-        <Popover open={asking} onClose={() => setAsking(false)} label={`Remind me about ${title}`}>
+        <Popover open={asking} onClose={() => setAsking(false)} label={`Remind me about ${title}`} modal>
           <p className="popover-label">Save {title} and remind me…</p>
           <ReminderChoices releaseDate={candidate.releaseDate} onPick={save} onNone={() => save(null)} noneLabel="Just save it" />
         </Popover>

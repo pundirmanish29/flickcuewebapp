@@ -47,17 +47,19 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
     <>
       <PageHeader
         title="Watched"
+        className="watched-head"
         stats={[
           { value: watched.length, label: "in all" },
           ...(stats.month ? [{ value: stats.month, label: "this month" }] : []),
           ...(stats.year ? [{ value: stats.year, label: "this year" }] : []),
           // Hours only count titles with a known runtime, so they wait until there are some.
-          ...(stats.hours ? [{ value: stats.hours, label: "hours" }] : [])
+          ...(stats.hours ? [{ value: stats.hours, label: "estimated hours" }] : [])
         ]}
       />
 
       <section className="paper titles">
         <div className="wrap">
+          {stats.hours > 0 && <p className="muted small-print">Time is estimated from titles with a known runtime; individual episodes and missing runtimes aren't included.</p>}
           <div className="toolbar watched-toolbar">
             <div className="segmented" role="group" aria-label="Show">
               {(["all", "movie", "tv"] as KindFilter[]).map((value) => (
@@ -73,7 +75,7 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
               {groups.map((group) => (
                 <section key={group.key} className="watched-month" aria-labelledby={`month-${group.key}`}>
                   <h2 id={`month-${group.key}`} className="watched-month-title">
-                    {group.label} <span className="count">{group.total}</span>
+                    {group.label} <span className="count">· {group.total} {group.total === 1 ? "title" : "titles"}</span>
                   </h2>
                   {group.key === "undated" && <p className="muted small-print watched-undated-note">Imported without a watch date, mostly from Letterboxd.</p>}
                   <div className="grid">

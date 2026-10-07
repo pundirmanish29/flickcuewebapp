@@ -5,7 +5,9 @@ import {
   displayTitle, formatRating, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, readerDate, seasonProgress, smartQuotes
 } from "../lib/rules";
 import { CALENDAR_MIRROR_ENABLED } from "../lib/config";
-import { useAppState } from "../lib/store";
+import { getSessionGeneration, getState, sync as syncLibrary, useAppState } from "../lib/store";
+import { syncReady } from "../lib/syncReady";
+import { editNoteDraft, noteDraft, noteSavePlan, reconcileNoteDraft } from "../lib/noteDraft";
 import { useInCinemas, useWhere } from "../lib/useCinemas";
 import { FilmShowtimes } from "./Showtimes";
 import { TicketPanel } from "./TicketPanel";
@@ -90,7 +92,7 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
       </button>
       {/* On a phone the list rises from the bottom over a dimmed page. */}
       {open && <div className="watch-scrim" aria-hidden="true" />}
-      <Popover open={open} onClose={close} label="Where to watch" anchor={trigger}>
+      <Popover open={open} onClose={close} label="Where to watch" anchor={trigger} modal>
         <p className="watch-sheet-title">Where to watch <b>{title.replace(/\s*\(\d{4}\)$/, "")}</b></p>
         {groups.map((group) => (
           <section key={group.tone} className={`watch-group watch-${group.tone}`} aria-label={group.label}>
@@ -155,7 +157,7 @@ function StubButton({ icon, children, href, onClick, kind = "plain", pressed, ex
  * you scroll.
  */
 export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: string; onBack: () => void }) {
-  const { library, settings } = useAppState();
+  const { library, settings, sync: syncState } = useAppState();
   const preview = usePreview();
   const ref = parseCandidateKey(id);
   const savedById = library.movies.find((item) => item.id === id);
@@ -170,9 +172,17 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
 
   const [playing, setPlaying] = useState(false);
   const [details, setDetails] = useState<TitleDetails | null>(null);
+  const [detailsFor, setDetailsFor] = useState("");
+  const detailsGeneration = useRef(getSessionGeneration());
+  const detailsWritten = useRef<{ result: TitleDetails; id: string; generation: number } | null>(null);
   const [detailsError, setDetailsError] = useState("");
   const [choosingReminder, setChoosingReminder] = useState(false);
-  const [note, setNote] = useState(movie?.personal?.note ?? "");
+  const syncedNote = movie?.personal?.note ?? "";
+  const [draft, setDraft] = useState(() => noteDraft(syncedNote));
+  const note = draft.text;
+  const [missingLookup, setMissingLookup] = useState<"waiting" | "loading" | "missing" | "error">("waiting");
+  const [missingRetry, setMissingRetry] = useState(0);
+  const wasSaved = useRef(Boolean(savedById));
   const [dismissedEpisodes, setDismissedEpisodes] = useState(readDismissed);
   const [writingNote, setWritingNote] = useState(false);
   const [stubInView, setStubInView] = useState(true);
@@ -198,10 +208,34 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // A saved title that's gone (removed here, or by a sync from another device): back to where you were.
+  // A cold extension link may arrive before Drive has its new title. Keep it open through one lookup,
+  // with an explicit retry when unavailable. A title removed while this page was open still goes back.
   useEffect(() => {
-    if (!ref && !savedById) onBack();
-  }, [ref, savedById, onBack]);
+    if (savedById) { wasSaved.current = true; return; }
+    if (ref) return;
+    if (wasSaved.current) { onBack(); return; }
+    if (!syncState.connected) { setMissingLookup("error"); return; }
+    let live = true;
+    setMissingLookup("loading");
+    void syncLibrary().then(() => {
+      if (!live) return;
+      const state = getState();
+      setMissingLookup(state.sync.status === "error" || state.sync.status === "needs-auth" || !state.sync.connected ? "error" : "missing");
+    }).catch(() => live && setMissingLookup("error"));
+    return () => { live = false; };
+  }, [id, Boolean(ref), Boolean(savedById), syncState.connected, missingRetry, onBack]);
+
+  useEffect(() => setDraft(current => reconcileNoteDraft(current, syncedNote)), [syncedNote]);
+
+  const currentNote = () => getState().library.movies.find(item => item.id === movie?.id)?.personal?.note ?? "";
+  const saveNote = () => {
+    const remote = currentNote();
+    const plan = noteSavePlan(draft, remote);
+    if (plan === "conflict") { setDraft(reconcileNoteDraft(draft, remote)); return; }
+    if (plan === "save" && movie) actions.setNote(movie.id, draft.text);
+    setDraft(noteDraft(plan === "save" ? draft.text : remote));
+    if (!draft.text.trim()) setWritingNote(false);
+  };
 
   // Screen readers and keyboards start at the title.
   const ready = Boolean(movie);
@@ -210,16 +244,21 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   }, [ready]);
 
   const tmdbKey = movie?.tmdbId ? `${movie.tmdbType}:${movie.tmdbId}` : "";
+  const detailsKey = `${tmdbKey}:${settings.region}`;
+  const sessionGeneration = getSessionGeneration();
   useEffect(() => {
     if (!movie?.tmdbId) return;
     let live = true;
     setDetails(null);
+    setDetailsFor("");
     setDetailsError("");
+    const generation = getSessionGeneration();
     fetchDetails(movie, settings.region)
       .then((result) => {
         if (!live) return;
+        detailsGeneration.current = generation;
+        setDetailsFor(detailsKey);
         setDetails(result);
-        if (isSaved) writeBack(movie, result);
       })
       .catch((error) => live && setDetailsError(error.message));
     return () => {
@@ -227,7 +266,16 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     };
     // Only a different title or region needs a new lookup, not every edit to this one.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tmdbKey, settings.region]);
+  }, [tmdbKey, settings.region, sessionGeneration]);
+
+  const readyToWrite = syncReady(syncState);
+  useEffect(() => {
+    if (!details || detailsFor !== detailsKey || !isSaved || !movie || !readyToWrite) return;
+    const generation = detailsGeneration.current;
+    const written = detailsWritten.current;
+    if (written?.result === details && written.id === movie.id && written.generation === generation) return;
+    if (writeBack(movie, details, generation)) detailsWritten.current = { result: details, id: movie.id, generation };
+  }, [details, detailsFor, detailsKey, isSaved, movie?.id, readyToWrite]);
 
   // On a phone the stub's bar is pinned above the dock once the stub itself has scrolled away.
   useEffect(() => {
@@ -254,11 +302,16 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   );
 
   if (!movie) {
+    const missingSaved = !ref;
+    const waiting = missingSaved ? missingLookup === "waiting" || missingLookup === "loading" : !lookupError;
     return (
-      <article className="title-page title-page-loading" aria-busy={!lookupError}>
+      <article className="title-page title-page-loading" aria-busy={waiting}>
         <div className="tp-hero"><div className="wrap tp-hero-bar">{back}</div></div>
         <div className="wrap tp-empty">
-          {lookupError ? <p>{lookupError}</p> : <p className="muted loading-text">Loading…</p>}
+          {missingSaved ? <>
+            <p role="status">{waiting ? "Looking for this title in your synced list…" : missingLookup === "error" ? syncState.status === "needs-auth" ? "Resume sync in your account menu, then retry this title." : "Couldn't sync your list. Your title link is kept here." : "This title isn't in your synced list yet. If you just saved it in the extension, let it finish syncing and try again."}</p>
+            {!waiting && <button type="button" className="button button-quiet" onClick={() => setMissingRetry(value => value + 1)}>Retry title</button>}
+          </> : lookupError ? <p>{lookupError}</p> : <p className="muted loading-text">Loading…</p>}
         </div>
       </article>
     );
@@ -337,7 +390,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const providerName = provider ? splitChannel(provider.name)[0] : "";
   // Every service, beside the title, unless the stub's main button already is the only one.
   const providerCount = (details?.streaming.length ?? 0) + (details?.rentOrBuy.length ?? 0);
-  const watchOnShown = providerCount > 1 || (providerCount === 1 && stub.primary !== "watch" && stub.primary !== "watchAgain");
+  const episodeAction = isSaved && !movie.watched && show && newEpisode && newEpisode.state !== "upcoming" ? newEpisode : null;
+  const watchOnShown = providerCount > 1 || (providerCount === 1 && (episodeAction || (stub.primary !== "watch" && stub.primary !== "watchAgain")));
   const watchHref = provider ? providerLink(provider.name, movie.title) : "";
 
   const openChoices = (fromBar = false) => {
@@ -352,11 +406,13 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
       save: <StubButton kind="primary" icon="plus" expanded={choosingReminder} onClick={() => (fromBar ? openChoices(true) : setChoosingReminder((open) => !open))}>Save</StubButton>,
       remind: <StubButton kind="primary" icon="clock" expanded={choosingReminder} onClick={() => (fromBar ? openChoices(true) : setChoosingReminder((open) => !open))}>{reminderActive ? "Change reminder" : "Remind me"}</StubButton>,
       watch: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : provider?.included ? `Watch on ${providerName}` : `Rent on ${providerName}`}</StubButton>,
-      watched: <StubButton kind="primary" icon="eye" onClick={() => isSaved && actions.toggleWatched(movie.id)}>Watched it</StubButton>,
+      watched: <StubButton kind="primary" icon="eye" onClick={() => isSaved && actions.toggleWatched(movie.id)}>{show ? "Mark series finished" : "Watched it"}</StubButton>,
       ticket: <StubButton kind="primary" icon="ticket" onClick={showTicket}>{fromBar ? "Ticket" : "Show ticket"}</StubButton>,
       watchAgain: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? "Watch again" : `Watch again on ${providerName}`}</StubButton>,
       none: null
     };
+    if (isSaved && !movie.watched && show && newEpisode && newEpisode.state !== "upcoming") return <StubButton kind="primary" icon="check" onClick={() => actions.toggleEpisode(movie.id, newEpisode.season, newEpisode.episode)}>{fromBar ? `Watched S${newEpisode.season} E${newEpisode.episode}` : `Mark S${newEpisode.season} E${newEpisode.episode} watched`}</StubButton>;
+    if (show && stub.primary === "watched") return <StubButton kind="primary" icon="play" onClick={() => document.getElementById("episode-progress")?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" })}>Episode progress</StubButton>;
     return map[stub.primary];
   };
 
@@ -367,19 +423,19 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
       secondary.push(<StubButton key="unwatch" icon="eyeOff" onClick={() => actions.toggleWatched(movie.id)}>Unwatch</StubButton>);
     } else if (stub.primary === "ticket") {
       // Booked: the ticket is the plan; once it's out you can mark it watched here too.
-      if (!unreleased) secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.toggleWatched(movie.id)}>Watched it</StubButton>);
+      if (!unreleased) secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.toggleWatched(movie.id)}>{show ? "Mark series finished" : "Watched it"}</StubButton>);
     } else if (unreleased) {
       secondary.push(
         <StubButton key="interested" icon="bell" pressed={Boolean(movie.personal?.interested)} onClick={() => actions.setInterested(movie.id, !movie.personal?.interested)}>Interested</StubButton>
       );
     } else {
-      if (stub.primary !== "watched") secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.toggleWatched(movie.id)}>Watched it</StubButton>);
+      if (show || stub.primary !== "watched") secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.toggleWatched(movie.id)}>{show ? "Mark series finished" : "Watched it"}</StubButton>);
       if (show) secondary.push(<StubButton key="watching" icon="play" pressed={watchingNow} onClick={() => actions.setWatching(movie.id, !watchingNow)}>Watching</StubButton>);
       if (stub.primary !== "remind") secondary.push(<StubButton key="remind" icon="clock" pressed={reminderActive} expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>{reminderActive ? "Reminder" : "Remind me"}</StubButton>);
     }
     secondary.push(<StubButton key="remove" kind="danger" icon="trash" onClick={() => actions.removeTitle(movie.id)}>Remove</StubButton>);
   } else if (candidate && !unreleased) {
-    secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.saveWatched(candidate)}>Watched it</StubButton>);
+    secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.saveWatched(candidate)}>{show ? "Mark series finished" : "Watched it"}</StubButton>);
     if (show) secondary.push(<StubButton key="watching" icon="play" onClick={() => actions.saveWatching(candidate)}>Watching</StubButton>);
   }
 
@@ -485,7 +541,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
               <div className="tp-choices">
                 <p className="popover-label">{isSaved ? "Remind me…" : "Save it, and remind me…"}</p>
                 <ReminderChoices
-                  releaseDate={movie.releaseDate}
+                  releaseDate={unreleased ? movie.releaseDate : undefined}
                   onPick={(at) => {
                     if (isSaved) actions.remindAt(movie.id, at);
                     else if (candidate) actions.addCandidate(candidate, at);
@@ -550,8 +606,9 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             <p className="muted small-print">Not streaming in {regionName(settings.region || "IN")} right now.</p>
           )}
 
-          {isSaved && show && (progress.length > 0 || newEpisode) && (
-            <section className="sheet-section">
+          {isSaved && show && (
+            <section className="sheet-section" id="episode-progress">
+              {!progress.length && !newEpisode && <p className="muted">Episode information isn't available for this show yet.</p>}
               {newEpisode && (
                 <>
                   <h2 className="section-label">Episode progress</h2>
@@ -598,7 +655,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
 
           {isSaved && (
             <section className="sheet-section">
-              {note || writingNote ? (
+              {note || writingNote || draft.dirty ? (
                 <>
                   <h2 className="section-label"><label htmlFor="note">{movie.watched ? "Notes" : "Why I saved this"}</label></h2>
                   <textarea
@@ -609,9 +666,17 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
                     autoFocus={writingNote && !note}
                     placeholder={movie.watched ? "What you thought, who you watched it with…" : "A friend's pick, a review you read, the mood it's for…"}
                     value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                    onBlur={() => { actions.setNote(movie.id, note); if (!note.trim()) setWritingNote(false); }}
+                    onChange={(event) => setDraft(current => reconcileNoteDraft(editNoteDraft(current, event.target.value), syncedNote))}
+                    onBlur={saveNote}
                   />
+                  {draft.conflict && <div className="note-conflict" role="alert">
+                    <p>A newer note arrived from another device. Your draft is kept here and hasn't been saved.</p>
+                    <p className="muted">Synced note: {syncedNote || "(empty)"}</p>
+                    <div className="button-row">
+                      <button type="button" className="button button-quiet" onClick={() => setDraft(noteDraft(currentNote()))}>Use synced note</button>
+                      <button type="button" className="button button-quiet" onClick={() => { actions.setNote(movie.id, draft.text); setDraft(noteDraft(draft.text)); }}>Save my edit instead</button>
+                    </div>
+                  </div>}
                 </>
               ) : (
                 <button type="button" className="add-note" onClick={() => setWritingNote(true)}>
