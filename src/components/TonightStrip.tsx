@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Ref } from "react";
 import * as actions from "../lib/actions";
 import type { TonightEntry } from "../lib/newEpisode";
 import { cardLine, displayTitle } from "../lib/rules";
@@ -58,9 +58,9 @@ function Card({ entry, onOpen, compact = false }: { entry: TonightEntry; onOpen:
 }
 
 /** Episodes of the shows you follow that air, or came out, today: a strip above the rest of the Queue's rows. */
-export function TonightStrip({ entries, onOpen, embedded = false, reminders = [] }: { entries: TonightEntry[]; onOpen: (id: string) => void; embedded?: boolean; reminders?: Movie[] }) {
+export function TonightStrip({ entries, onOpen, embedded = false, reminders = [], listRef }: { entries: TonightEntry[]; onOpen: (id: string) => void; embedded?: boolean; reminders?: Movie[]; listRef?: Ref<HTMLUListElement> }) {
   if (!entries.length && !reminders.length) return null;
-  if (embedded) return <ul className="radar-list due-list">
+  if (embedded) return <ul className="radar-list due-list" ref={listRef}>
     {entries.map(entry => <Card key={`${entry.movie.id}:${entry.season}:${entry.episode}`} entry={entry} onOpen={onOpen} compact />)}
     {reminders.map(movie => <li key={movie.id}>
       <button type="button" className="radar-item" onClick={() => onOpen(movie.id)}>
