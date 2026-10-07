@@ -96,3 +96,30 @@ describe("notifications from the list", () => {
     expect([item.title, item.event]).toEqual(["Severance", "Season 3 is here"]);
   });
 });
+
+describe("booked tickets", () => {
+  const HOUR = 60 * 60 * 1000;
+
+  it("words the hour-before reminder as the show starting, with the cinema", () => {
+    const showAt = now + 30 * 60 * 1000;
+    const items = buildNotifications([film({ remindAt: showAt - HOUR, booking: { showAt, cinema: "PVR Saket", addedAt: 1 } })], now);
+    expect(items[0].kind).toBe("reminder");
+    expect(items[0].text).toMatch(/^Heat starts at .+ at PVR Saket$/);
+    expect(items[0].event).toMatch(/^Starts at /);
+    expect(items[0].detail).toBe("PVR Saket");
+  });
+
+  it("asks 'did you watch it?' once the show is over, until answered or watched", () => {
+    const showAt = now - 4 * HOUR;
+    const booked = film({ runtimeMinutes: 120, booking: { showAt, addedAt: 1 } });
+    const ask = buildNotifications([booked], now).find((item) => item.kind === "ticket");
+    expect(ask).toMatchObject({ text: "Did you watch Heat?", at: showAt + 140 * 60 * 1000 });
+    expect(buildNotifications([{ ...booked, watched: true }], now).some((item) => item.kind === "ticket")).toBe(false);
+    expect(buildNotifications([{ ...booked, booking: { showAt, addedAt: 1, watchedAsked: true } }], now).some((item) => item.kind === "ticket")).toBe(false);
+  });
+
+  it("doesn't ask during the show", () => {
+    const items = buildNotifications([film({ runtimeMinutes: 160, booking: { showAt: now - HOUR, addedAt: 1 } })], now);
+    expect(items.some((item) => item.kind === "ticket")).toBe(false);
+  });
+});

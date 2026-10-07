@@ -1341,6 +1341,35 @@ html[data-opening] .sheet-poster { view-transition-name: title-poster; }
 .action:disabled .action-icon { opacity: 0.5; }
 .sheet-panel { margin-top: 14px; padding: 14px; border-radius: 14px; background: var(--paper-surface); border: 1px solid var(--rule); }
 .sheet-section { margin-top: 28px; }
+/* A cinema ticket on a film: added from a screenshot, photo or PDF, checked, then shown as a card. */
+.ticket-panel { padding: 16px; border-radius: 16px; background: var(--paper-surface); border: 1px solid var(--rule); }
+.ticket-panel > p { margin: 0 0 12px; }
+.ticket-panel .button-row { margin-top: 14px; }
+.ticket-panel .button .icon, .ticket-panel .button svg { margin-right: 6px; vertical-align: -3px; }
+.ticket-empty > p:first-of-type { font-weight: 600; }
+.ticket-empty .small-print { margin: 12px 0 0; }
+.ticket-reading { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.ticket-reading .spin { display: inline-flex; }
+.ticket-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ticket-fields label { display: flex; flex-direction: column; min-width: 0; }
+.ticket-fields .wide { grid-column: 1 / -1; }
+.ticket-fields input { width: 100%; min-width: 0; }
+.ticket-keep { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; font-size: 14px; line-height: 1.4; cursor: pointer; }
+.ticket-keep input { margin-top: 3px; width: 18px; height: 18px; flex: none; }
+.ticket-card-head { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 14px; border-bottom: 1px dashed var(--rule); }
+.ticket-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--ink); color: var(--paper); }
+.ticket-card-head > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ticket-when { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+.ticket-where { font-weight: 600; }
+.ticket-seats { color: var(--ink-soft); font-size: 14px; }
+.ticket-id { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 14px; color: var(--ink-soft); }
+.ticket-id code { padding: 2px 8px; border-radius: 6px; background: var(--paper-deep, rgba(0,0,0,.05)); color: var(--ink); font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; }
+.ticket-card .small-print { margin: 12px 0 0; }
+/* The ticket itself, big and bright for the scanner at the door. */
+.ticket-viewer { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 56px 16px 24px; background: rgba(0, 0, 0, 0.92); }
+.ticket-viewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; background: #fff; }
+.ticket-viewer-close { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.16); color: #fff; cursor: pointer; }
+
 .section-label { margin: 0 0 12px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); }
 .tagline { margin: 0 0 8px; font-family: var(--font-display); font-style: italic; font-size: 22px; line-height: 1.3; }
 .overview { margin: 0; font-size: 16px; max-width: 70ch; }

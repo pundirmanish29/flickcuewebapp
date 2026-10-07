@@ -18,6 +18,7 @@ FlickCue is one watchlist that follows you everywhere. Saving, remembering and d
 
 - **Save from anywhere:** one click from any page with the extension, from Discover, or by hand.
 - **Get nudged on time:** reminders for tonight, tomorrow, the weekend, release day or an exact time, plus a "tonight's pick" that turns a long list into one decision. Optionally mirrored into a calendar of its own in the person's Google Calendar, so a reminder alerts with the app closed.
+- **Going to the cinema:** add a ticket you've booked (screenshot, photo or PDF, read on the device); the title shows "Booked", reminds an hour before, keeps the ticket to show at the door, and asks "Did you watch it?" afterwards.
 - **Find what's next:** search (titles and people), "For you" picks based on what you saved, curated lists, and where to watch in your region.
 
 Success means saved titles actually get watched, and the list is the same on every device without the user thinking about it.

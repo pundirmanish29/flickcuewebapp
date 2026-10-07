@@ -208,3 +208,34 @@ describe("eventBody", () => {
     expect(body.start.date).toBeUndefined();
   });
 });
+
+describe("booked shows", () => {
+  const nowMs = new Date(2026, 9, 7, 12, 0).getTime();
+  const showAt = new Date(2026, 9, 11, 19, 30).getTime();
+  const HOUR = 60 * 60 * 1000;
+  const library = (extra: Record<string, unknown> = {}) => ({
+    movies: [{ id: "d", title: "Dune: Part Two", year: "2024", runtimeMinutes: 166, remindAt: showAt - HOUR, updatedAt: 1,
+      booking: { showAt, cinema: "PVR: Select Citywalk, Saket", screen: "Audi 5", seats: ["H12", "H13"], bookingId: "WGBK7MSX", addedAt: 1 }, ...extra }],
+    deleted: []
+  });
+
+  it("puts the event at the showtime, at the cinema, with a pop-up an hour before", () => {
+    const [event] = desiredEvents(library() as never, nowMs);
+    expect(event.id).toBe(eventIdFor("d", showAt - HOUR));
+    expect(event.startMs).toBe(showAt);
+    expect(event.endMs).toBe(showAt + 166 * 60 * 1000);
+    expect(event.summary).toBe("At the cinema: Dune: Part Two");
+    expect(event.location).toBe("PVR: Select Citywalk, Saket");
+    expect(event.description).toContain("Audi 5 · Seats H12, H13 · Booking ID WGBK7MSX");
+    const body = eventBody(event, "Asia/Kolkata") as { location: string; reminders: { overrides: { minutes: number }[] } };
+    expect(body.location).toBe("PVR: Select Citywalk, Saket");
+    expect(body.reminders.overrides[0].minutes).toBe(60);
+  });
+
+  it("is an ordinary reminder event once the reminder is moved away from the ticket's hour", () => {
+    const [event] = desiredEvents(library({ remindAt: showAt - 3 * HOUR }) as never, nowMs);
+    expect(event.startMs).toBe(showAt - 3 * HOUR);
+    expect(event.location).toBeUndefined();
+    expect((eventBody(event, "UTC") as { reminders: { overrides: { minutes: number }[] } }).reminders.overrides[0].minutes).toBe(0);
+  });
+});

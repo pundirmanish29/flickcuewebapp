@@ -37,6 +37,25 @@ export interface Personal {
   [key: string]: unknown;
 }
 
+/** A cinema ticket the person added: read on their device, kept in their own Drive. Only the web app sets it so far. */
+export interface Booking {
+  /** When the show starts. */
+  showAt: number;
+  cinema?: string;
+  screen?: string;
+  seats?: string[];
+  bookingId?: string;
+  /** Where it was booked: "bookmyshow", "district", "pvr", "inox", "cinepolis" or "other". */
+  source?: string;
+  /** The ticket file in FlickCue's private Drive folder, to show at the cinema. */
+  ticketFileId?: string;
+  ticketFileName?: string;
+  ticketMime?: string;
+  addedAt: number;
+  /** "Did you watch it?" was answered "Not yet", so it isn't asked again. */
+  watchedAsked?: boolean;
+}
+
 export interface Movie {
   id: string;
   title: string;
@@ -68,6 +87,7 @@ export interface Movie {
   imdbRating?: number;
   personal?: Personal;
   sourceUrl?: string;
+  booking?: Booking;
   [key: string]: unknown;
 }
 

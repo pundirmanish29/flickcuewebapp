@@ -10,7 +10,7 @@
 //     no longer wanted, is deleted.
 // Events are only ever created or deleted, never rewritten.
 
-import { displayTitle, isShow, localIsoDate } from "./rules";
+import { BOOKING_LEAD, displayTitle, isBookingReminder, isShow, localIsoDate } from "./rules";
 import type { LibraryDocument, Movie } from "./types";
 
 export const EVENT_PREFIX = "fc";
@@ -112,6 +112,10 @@ export interface DesiredEvent {
   summary: string;
   description: string;
   url: string;
+  /** For a booked show: the cinema, as the event's place. */
+  location?: string;
+  /** How long before the start the pop-up comes: 0, or an hour for a booked show (the event sits at the showtime). */
+  popupMinutes?: number;
 }
 
 const MIN_DURATION = 30;
@@ -144,11 +148,29 @@ export function desiredEvents(library: LibraryDocument, now: number, origin = OR
     const id = eventIdFor(movie.id, remindAt);
     if (!id || seen.has(id)) continue;
     seen.add(id);
-    const startMs = Math.floor(remindAt / MINUTE) * MINUTE;
     const name = plainName(movie);
-    const releaseDay = /^\d{4}-\d{2}-\d{2}$/.test(movie.releaseDate ?? "") && movie.releaseDate === localIsoDate(startMs);
     const url = `${origin}/#/title/${encodeURIComponent(movie.id)}`;
     const year = /^\d{4}$/.test(movie.year ?? "") ? ` (${movie.year})` : "";
+    // A booked show: the event is the show itself, at the cinema, with the reminder's hour as its pop-up.
+    if (isBookingReminder(movie)) {
+      const booking = movie.booking!;
+      const showStart = Math.floor(booking.showAt / MINUTE) * MINUTE;
+      const ticket = [booking.screen, booking.seats?.length ? `Seats ${booking.seats.join(", ")}` : "", booking.bookingId ? `Booking ID ${booking.bookingId}` : ""].filter(Boolean).join(" · ");
+      events.push({
+        id,
+        movieId: movie.id,
+        startMs: showStart,
+        endMs: showStart + durationMinutes(movie) * MINUTE,
+        summary: `At the cinema: ${name}`.slice(0, SUMMARY_LIMIT),
+        description: [`${name}${year}`, booking.cinema ?? "", ticket, `Open in FlickCue: ${url}`].filter(Boolean).join("\n"),
+        url,
+        ...(booking.cinema ? { location: booking.cinema.replace(/[<>]/g, "").slice(0, 200) } : {}),
+        popupMinutes: Math.round(BOOKING_LEAD / MINUTE)
+      });
+      continue;
+    }
+    const startMs = Math.floor(remindAt / MINUTE) * MINUTE;
+    const releaseDay = /^\d{4}-\d{2}-\d{2}$/.test(movie.releaseDate ?? "") && movie.releaseDate === localIsoDate(startMs);
     events.push({
       id,
       movieId: movie.id,
@@ -228,8 +250,9 @@ export function eventBody(event: DesiredEvent, timeZone: string): Record<string,
     start: { dateTime: new Date(event.startMs).toISOString(), timeZone },
     end: { dateTime: new Date(event.endMs).toISOString(), timeZone },
     source: { title: "FlickCue", url: event.url },
+    ...(event.location ? { location: event.location } : {}),
     transparency: "transparent",
-    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: event.popupMinutes ?? 0 }] },
     extendedProperties: { private: { flickcue: "1", movieId: event.movieId.slice(0, 400) } }
   };
 }

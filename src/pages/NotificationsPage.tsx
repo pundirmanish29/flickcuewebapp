@@ -20,6 +20,7 @@ const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1
 
 const KIND_ICON: Record<NotificationKind, IconName> = {
   reminder: "bell",
+  ticket: "ticket",
   release: "movie",
   cinema: "movie",
   premiere: "show",
@@ -119,7 +120,8 @@ function label(item: FlickNotification): string {
     case "release": return "New Movie";
     case "cinema": return "In Cinemas";
     case "premiere": return "New Show";
-    default: return "Time to Watch";
+    case "ticket": return "Did you watch it?";
+    default: return item.event.startsWith("Starts at") ? item.event : "Time to Watch";
   }
 }
 
@@ -128,7 +130,7 @@ const FILTERS: [Filter, string][] = [["all", "All"], ["reminders", "Reminders"],
 const EPISODE_KINDS = new Set<NotificationKind>(["episode", "season", "finale", "premiere"]);
 const RELEASE_KINDS = new Set<NotificationKind>(["release", "cinema"]);
 const inFilter = (item: FlickNotification, filter: Filter) =>
-  filter === "all" || (filter === "reminders" ? item.kind === "reminder" : filter === "episodes" ? EPISODE_KINDS.has(item.kind) : RELEASE_KINDS.has(item.kind));
+  filter === "all" || (filter === "reminders" ? item.kind === "reminder" || item.kind === "ticket" : filter === "episodes" ? EPISODE_KINDS.has(item.kind) : RELEASE_KINDS.has(item.kind));
 
 /** Put a notification away, with the chance to bring it back. */
 function dismissWithUndo(item: FlickNotification) {
@@ -152,7 +154,7 @@ function NotificationList({ items, unread, onOpen }: { items: FlickNotification[
             className={`notification kind-${item.kind} ${unread ? "unread" : ""}`}
             style={{ ["--n" as string]: Math.min(index, 8) }}
             left={{ label: "Dismiss", icon: "close", run: () => dismissWithUndo(item) }}
-            right={item.kind === "reminder" && movie && !movie.watched ? { label: "Watched", icon: "eye", run: () => actions.toggleWatched(item.movieId) } : undefined}
+            right={(item.kind === "reminder" || item.kind === "ticket") && movie && !movie.watched ? { label: "Watched", icon: "eye", run: () => actions.toggleWatched(item.movieId) } : undefined}
           >
             <button type="button" className="notification-open" onClick={() => onOpen(item.movieId)} aria-label={`${item.text}. Open ${item.title}`}>
               <span className="notification-art">
@@ -162,11 +164,17 @@ function NotificationList({ items, unread, onOpen }: { items: FlickNotification[
               <span className="notification-text">
                 <b>{item.title}{unread && <span className="notification-dot" aria-label="New" />}</b>
                 <span className="notification-event">{label(item)}</span>
-                <span className="notification-when">{[item.kind === "cinema" ? item.detail : "", time].filter(Boolean).join(" · ")}</span>
+                <span className="notification-when">{[item.kind === "cinema" || item.kind === "ticket" || (item.kind === "reminder" && item.detail) ? item.detail : "", time].filter(Boolean).join(" · ")}</span>
               </span>
             </button>
             {/* What a reminder asks for, right here; anything else can be put away. */}
             <span className="notification-actions" onClickCapture={(event) => pop((event.target as Element).closest(".button"))}>
+              {item.kind === "ticket" && movie && !movie.watched && (
+                <>
+                  <button type="button" className="button button-green small" onClick={() => actions.toggleWatched(item.movieId)}>Yes, watched</button>
+                  <button type="button" className="button button-quiet small" onClick={() => actions.dismissWatchedPrompt(item.movieId)}>Not yet</button>
+                </>
+              )}
               {item.kind === "reminder" && movie && !movie.watched && (
                 <>
                   <button type="button" className="button button-green small" onClick={() => actions.toggleWatched(item.movieId)}>Watched it</button>

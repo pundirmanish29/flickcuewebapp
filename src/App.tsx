@@ -12,7 +12,7 @@ import { canAskExtension, preloadGoogleSignIn } from "./lib/auth";
 import { EXTENSION_URL, FIREFOX_EXTENSION_URL } from "./lib/config";
 import { onPhone } from "./lib/device";
 import { pauseNotice, pendingChanges } from "./lib/pending";
-import { displayTitle } from "./lib/rules";
+import { displayTitle, isBookingReminder } from "./lib/rules";
 import { connect, getState, startBackgroundSync, useAppState } from "./lib/store";
 import { DiscoverPage } from "./pages/DiscoverPage";
 import { NotificationBell, NotificationsPage } from "./pages/NotificationsPage";
@@ -118,8 +118,10 @@ function useReminderNotifications() {
         // app after a week doesn't fire a burst of stale ones.
         if (movie.watched || !at || at > now || now - at > 10 * 60 * 1000 || notified.has(key)) continue;
         notified.add(key);
-        const notification = new Notification(`Time to watch ${displayTitle(movie)}`, {
-          body: [movie.mediaType, movie.year].filter(Boolean).join(" · "),
+        const booked = isBookingReminder(movie) ? movie.booking! : null;
+        const starts = booked ? new Date(booked.showAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "";
+        const notification = new Notification(booked ? `${displayTitle(movie)} starts at ${starts}` : `Time to watch ${displayTitle(movie)}`, {
+          body: booked ? [booked.cinema, booked.screen, booked.seats?.join(", ")].filter(Boolean).join(" · ") : [movie.mediaType, movie.year].filter(Boolean).join(" · "),
           icon: movie.poster || "./icon.svg",
           tag: key
         });

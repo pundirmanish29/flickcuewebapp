@@ -9,14 +9,16 @@ import { createCalendarMirror, type CalendarState, type PersistedCalendar } from
 import { CALENDAR_MIRROR_ENABLED, LONG_SIGNIN_ENABLED } from "./config";
 import { getGrant, renewAccess, revokeGrant, signInForLong } from "./longSignin";
 import { needsConfirmation, newRemovals } from "./syncGuard";
-import { DriveError, fetchAccount, fileVersion, findRemoteFileId, findSettingsFileId, readRemote, readRemoteSettings, writeRemote, writeRemoteSettings, type Account } from "./drive";
+import { deleteAppFile, downloadAppFile, DriveError, fetchAccount, fileVersion, findRemoteFileId, findSettingsFileId, readRemote, readRemoteSettings, uploadAppFile, writeRemote, writeRemoteSettings, type Account } from "./drive";
+import { clearBooking, setBooking } from "./editor";
+import { cacheTicket, cachedTicket, forgetAllTickets, forgetTicket } from "./ticketCache";
 import { readSynced, settingsDirection, SYNCED_KEYS, type SyncedSettings } from "./settingsSync";
 import { getThemeChoice, setThemeChoice, type ThemeChoice } from "./theme";
 import { mergeWatchlists } from "./merge";
 import { airDateShiftDays } from "./regions";
 import { setScheduleShift } from "./rules";
 import { setContentLanguage } from "./tmdb";
-import type { LibraryDocument, SortMode } from "./types";
+import type { Booking, LibraryDocument, SortMode } from "./types";
 
 const LIBRARY_KEY = "flickcue.library";
 const SYNC_KEY = "flickcue.sync";
@@ -527,7 +529,97 @@ export async function disconnect() {
   // This device forgets the calendar; the calendar itself and the synced switch stay, so signing back in resumes.
   syncedOnce = false;
   calendarMirror.reset();
+  // Ticket copies kept on this device for the cinema go with the sign-in; the files stay in Drive.
+  await forgetAllTickets();
   patchSync({ connected: false, fileId: "", settingsFileId: "", account: null, lastSyncAt: 0, status: "local", error: "" });
+}
+
+export type TicketDetails = Pick<Booking, "showAt" | "cinema" | "screen" | "seats" | "bookingId" | "source">;
+
+/** A live Drive token for ticket files: the stored one, or one renewed from a long-lived grant. */
+async function driveToken(): Promise<string | null> {
+  const token = getStoredToken();
+  if (token) return token.accessToken;
+  if (LONG_SIGNIN_ENABLED) {
+    const renewal = await renewAccess();
+    if (renewal.ok) return renewal.token.accessToken;
+  }
+  return null;
+}
+
+/**
+ * Puts a ticket on a title. The details are saved at once; with `file`, a copy is kept on this device (for the
+ * cinema, offline) and in the person's own Drive. `fileSaved` is false when Drive couldn't take the file
+ * (sign-in paused, offline): the details and the device copy are still saved.
+ */
+export async function saveTicket(movieId: string, details: TicketDetails, file: File | null, keepFile: boolean): Promise<{ ok: true; fileSaved: boolean } | { ok: false; reason: string }> {
+  const before = state.library.movies.find((movie) => movie.id === movieId)?.booking;
+  const keptFile = keepFile && !file && before?.ticketFileId
+    ? { ticketFileId: before.ticketFileId, ticketFileName: before.ticketFileName, ticketMime: before.ticketMime }
+    : {};
+  const first = setBooking(state.library, movieId, { ...details, ...keptFile });
+  if (!first.ok) return first;
+  commit(first.document);
+
+  const dropFile = async (fileId: string | undefined) => {
+    if (!fileId) return;
+    const token = await driveToken();
+    if (token) await deleteAppFile(token, fileId).catch(() => undefined);
+  };
+  if (!keepFile) {
+    await forgetTicket(movieId);
+    await dropFile(before?.ticketFileId);
+    return { ok: true, fileSaved: false };
+  }
+  if (!file) return { ok: true, fileSaved: Boolean(keptFile.ticketFileId) };
+
+  await cacheTicket(movieId, file);
+  // Kept on this device either way; Drive gets it when it can be reached.
+  const onDeviceOnly = () => {
+    const local = setBooking(state.library, movieId, { ...details, ticketFileName: file.name, ticketMime: file.type || undefined });
+    if (local.ok) commit(local.document);
+    return { ok: true as const, fileSaved: false };
+  };
+  const token = await driveToken();
+  if (!token) return onDeviceOnly();
+  try {
+    const extension = (/\.([a-z0-9]{2,5})$/i.exec(file.name)?.[1] ?? (file.type.split("/")[1] || "bin")).toLowerCase();
+    const fileId = await uploadAppFile(token, `flickcue-ticket-${Date.now()}.${extension}`, file);
+    const second = setBooking(state.library, movieId, { ...details, ticketFileId: fileId, ticketFileName: file.name, ticketMime: file.type || undefined });
+    if (second.ok) commit(second.document);
+    if (before?.ticketFileId && before.ticketFileId !== fileId) await dropFile(before.ticketFileId);
+    return { ok: true, fileSaved: true };
+  } catch {
+    return onDeviceOnly();
+  }
+}
+
+/** Takes a ticket off a title: the details, the copy on this device and the file in Drive. */
+export async function removeTicket(movieId: string): Promise<boolean> {
+  const fileId = state.library.movies.find((movie) => movie.id === movieId)?.booking?.ticketFileId;
+  const result = clearBooking(state.library, movieId);
+  if (!result.ok) return false;
+  commit(result.document);
+  await forgetTicket(movieId);
+  if (fileId) {
+    const token = await driveToken();
+    if (token) await deleteAppFile(token, fileId).catch(() => undefined);
+  }
+  return true;
+}
+
+/** The ticket file to show: the copy on this device, else the one in Drive (then kept here too). */
+export async function loadTicketFile(movieId: string): Promise<Blob | null> {
+  const cached = await cachedTicket(movieId);
+  if (cached) return cached;
+  const booking = state.library.movies.find((movie) => movie.id === movieId)?.booking;
+  if (!booking?.ticketFileId) return null;
+  const token = await driveToken();
+  if (!token) return null;
+  const blob = await downloadAppFile(token, booking.ticketFileId);
+  const typed = booking.ticketMime && !blob.type ? new Blob([blob], { type: booking.ticketMime }) : blob;
+  await cacheTicket(movieId, typed);
+  return typed;
 }
 
 let heldRemovals: string[] = [];
