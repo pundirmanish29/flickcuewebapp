@@ -493,14 +493,12 @@ export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: 
 
   const extra = type === "tv" ? "content_ratings" : "release_dates";
   const request = tmdbGet(`${type}/${movie.tmdbId}`, { append_to_response: `credits,watch/providers,external_ids,videos,recommendations,${extra}` })
-    .then((data): TitleDetails => {
+    .then(async (data): Promise<TitleDetails> => {
       const where = data["watch/providers"]?.results?.[region.toUpperCase()] ?? {};
       const rentOrBuy = providers([...(where.rent ?? []), ...(where.buy ?? [])]);
-      const videos: any[] = (data.videos?.results ?? []).filter((video: any) => video.site === "YouTube" && /^[\w-]{6,20}$/.test(String(video.key)));
-      // An official trailer first, then any trailer, then a teaser.
-      const trailer = videos.find((video) => video.type === "Trailer" && video.official)
-        ?? videos.find((video) => video.type === "Trailer")
-        ?? videos.find((video) => video.type === "Teaser");
+      // A show's own videos are mostly its first season's; the season running now has the trailer people mean.
+      const season = type === "tv" ? Number(data.last_episode_to_air?.season_number || data.next_episode_to_air?.season_number || data.number_of_seasons) || 0 : 0;
+      const trailer = (season > 0 ? await seasonTrailer(movie.tmdbId!, season) : undefined) ?? pickTrailer(data.videos?.results);
       const rating = Number(data.vote_average) || 0;
       return {
         overview: data.overview || "",
@@ -564,6 +562,32 @@ export interface SeasonEpisode extends EpisodeInfo {
 }
 
 const seasonCache = new Map<string, Promise<SeasonEpisode[]>>();
+
+/**
+ * The video to play as the trailer: an official trailer first, then any
+ * trailer, then a teaser, the newest of each (YouTube videos only).
+ */
+export function pickTrailer(results: unknown): { key: string } | undefined {
+  const videos = (Array.isArray(results) ? results : [])
+    .filter((video: any) => video?.site === "YouTube" && /^[\w-]{6,20}$/.test(String(video.key)))
+    .sort((a: any, b: any) => String(b.published_at ?? "").localeCompare(String(a.published_at ?? "")));
+  return videos.find((video: any) => video.type === "Trailer" && video.official)
+    ?? videos.find((video: any) => video.type === "Trailer")
+    ?? videos.find((video: any) => video.type === "Teaser");
+}
+
+/** A season's own trailer, or nothing when it has none, the lookup fails, or it takes over 2.5 seconds. */
+async function seasonTrailer(tmdbId: string, season: number): Promise<{ key: string } | undefined> {
+  try {
+    const data = await Promise.race([
+      tmdbGet(`tv/${tmdbId}/season/${season}/videos`),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("slow")), 2500))
+    ]);
+    return pickTrailer(data?.results);
+  } catch {
+    return undefined;
+  }
+}
 
 /** Every episode of a season in one lookup: name, still, date, runtime, rating and summary. */
 export function fetchSeason(tmdbId: string | undefined, season: number): Promise<SeasonEpisode[]> {
