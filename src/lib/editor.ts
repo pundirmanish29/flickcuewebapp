@@ -4,7 +4,7 @@
 // Android app's LibraryEditor. Edits copy the title and change only the
 // fields they own, so fields this app doesn't know survive the round trip.
 
-import { BOOKING_LEAD, hasActiveReminder, isShow, isUnreleased, nextReminder, normalizeTitle, releaseDayReminder } from "./rules";
+import { BOOKING_LEAD, hasActiveReminder, isShow, isShowFinished, isUnreleased, nextReminder, normalizeTitle, releaseDayReminder } from "./rules";
 import type { Booking, Candidate, LibraryDocument, Movie } from "./types";
 
 export type EditResult =
@@ -33,6 +33,13 @@ export function setWatched(document: LibraryDocument, id: string, watched: boole
     else delete movie.watchedAt;
     return null;
   });
+}
+
+/** Moves an ended show to Watched once every episode is ticked ("Unchanged." when it isn't, or already is). */
+export function finishIfComplete(document: LibraryDocument, id: string, now = Date.now()): EditResult {
+  const movie = document.movies.find((item) => item.id === id);
+  if (!movie || !isShowFinished(movie)) return { ok: false, reason: "Unchanged." };
+  return setWatched(document, id, true, now);
 }
 
 /**
