@@ -3,7 +3,7 @@ import { useDialog } from "../lib/useDialog";
 import * as actions from "../lib/actions";
 import { findExisting } from "../lib/editor";
 import {
-  displayTitle, formatRating, formatReminder, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, localIsoDate, readerDate, seasonProgress, seasonStarts, smartQuotes
+  displayTitle, formatReminder, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, localIsoDate, readerDate, seasonProgress, seasonStarts, smartQuotes
 } from "../lib/rules";
 import { CALENDAR_MIRROR_ENABLED } from "../lib/config";
 import { getSessionGeneration, getState, sync as syncLibrary, useAppState } from "../lib/store";
@@ -23,11 +23,12 @@ import { Popover, ReminderChoices } from "./ReminderMenu";
 import { appLink, splitChannel } from "../lib/providers";
 import { fetchServiceIds, serviceLink, type ServiceIds } from "../lib/serviceLinks";
 import { regionName } from "../lib/cinemas";
-import { writeBack } from "../lib/showSync";
+import { writeBack, writeRatings } from "../lib/showSync";
 import { dismissEpisode, episodeKey, readDismissed, upNextEpisode } from "../lib/newEpisode";
 import { NewEpisodeCard } from "./NewEpisodeCard";
 import { Seasons } from "./Seasons";
-import { RatingScore } from "./RatingScore";
+import { RatingsPanel } from "./RatingsPanel";
+import { fetchRatings, mergeRatings, savedRatings, type RatingSet } from "../lib/ratings";
 import { ScrollArrows } from "./ScrollArrows";
 import { VerdictScale } from "./VerdictScale";
 import { goDiscover } from "../lib/discoverIntent";
@@ -58,9 +59,9 @@ function WatchName({ name }: { name: string }) {
  * opening that service; more as a "Watch on" pill opening a list of every
  * service, included ones first.
  */
-function WatchOn({ title, streaming, rentOrBuy, ids }: { title: string; streaming: Provider[]; rentOrBuy: Provider[]; ids: ServiceIds | null }) {
+function WatchOn({ title, tmdbType, streaming, rentOrBuy, ids }: { title: string; tmdbType?: string; streaming: Provider[]; rentOrBuy: Provider[]; ids: ServiceIds | null }) {
   // The title's own page on the service when it's known, else the service's search.
-  const href = (provider: Provider) => appLink(provider.name, title, undefined, serviceLink(provider.name, ids));
+  const href = (provider: Provider) => appLink(provider.name, title, undefined, serviceLink(provider.name, ids, { title, tmdbType }));
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
@@ -221,6 +222,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const [details, setDetails] = useState<TitleDetails | null>(null);
   // The title's own pages on streaming services (lib/serviceLinks.ts), for this title only.
   const [serviceIdsFor, setServiceIdsFor] = useState<{ key: string; ids: ServiceIds } | null>(null);
+  // The title's Tomatometer, Audience and IMDb scores with their counts, for this title only.
+  const [ratingsFor, setRatingsFor] = useState<{ key: string; ratings: RatingSet } | null>(null);
   const [detailsFor, setDetailsFor] = useState("");
   const detailsGeneration = useRef(getSessionGeneration());
   const detailsWritten = useRef<{ result: TitleDetails; id: string; generation: number } | null>(null);
@@ -346,7 +349,27 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   }, [serviceKey]);
   const serviceIds = serviceIdsFor?.key === serviceKey ? serviceIdsFor.ids : null;
 
+  useEffect(() => {
+    if (!movie?.tmdbId) return;
+    let live = true;
+    fetchRatings(movie.tmdbType, movie.tmdbId).then((ratings) => live && setRatingsFor({ key: serviceKey, ratings }));
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceKey]);
+  // Fresh scores first, then what a saved title carries (the extension writes those).
+  const ratings = mergeRatings(ratingsFor?.key === serviceKey ? ratingsFor.ratings : {}, movie ? savedRatings(movie) : {});
+
   const readyToWrite = syncReady(syncState);
+  // A saved title gets the scores it lacks, so its card shows them too (never replacing one it has).
+  const fetchedRatings = ratingsFor?.key === serviceKey ? ratingsFor.ratings : null;
+  useEffect(() => {
+    if (!fetchedRatings || !isSaved || !movie || !readyToWrite) return;
+    writeRatings(movie, fetchedRatings, getSessionGeneration());
+    // Only fresh scores matter, not every edit to this title.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchedRatings, readyToWrite, isSaved]);
   useEffect(() => {
     if (!details || detailsFor !== detailsKey || !isSaved || !movie || !readyToWrite) return;
     const generation = detailsGeneration.current;
@@ -445,7 +468,6 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const progress = seasonProgress(withSeasons);
   // The episode to watch next: the next one while catching up, the latest aired, or, once caught up, the next to air.
   const newEpisode = isSaved && isShow(movie) ? upNextEpisode(withSeasons, details?.lastEpisode, details?.nextEpisode, dismissedEpisodes) : null;
-  const imdbRating = Number(movie.imdbRating) || 0;
   const imdbId = safeImdbId(details?.imdbId) || safeImdbId(movie.imdbId);
   const show = isShow(movie);
   const watchingNow = movie.personal?.status === "watching";
@@ -531,7 +553,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const watchEpisode = episodeAction && provider ? episodeAction : null;
   // Where it streams always shows beside the title, even when the stub's button goes to the same place.
   const watchOnShown = providerCount > 0;
-  const watchHref = provider ? appLink(provider.name, movie.title, undefined, serviceLink(provider.name, serviceIds)) : "";
+  const watchHref = provider ? appLink(provider.name, movie.title, undefined, serviceLink(provider.name, serviceIds, { title: movie.title, tmdbType: movie.tmdbType })) : "";
 
   const openChoices = (fromBar = false) => {
     setChoosingReminder(true);
@@ -648,33 +670,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             {weekly && <p className="sheet-cadence">New episode every {weekly}</p>}
             <h1 id="title-heading" ref={heading} tabIndex={-1}>{title}</h1>
             {credit && <p className="tp-credit">{credit}</p>}
-            <div className="score-row">
-              {formatRating(movie.rating || details?.rating) && <RatingScore value={movie.rating || details?.rating} className="score" size={13} />}
-              {/* IMDb's page is linked from its score here, rather than as a lone button at the end of the page. */}
-              {imdbRating > 0 ? (
-                imdbId ? (
-                  <a className="score score-link" href={`https://www.imdb.com/title/${imdbId}/`} target="_blank" rel="noreferrer" title="Open on IMDb" aria-label={`IMDb ${imdbRating.toFixed(1)}, open on IMDb`}>
-                    <span className="imdb-mark" aria-hidden="true">IMDb</span> {imdbRating.toFixed(1)}
-                  </a>
-                ) : (
-                  <span className="score" title="IMDb" aria-label={`IMDb ${imdbRating.toFixed(1)}`}>
-                    <span className="imdb-mark" aria-hidden="true">IMDb</span> {imdbRating.toFixed(1)}
-                  </span>
-                )
-              ) : imdbId ? (
-                <a className="score score-link" href={`https://www.imdb.com/title/${imdbId}/`} target="_blank" rel="noreferrer" aria-label="Open on IMDb"><span className="imdb-mark" aria-hidden="true">IMDb</span></a>
-              ) : null}
-              {Number(movie.criticScore) >= 0 && movie.criticScore != null && (
-                <span className="score score-critics" title="Critics" aria-label={`Critics ${movie.criticScore}%`}>
-                  <Icon name="tomato" size={14} /> {movie.criticScore}%
-                </span>
-              )}
-              {Number(movie.audienceScore) >= 0 && movie.audienceScore != null && (
-                <span className="score score-audience" title="Audience" aria-label={`Audience ${movie.audienceScore}%`}>
-                  <Icon name="popcorn" size={14} /> {movie.audienceScore}%
-                </span>
-              )}
-            </div>
+            <RatingsPanel ratings={ratings} tmdb={movie.rating || details?.rating} imdbId={imdbId} />
             {nextAiring ? (
               <p className="sheet-status tone-green">
                 {nextAiring.text}
@@ -682,7 +678,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
               </p>
             ) : status && <p className={`sheet-status tone-${status.tone}`}>{status.text}</p>}
             {facts && <p className="tp-facts">{facts}</p>}
-            {watchOnShown && details && <WatchOn title={movie.title} streaming={details.streaming} rentOrBuy={details.rentOrBuy} ids={serviceIds} />}
+            {watchOnShown && details && <WatchOn title={movie.title} tmdbType={movie.tmdbType} streaming={details.streaming} rentOrBuy={details.rentOrBuy} ids={serviceIds} />}
           </div>
         </header>
 

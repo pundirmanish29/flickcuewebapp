@@ -10,17 +10,34 @@ const STORE_KEY = "flickcue.serviceLinks";
 const KEEP_MS = 30 * 24 * 60 * 60 * 1000;
 const KEEP_TITLES = 300;
 
+/** The title being linked: some services' addresses name it as well as number it. */
+export interface LinkTitle {
+  title: string;
+  tmdbType?: string;
+}
+
+const slug = (title: string) =>
+  title.replace(/\s*\(\d{4}\)$/, "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "title";
+
 /**
- * A service's ID property on Wikidata, and the page an ID opens: the services
- * whose pages were checked to open the title itself (JioHotstar's and SonyLIV's
- * couldn't be, so they keep the search for now).
+ * A service's ID property on Wikidata, and the page an ID opens. Netflix,
+ * Prime Video, Apple TV, Crunchyroll and MUBI were checked to open the title
+ * itself. JioHotstar's is its /in/movies|shows/<name>/<id> address, with the
+ * ten-digit content ID Wikidata holds for about 300 titles (the name in the
+ * address is for show; Hotstar goes by the number). SonyLIV's couldn't be
+ * checked, so it keeps the search.
  */
-const PROPERTIES: Record<string, { service: RegExp; url: (id: string) => string }> = {
+const PROPERTIES: Record<string, { service: RegExp; url: (id: string, title?: LinkTitle) => string; valid?: RegExp }> = {
   P1874: { service: /netflix/i, url: (id) => `https://www.netflix.com/title/${id}` },
   P14440: { service: /prime video|amazon video|amazon prime/i, url: (id) => `https://www.primevideo.com/detail/${id}` },
   P9751: { service: /apple tv/i, url: (id) => `https://tv.apple.com/show/${id}` },
   P9586: { service: /apple tv/i, url: (id) => `https://tv.apple.com/movie/${id}` },
   P11330: { service: /crunchyroll/i, url: (id) => `https://www.crunchyroll.com/series/${id}` },
+  P11049: {
+    service: /hotstar/i,
+    valid: /^\d{9,12}$/,
+    url: (id, title) => `https://www.hotstar.com/in/${title?.tmdbType === "tv" ? "shows" : "movies"}/${slug(title?.title ?? "")}/${id}`
+  },
   P7299: { service: /mubi/i, url: (id) => `https://mubi.com/films/${id}` },
   P6562: { service: /google play/i, url: (id) => `https://play.google.com/store/movies/details?id=${id}` }
 };
@@ -31,11 +48,11 @@ export type ServiceIds = Record<string, string>;
 const SAFE_ID = /^[\w.:/-]{1,120}$/;
 
 /** The page a service has for the title, or "" when there's no ID for it. */
-export function serviceLink(provider: string, ids: ServiceIds | null | undefined): string {
+export function serviceLink(provider: string, ids: ServiceIds | null | undefined, title?: LinkTitle): string {
   if (!ids) return "";
-  for (const [property, { service, url }] of Object.entries(PROPERTIES)) {
+  for (const [property, { service, url, valid }] of Object.entries(PROPERTIES)) {
     const id = ids[property];
-    if (id && SAFE_ID.test(id) && !id.includes("..") && service.test(provider)) return url(id);
+    if (id && SAFE_ID.test(id) && !id.includes("..") && (!valid || valid.test(id)) && service.test(provider)) return url(id, title);
   }
   return "";
 }
@@ -80,6 +97,9 @@ function writeStore(store: Stored) {
 }
 
 const pending = new Map<string, Promise<ServiceIds>>();
+/** When a lookup last failed, so a service that is down or not set up yet is asked again in ten minutes, not on every page. */
+const failedAt = new Map<string, number>();
+const RETRY_MS = 10 * 60 * 1000;
 
 /** The title's service IDs: kept ones when fresh, otherwise asked of Wikidata (nothing when it can't be reached). */
 export function fetchServiceIds(tmdbType: string | undefined, tmdbId: string | undefined, now = Date.now()): Promise<ServiceIds> {
@@ -89,6 +109,8 @@ export function fetchServiceIds(tmdbType: string | undefined, tmdbId: string | u
   if (kept && now - kept.at < KEEP_MS) return Promise.resolve(kept.ids);
   const running = pending.get(key);
   if (running) return running;
+  const failed = failedAt.get(key);
+  if (failed && now - failed < RETRY_MS) return Promise.resolve({});
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   const request = fetch(`${ENDPOINT}?format=json&query=${encodeURIComponent(serviceQuery(tmdbType, String(tmdbId)))}`, {
@@ -101,7 +123,10 @@ export function fetchServiceIds(tmdbType: string | undefined, tmdbId: string | u
       writeStore({ ...readStore(), [key]: { at: now, ids } });
       return ids;
     })
-    .catch(() => ({}))
+    .catch((): ServiceIds => {
+      failedAt.set(key, now);
+      return {};
+    })
     .finally(() => {
       clearTimeout(timer);
       pending.delete(key);
