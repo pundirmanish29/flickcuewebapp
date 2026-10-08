@@ -1,7 +1,7 @@
 // Vitest runs this integration fixture in Node; the browser app does not include Node types.
-// @ts-expect-error Node is provided by the test runner.
+// @ts-ignore Node is provided by the test runner (typed when @types/node is present, not otherwise).
 import { existsSync, readFileSync } from "node:fs";
-// @ts-expect-error Node is provided by the test runner.
+// @ts-ignore Node is provided by the test runner (typed when @types/node is present, not otherwise).
 import { runInNewContext } from "node:vm";
 import { afterEach, describe, expect, it } from "vitest";
 import { getShowSchedule, getShowStatus, setScheduleShift } from "./rules";

@@ -11,3 +11,7 @@ dist/
 
 # Text-recognition files, copied from node_modules by scripts/copy-ocr.mjs.
 public/ocr/
+
+# Playwright
+test-results/
+playwright-report/
