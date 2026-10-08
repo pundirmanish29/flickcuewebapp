@@ -1547,7 +1547,7 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
 .watch-cards { margin-top: 18px; }
 .watch-cards .section-label { margin-bottom: 10px; }
 .watch-credit { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
-.watch-search { font-style: normal; color: var(--muted); }
+.watch-search { font-style: normal; color: var(--ink-soft); }
 .watch-search-tag { margin-left: auto; padding: 2px 8px; border: 1px solid var(--rule); border-radius: 999px; color: var(--muted); font-size: 11px; font-style: normal; letter-spacing: .04em; text-transform: uppercase; }
 .watch-credit a { color: inherit; text-underline-offset: 2px; }
 .popover .watch-credit { margin: 6px 10px 2px; }

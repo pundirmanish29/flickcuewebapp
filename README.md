@@ -76,9 +76,17 @@ The tests in `src/lib/*.test.ts` check these rules.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test
+npm test           # unit tests (src/**/*.test.ts)
 npm run build      # dist/
+npm run e2e        # browser tests (e2e/), against the build above
 ```
+
+The browser tests (Playwright, with axe for accessibility) are hermetic: they answer every request to the
+title service, Google, Wikidata and YouTube themselves, so they need no network or account. Install a
+browser once with `npx playwright install chromium` (or set `PW_CHROMIUM` to one you have). They cover the
+signed-out page and its permission explainer, the contact form (including the optional spam check), the
+crash notice, Discover when lists fail and retry, a title's streaming links and ratings, finishing a show,
+and axe on the main screens in both themes. `npm run typecheck` checks the app and the tests.
 
 ## Setup needed before it works on a real domain
 
@@ -194,7 +202,8 @@ limits still apply.
 
 ## Deploy
 
-`.github/workflows/deploy.yml` tests, builds and publishes `dist/` to GitHub Pages
+`.github/workflows/deploy.yml` runs the unit tests, builds, runs the browser tests against the build, and
+publishes `dist/` to GitHub Pages
 on every push to `main`. Turn it on in the repo under Settings → Pages → Source:
 **GitHub Actions**. Routing is hash-based and asset paths are relative, so the same
 build also works on Cloudflare Pages, Netlify, or any static host.
