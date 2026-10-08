@@ -22,7 +22,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
   "img-src 'self' data: blob: https://image.tmdb.org https://*.googleusercontent.com",
   "font-src 'self'",
-  `connect-src 'self' https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com ${PROXY}`,
+  `connect-src 'self' https://www.googleapis.com https://oauth2.googleapis.com https://accounts.google.com https://query.wikidata.org ${PROXY}`,
   "frame-src https://www.youtube-nocookie.com https://accounts.google.com",
   "object-src 'none'",
   "base-uri 'self'",

@@ -37,6 +37,14 @@ describe("opening the service's app", () => {
     expect(appLink("Netflix", "Heat", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130")).toBe("https://www.netflix.com/search?q=Heat");
   });
 
+  it("opens the title's own page on the service when it's known", () => {
+    expect(appLink("Netflix", "Inception", iphone, "https://www.netflix.com/title/70131314")).toBe("https://www.netflix.com/title/70131314");
+    expect(appLink("Crunchyroll", "One Piece", android, "https://www.crunchyroll.com/series/GRMG8ZQZR")).toBe(
+      "intent://www.crunchyroll.com/series/GRMG8ZQZR#Intent;scheme=https;package=com.crunchyroll.crunchyroid;S.browser_fallback_url=https%3A%2F%2Fwww.crunchyroll.com%2Fseries%2FGRMG8ZQZR;end"
+    );
+    expect(appLink("Netflix", "Heat", iphone, "javascript:alert(1)")).toBe("https://www.netflix.com/search?q=Heat");
+  });
+
   it("leaves services without a known app, and the Google fallback, as plain links", () => {
     expect(appLink("Apple TV Store", "Heat", android)).toBe("https://tv.apple.com/search?term=Heat");
     expect(appLink("Disney Plus", "Heat", android)).toContain("https://www.google.com/search");

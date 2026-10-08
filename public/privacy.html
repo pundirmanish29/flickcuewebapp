@@ -66,7 +66,7 @@
 
     <main>
       <h1>Privacy Policy</h1>
-      <p class="muted">Last updated 7 October 2026</p>
+      <p class="muted">Last updated 8 October 2026</p>
 
       <p>This page covers the FlickCue <strong>web app</strong> at flickcue.in and the FlickCue <strong>browser extension</strong> for Chrome, Edge and Firefox, which has <a href="#extension">its own part below</a>. The three FlickCue apps (web, extension and Android) share one list, kept in your own Google Drive.</p>
 
@@ -81,7 +81,7 @@
       </div>
 
       <h2>What is stored in your browser</h2>
-      <p>The web app keeps a local copy of your list, your settings and a few things about this device in your browser's local storage. Your list can keep working offline after you sign in. When signed out, the site shows its homepage; Queue, Discover, Watched and Settings require Google sign-in. Local storage also includes your streaming region, city, Letterboxd username, theme and sort; whether alerts are on; whether your reminders go to Google Calendar, and which events FlickCue has put there; which notifications you've seen or dismissed; and sync status. Once you sign in, a short-lived Google access token (about an hour) is kept there too, and so is a Google refresh token, which lets the site get a new access token without asking you to sign in again each hour (see <a href="#staying-signed-in">Staying signed in</a>). Copies of cinema tickets you keep are stored in this browser too (in its IndexedDB storage), so they open offline; signing out removes them. Clearing site data for flickcue.in removes all of it.</p>
+      <p>The web app keeps a local copy of your list, your settings and a few things about this device in your browser's local storage. Your list can keep working offline after you sign in. When signed out, the site shows its homepage; Queue, Discover, Watched and Settings require Google sign-in. Local storage also includes your streaming region, city, Letterboxd username, theme and sort; whether alerts are on; whether your reminders go to Google Calendar, and which events FlickCue has put there; which notifications you've seen or dismissed; streaming services' IDs for titles you've opened, so their buttons open the title (see Film and show information below); and sync status. Once you sign in, a short-lived Google access token (about an hour) is kept there too, and so is a Google refresh token, which lets the site get a new access token without asking you to sign in again each hour (see <a href="#staying-signed-in">Staying signed in</a>). Copies of cinema tickets you keep are stored in this browser too (in its IndexedDB storage), so they open offline; signing out removes them. Clearing site data for flickcue.in removes all of it.</p>
 
       <h2>Google sign-in and Google Drive</h2>
       <p>Google sign-in is required to use the web app's list and features. It keeps your list and settings in step between your devices and FlickCue's other apps. FlickCue asks for one permission, <code>drive.appdata</code>, which gives it a private app folder in your Drive that only FlickCue can open. (A second permission is asked for only if you turn on Google Calendar reminders; see <a href="#calendar">Google Calendar</a> below.) It keeps two files there:</p>
@@ -116,6 +116,7 @@
         <li>titles from your list, by their TMDB number: your recent saves for "For you" suggestions, and shows you're watching, to keep their episode schedules current.</li>
       </ul>
       <p>They never include your Google account, your name or your list as a whole. Like any website, the title service sees your IP address; it uses it only to limit how many requests one connection can make, and doesn't store or log it.</p>
+      <p>So that a streaming service's button opens the title's own page there rather than a search, the website asks <a href="https://www.wikidata.org/">Wikidata</a> (Wikimedia's open database, under its <a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy">privacy policy</a>) for the services' IDs of a title you open, by its TMDB number, directly from your browser. The answer is kept in your browser for 30 days. Wikidata sees that number and your IP address, never your account or your list.</p>
       <p>Posters and photos load from TMDB's image servers. Trailers play from YouTube's privacy-enhanced player (youtube-nocookie.com), which loads only when you press play. Links to streaming services, IMDb and Letterboxd open those sites; nothing is sent to them before you do.</p>
 
       <h2>Cinema showtimes</h2>
