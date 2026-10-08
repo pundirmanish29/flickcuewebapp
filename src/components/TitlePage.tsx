@@ -491,8 +491,9 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     length: show ? seasons : formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes),
     now: Date.now()
   });
-  // The bar shows values without their labels, so "None" (no reminder) would read as nothing at all.
-  const barFields = stub.fields.filter((item) => !(item.label === "Reminder" && item.value === "None"));
+  // The bar and a phone's summary show values without their labels, so "None" (no reminder) would read as nothing at all.
+  // "No date yet" without its label reads as nothing too; the status line beside the title already says it.
+  const barFields = stub.fields.filter((item) => !(item.label === "Reminder" && item.value === "None") && !(item.label === "Next episode" && item.value === "No date yet"));
   const providerName = provider ? splitChannel(provider.name)[0] : "";
   // Every service, beside the title, unless the stub's main button already is the only one.
   const providerCount = (details?.streaming.length ?? 0) + (details?.rentOrBuy.length ?? 0);
@@ -659,7 +660,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
           <div className="tp-stub-body">
             <p className="tp-stub-label">{stub.label}</p>
             {/* A phone shows the fields as one line under the state; the grid is for a wide screen. */}
-            {stub.fields.length > 0 && <p className="tp-summary">{stub.fields.slice(0, 2).map((item) => item.value).join(" · ")}</p>}
+            {barFields.length > 0 && <p className="tp-summary">{barFields.slice(0, 2).map((item) => item.value).join(" · ")}</p>}
             {/* A booked film's screen and seats too: what you need at the door, without scrolling. */}
             {stub.label === "Booked" && stub.fields.length > 2 && (
               <p className="tp-summary tp-summary-sub">{stub.fields.slice(2).map((item) => (item.label === "Seats" ? `Seats ${item.value}` : item.value)).join(" · ")}</p>
