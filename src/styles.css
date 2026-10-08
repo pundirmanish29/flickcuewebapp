@@ -1531,6 +1531,8 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
 .watch-card .watch-name { display: block; font-size: 15px; font-weight: 700; line-height: 1.2; }
 .watch-card .watch-name small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
 .watch-card > span > small { display: block; color: var(--ink-soft); font-size: 12.5px; }
+/* A logo brings its own rounded, see-through corners: no white square behind it to show at the edges. */
+.watch-on img, .watch-list img, .watch-card img { background: none; }
 .watch-on-wrap { display: inline-block; }
 .watch-on-wrap .popover {
   left: 0; width: min(280px, calc(100vw - 32px)); max-height: min(400px, 60vh); overflow-y: auto; overscroll-behavior: contain;

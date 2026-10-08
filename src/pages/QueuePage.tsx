@@ -18,7 +18,7 @@ import { goDiscover } from "../lib/discoverIntent";
 import { EXTENSION_URL, FIREFOX_EXTENSION_URL } from "../lib/config";
 import { fetchDetails, fetchSharpBackdrop, findBackdropByName, upscale } from "../lib/tmdb";
 import { safeImage } from "../lib/safe";
-import { providerLink, splitChannel } from "../lib/providers";
+import { appLink, splitChannel } from "../lib/providers";
 import { pop, useSwap } from "../lib/motion";
 import { useShowScheduleRefresh } from "../lib/showSync";
 import { syncReady } from "../lib/syncReady";
@@ -262,7 +262,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
               <div className={`button-row tonight-actions${watchWhere ? " has-watch" : ""}`} onClickCapture={(event) => pop((event.target as Element).closest(".button"))}>
                 {/* Watching comes first; marking it watched is for afterwards. */}
                 {watchWhere && (
-                  <a className="button button-green" href={providerLink(watchWhere.name, tonight.title)} target="_blank" rel="noreferrer">
+                  <a className="button button-green" href={appLink(watchWhere.name, tonight.title)} target="_blank" rel="noreferrer">
                     <Icon name="play" size={16} /> {watchWhere.included ? "Watch" : "Rent"}{isShow(tonight) && watchEpisode ? ` S${watchEpisode.season} E${watchEpisode.episode}` : ""} on {splitChannel(watchWhere.name)[0]}
                   </a>
                 )}

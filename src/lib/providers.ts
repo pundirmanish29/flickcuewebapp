@@ -27,6 +27,29 @@ export function providerLink(provider: string, title: string): string {
   return `https://www.google.com/search?q=${encodeURIComponent(`watch "${name}" on ${provider}`)}`;
 }
 
+// On Android a service's link opens its app when it's installed, at the same
+// address (an intent naming the app, with the website as the fallback), and
+// its website when it isn't. An iPhone does this itself for the services'
+// own https links (universal links), so elsewhere the link stays as it is.
+const ANDROID_APPS: [RegExp, string][] = [
+  [/netflix/i, "com.netflix.mediaclient"],
+  [/prime video|amazon video|amazon prime/i, "com.amazon.avod.thirdpartyclient"],
+  [/hotstar/i, "in.startv.hotstar"],
+  [/zee\s?5/i, "com.graymatrix.did"],
+  [/sony\s?liv/i, "com.sonyliv"],
+  [/youtube/i, "com.google.android.youtube"],
+  [/crunchyroll/i, "com.crunchyroll.crunchyroid"],
+  [/mubi/i, "com.mubi"]
+];
+
+export function appLink(provider: string, title: string, userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent): string {
+  const web = providerLink(provider, title);
+  const app = /android/i.test(userAgent) ? ANDROID_APPS.find(([pattern]) => pattern.test(provider)) : undefined;
+  if (!app || web.startsWith("https://www.google.com/")) return web;
+  const url = new URL(web);
+  return `intent://${url.host}${url.pathname}${url.search}#Intent;scheme=https;package=${app[1]};S.browser_fallback_url=${encodeURIComponent(web)};end`;
+}
+
 // "Lionsgate Play Amazon Channel", "Amazon Prime Video with Ads": the same
 // service reached another way.
 const VARIANT = /\s+(amazon channels?|apple tv channels?|roku premium channel|standard with ads|with ads)$/i;
