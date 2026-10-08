@@ -87,6 +87,23 @@ test.describe("a title's page", () => {
     await expect(page.locator(".rating-row", { hasText: "Audience" })).toContainText("77%");
   });
 
+  test("every sideways row has arrows for a mouse, 'More like this' included", async ({ page, isMobile }) => {
+    test.skip(isMobile, "arrows are for a mouse; a finger swipes");
+    const recommendations = { results: Array.from({ length: 14 }, (_, index) => ({ id: 500 + index, title: `Similar ${index + 1}`, poster_path: "/s.jpg", release_date: "2020-01-01", vote_average: 7 })) };
+    await stub(page, { tmdb: (path) => (path.startsWith("tv/1001") ? showDetails({ recommendations }) : undefined) });
+    await signedIn(page, [title()]);
+    await page.goto("/#/title/t1");
+    const row = page.locator(".more-row");
+    await expect(row.locator(".candidate-card").first()).toBeVisible();
+    const arrows = page.locator(".rail-head", { hasText: "More like this" });
+    await expect(arrows.getByRole("button", { name: "Scroll More like this back" })).toBeDisabled();
+    const next = arrows.getByRole("button", { name: "Scroll More like this on" });
+    await expect(next).toBeEnabled();
+    await next.click();
+    await expect.poll(() => row.evaluate((element) => element.scrollLeft)).toBeGreaterThan(100);
+    await expect(arrows.getByRole("button", { name: "Scroll More like this back" })).toBeEnabled();
+  });
+
   test("when the title service is down, says so and offers another try", async ({ page }) => {
     await stub(page, { offline: true });
     await signedIn(page);
