@@ -1463,7 +1463,9 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
   }
   .tp-bar.on { visibility: visible; opacity: 1; transform: none; transition: opacity 200ms ease, transform 320ms var(--ease-out), visibility 0s; }
   .tp-bar-text { flex: 1; min-width: 0; padding: 12px 12px 12px 18px; }
-  .tp-bar-main { margin: 2px 0 0; font-size: 18px; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* The stub's label is pulled close to the line under it; in the bar it keeps a small gap above the main line. */
+  .tp-bar .tp-stub-label { margin-bottom: 0; line-height: 1.2; }
+  .tp-bar-main { margin: 4px 0 0; font-size: 18px; font-weight: 800; line-height: 1.2; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tp-bar-sub { margin: 0; color: var(--stub-muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tp-bar-action { display: flex; align-items: center; padding: 10px 12px 10px 14px; border-left: 2px dashed var(--stub-line); }
   .tp-bar-action .tp-button-primary { width: auto; min-height: 48px; padding: 0 18px; }

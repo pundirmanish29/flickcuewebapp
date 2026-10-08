@@ -421,6 +421,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     length: show ? seasons : formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes),
     now: Date.now()
   });
+  // The bar shows values without their labels, so "None" (no reminder) would read as nothing at all.
+  const barFields = stub.fields.filter((item) => !(item.label === "Reminder" && item.value === "None"));
   const providerName = provider ? splitChannel(provider.name)[0] : "";
   // Every service, beside the title, unless the stub's main button already is the only one.
   const providerCount = (details?.streaming.length ?? 0) + (details?.rentOrBuy.length ?? 0);
@@ -827,8 +829,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
         <div className={`tp-bar tp-tone-${stub.tone} ${stubInView ? "" : "on"}`}>
           <div className="tp-bar-text">
             <p className="tp-stub-label">{stub.label}</p>
-            {stub.fields[0] && <p className="tp-bar-main">{stub.fields[0].value}</p>}
-            {stub.fields[1] && <p className="tp-bar-sub">{stub.fields[1].value}</p>}
+            {barFields[0] && <p className="tp-bar-main">{barFields[0].value}</p>}
+            {barFields[1] && <p className="tp-bar-sub">{barFields[1].value}</p>}
           </div>
           <div className="tp-bar-action">{primary("bar")}</div>
         </div>
