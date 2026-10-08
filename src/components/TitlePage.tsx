@@ -20,7 +20,7 @@ import { CalendarMark } from "./CalendarMark";
 import { Icon, type IconName } from "./Icon";
 import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
-import { providerLink, splitChannel } from "../lib/providers";
+import { appLink, splitChannel } from "../lib/providers";
 import { regionName } from "../lib/cinemas";
 import { writeBack } from "../lib/showSync";
 import { dismissEpisode, episodeKey, readDismissed, upNextEpisode } from "../lib/newEpisode";
@@ -36,8 +36,11 @@ import { safeImage, safeImdbId, safeLink } from "../lib/safe";
 import { goToTitle, parseCandidateKey } from "../lib/titleRoute";
 import { dayLabel, formatDay, titleStub, type StubPrimary } from "../lib/titleStub";
 
+// TMDB's logo at 154px, and 300px for a sharp screen; its corners are already rounded and see-through.
 const ProviderLogo = ({ provider }: { provider: Provider }) =>
-  provider.logo ? <img src={provider.logo} alt="" /> : <b>{provider.name.slice(0, 2)}</b>;
+  provider.logo
+    ? <img src={provider.logo} srcSet={`${provider.logo} 1x, ${provider.logo.replace("/w154/", "/w300/")} 2x`} alt="" decoding="async" />
+    : <b>{provider.name.slice(0, 2)}</b>;
 
 function WatchName({ name }: { name: string }) {
   const [service, via] = splitChannel(name);
@@ -75,7 +78,7 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
         <ul>
           {all.map(({ provider, tone }) => (
             <li key={provider.name}>
-              <a className="watch-card" href={providerLink(provider.name, title)} target="_blank" rel="noreferrer">
+              <a className="watch-card" href={appLink(provider.name, title)} target="_blank" rel="noreferrer">
                 <ProviderLogo provider={provider} />
                 <span>
                   <WatchName name={provider.name} />
@@ -91,7 +94,7 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
   if (all.length === 1) {
     const only = all[0].provider;
     return (
-      <a className="watch-on" href={providerLink(only.name, title)} target="_blank" rel="noreferrer" aria-label={`${label} ${only.name}`}>
+      <a className="watch-on" href={appLink(only.name, title)} target="_blank" rel="noreferrer" aria-label={`${label} ${only.name}`}>
         <span>{label}</span>
         <ProviderLogo provider={only} />
       </a>
@@ -123,7 +126,7 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
             <ul className="watch-list">
               {group.providers.map((provider) => (
                 <li key={provider.name}>
-                  <a href={providerLink(provider.name, title)} target="_blank" rel="noreferrer" onClick={close}>
+                  <a href={appLink(provider.name, title)} target="_blank" rel="noreferrer" onClick={close}>
                     <ProviderLogo provider={provider} />
                     <WatchName name={provider.name} />
                   </a>
@@ -501,7 +504,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const watchEpisode = episodeAction && provider ? episodeAction : null;
   const primaryWatches = Boolean(watchEpisode) || stub.primary === "watch" || stub.primary === "watchAgain";
   const watchOnShown = providerCount > 1 || (providerCount === 1 && !primaryWatches);
-  const watchHref = provider ? providerLink(provider.name, movie.title) : "";
+  const watchHref = provider ? appLink(provider.name, movie.title) : "";
 
   const openChoices = (fromBar = false) => {
     setChoosingReminder(true);

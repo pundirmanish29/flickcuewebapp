@@ -480,7 +480,7 @@ export function pickCertification(data: any, type: "movie" | "tv", region: strin
 const detailsCache = new Map<string, Promise<TitleDetails>>();
 
 function providers(list: any[] | undefined): Provider[] {
-  return dedupeProviders((list ?? []).map((provider) => ({ name: String(provider.provider_name ?? ""), logo: posterUrl(provider.logo_path, "w92") }))).slice(0, 8);
+  return dedupeProviders((list ?? []).map((provider) => ({ name: String(provider.provider_name ?? ""), logo: posterUrl(provider.logo_path, "w154") }))).slice(0, 8);
 }
 
 export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: string): Promise<TitleDetails> {

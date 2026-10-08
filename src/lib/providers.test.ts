@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dedupeProviders, providerLink, splitChannel } from "./providers";
+import { appLink, dedupeProviders, providerLink, splitChannel } from "./providers";
 
 describe("streaming links", () => {
   it("opens the service's own search for the title, not a listings site", () => {
@@ -12,6 +12,29 @@ describe("streaming links", () => {
 
   it("falls back to a Google search for a service it has no address for", () => {
     expect(providerLink("Disney Plus", "Heat")).toBe("https://www.google.com/search?q=watch%20%22Heat%22%20on%20Disney%20Plus");
+  });
+});
+
+describe("opening the service's app", () => {
+  const android = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36";
+  const iphone = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1";
+
+  it("names the app on Android, with the website as the fallback", () => {
+    expect(appLink("Netflix", "Heat", android)).toBe(
+      "intent://www.netflix.com/search?q=Heat#Intent;scheme=https;package=com.netflix.mediaclient;S.browser_fallback_url=https%3A%2F%2Fwww.netflix.com%2Fsearch%3Fq%3DHeat;end"
+    );
+    expect(appLink("Amazon Video", "Heat", android)).toContain("package=com.amazon.avod.thirdpartyclient");
+    expect(appLink("Crunchyroll", "One Piece", android)).toContain("intent://www.crunchyroll.com/search?q=One%20Piece#Intent");
+  });
+
+  it("leaves the plain link on an iPhone and a computer, where the service's own link opens its app", () => {
+    expect(appLink("Netflix", "Heat", iphone)).toBe("https://www.netflix.com/search?q=Heat");
+    expect(appLink("Netflix", "Heat", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130")).toBe("https://www.netflix.com/search?q=Heat");
+  });
+
+  it("leaves services without a known app, and the Google fallback, as plain links", () => {
+    expect(appLink("Apple TV Store", "Heat", android)).toBe("https://tv.apple.com/search?term=Heat");
+    expect(appLink("Disney Plus", "Heat", android)).toContain("https://www.google.com/search");
   });
 });
 
