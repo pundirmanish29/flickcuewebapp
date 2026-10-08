@@ -86,9 +86,15 @@ describe("the contact page", () => {
     expect(html).not.toMatch(/<script>[^<]/);
   });
 
-  it("shows no spam check until a Turnstile site key is set, and carries the place for one", () => {
-    expect(html).toMatch(/<form id="contact"[^>]*data-turnstile-sitekey=""/);
+  it("carries a Turnstile site key (public, starts 0x) and the place the check appears", () => {
+    expect(html).toMatch(/<form id="contact"[^>]*data-turnstile-sitekey="0x[0-9A-Za-z_-]{16,}"/);
     expect(html).toMatch(/<div id="captcha"[^>]*hidden/);
+  });
+
+  it("is covered by the privacy page, which names Turnstile and what it receives", () => {
+    const privacy = read("public/privacy.html");
+    expect(privacy).toContain("Cloudflare Turnstile");
+    expect(privacy).toMatch(/IP address and some browser signals/);
   });
 
   it("is linked from the home page, the privacy page and every guide", () => {
