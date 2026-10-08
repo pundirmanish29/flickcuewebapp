@@ -341,9 +341,12 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const reminderActive = hasActiveReminder(movie);
   const backdrop = safeImage(details?.backdrop) || safeImage(upscale(movie.backdrop, "w1280"));
   const posterSrc = upscale(movie.poster, "w342");
-  const progress = seasonProgress(movie);
+  // Seasons are written onto the saved title once this visit has synced; until then (or while sync is
+  // paused) the details this page just fetched stand in, so a show never claims it has no episodes.
+  const withSeasons = !movie.seasons?.length && details?.seasons.length ? { ...movie, seasons: details.seasons } : movie;
+  const progress = seasonProgress(withSeasons);
   // The episode to watch next: the next one while catching up, the latest aired, or, once caught up, the next to air.
-  const newEpisode = isSaved && isShow(movie) ? upNextEpisode(movie, details?.lastEpisode, details?.nextEpisode, dismissedEpisodes) : null;
+  const newEpisode = isSaved && isShow(movie) ? upNextEpisode(withSeasons, details?.lastEpisode, details?.nextEpisode, dismissedEpisodes) : null;
   const imdbRating = Number(movie.imdbRating) || 0;
   const imdbId = safeImdbId(details?.imdbId) || safeImdbId(movie.imdbId);
   const show = isShow(movie);
@@ -706,7 +709,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
                   />
                 </>
               )}
-              {progress.length > 0 && <Seasons movie={movie} info={details?.seasons} nested={Boolean(newEpisode) && !(episodeAction && movie.tmdbId)} />}
+              {progress.length > 0 && <Seasons movie={withSeasons} info={details?.seasons} nested={Boolean(newEpisode) && !(episodeAction && movie.tmdbId)} />}
             </section>
           )}
 
