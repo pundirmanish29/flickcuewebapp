@@ -78,9 +78,17 @@ describe("the contact page", () => {
 
   it("may talk to the title service and nothing else, and loads no inline script", () => {
     const policy = /Content-Security-Policy" content="([^"]*)"/.exec(html)?.[1] ?? "";
-    expect(policy).toMatch(/script-src 'self'(;|$)/);
+    // Cloudflare's Turnstile is the one outside script, for the optional spam check.
+    expect(policy).toMatch(/script-src 'self'( https:\/\/challenges\.cloudflare\.com)?(;|$)/);
     expect(policy).toMatch(/connect-src https:\/\/api\.flickcue\.in/);
+    expect(policy).toMatch(/frame-src https:\/\/challenges\.cloudflare\.com(;|$)/);
+    expect(policy).not.toMatch(/unsafe-eval|script-src[^;]*unsafe-inline/);
     expect(html).not.toMatch(/<script>[^<]/);
+  });
+
+  it("shows no spam check until a Turnstile site key is set, and carries the place for one", () => {
+    expect(html).toMatch(/<form id="contact"[^>]*data-turnstile-sitekey=""/);
+    expect(html).toMatch(/<div id="captcha"[^>]*hidden/);
   });
 
   it("is linked from the home page, the privacy page and every guide", () => {
