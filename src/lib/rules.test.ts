@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardLine, episodesAired, scheduleFromAppFields, seasonProgress, seasonStarts, formatShowTime, gridBadge, hasUpcomingBooking, importDays, isBookingReminder, shortDay, showEndsAt, showsToRefresh, smartQuotes, watchedGroups, watchingShows, watchedPromptDue, yourTake } from "./rules";
+import { cardLine, episodesAired, scheduleFromAppFields, seasonProgress, seasonStarts, formatShowTime, gridBadge, hasUpcomingBooking, importDays, isBookingReminder, isShowFinished, shortDay, showEndsAt, showsToRefresh, smartQuotes, watchedGroups, watchingShows, watchedPromptDue, yourTake } from "./rules";
 import type { Movie } from "./types";
 
 describe("short day labels", () => {
@@ -180,5 +180,33 @@ describe("seasons numbered through the whole run", () => {
     expect(mid?.last?.finale).toBeUndefined();
     const end = scheduleFromAppFields(onePiece([], { lastEpisode: { season: 23, episode: 1180, airDate: "2026-09-27" }, productionStatus: "Returning Series" }));
     expect(end?.last?.finale).toBe(true);
+  });
+});
+
+describe("a finished show", () => {
+  const ticks = (season: number, count: number) => Array.from({ length: count }, (_, index) => `${season}:${index + 1}`);
+  const show = (over: Partial<Movie> = {}): Movie => ({
+    id: "s", title: "The Sandman", tmdbType: "tv", productionStatus: "Ended",
+    seasons: [{ number: 1, episodes: 11 }, { number: 2, episodes: 12 }],
+    personal: { episodes: [...ticks(1, 11), ...ticks(2, 12)] },
+    ...over
+  } as Movie);
+
+  it("is an ended show with every episode ticked", () => {
+    expect(isShowFinished(show())).toBe(true);
+    expect(isShowFinished(show({ productionStatus: "Canceled" }))).toBe(true);
+  });
+
+  it("isn't while an episode is left, the show is still running, or it's already watched", () => {
+    expect(isShowFinished(show({ personal: { episodes: [...ticks(1, 11), ...ticks(2, 11)] } }))).toBe(false);
+    expect(isShowFinished(show({ productionStatus: "Returning Series" }))).toBe(false);
+    expect(isShowFinished(show({ productionStatus: undefined }))).toBe(false);
+    expect(isShowFinished(show({ watched: true }))).toBe(false);
+  });
+
+  it("isn't when a season we haven't read yet might be missing, or for a film", () => {
+    expect(isShowFinished(show({ seasons: [{ number: 1, episodes: 11 }], showSchedule: { status: "Ended", firstAirDate: "", seasons: 2, next: null, last: null } as Movie["showSchedule"] }))).toBe(false);
+    expect(isShowFinished(show({ seasons: [], personal: {} }))).toBe(false);
+    expect(isShowFinished({ id: "f", title: "Film", tmdbType: "movie", productionStatus: "Ended" } as Movie)).toBe(false);
   });
 });

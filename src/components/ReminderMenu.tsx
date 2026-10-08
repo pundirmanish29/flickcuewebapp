@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { releaseDayReminder, tomorrowReminder, tonightReminder, weekendReminder } from "../lib/rules";
 import { useDialog } from "../lib/useDialog";
+import { Icon } from "./Icon";
 
 function toInputValue(time: number) {
   const date = new Date(time);
@@ -61,11 +62,13 @@ export function ReminderChoices({
  * trigger as `anchor` when it toggles the popover, so pressing it counts as the
  * toggle rather than as a press outside that closes and then reopens it.
  */
-export function Popover({ open, onClose, children, label, anchor, focusFirst = false, modal = false }: {
+export function Popover({ open, onClose, children, label, title, anchor, focusFirst = false, modal = false }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
   label: string;
+  /** A modal's visible heading, beside its close button; without one the close button stands alone. */
+  title?: React.ReactNode;
   anchor?: React.RefObject<HTMLElement | null>;
   /** Opened from the keyboard: the first control takes focus, so Tab doesn't start from the trigger. */
   focusFirst?: boolean;
@@ -103,7 +106,12 @@ export function Popover({ open, onClose, children, label, anchor, focusFirst = f
   if (!open) return null;
   return (
     <div className="popover" ref={ref} role="dialog" aria-modal={modal || undefined} aria-label={label} tabIndex={-1}>
-      {modal && <button type="button" className="dialog-close" onClick={onClose} aria-label={`Close ${label}`}>Close</button>}
+      {modal && title != null ? (
+        <div className="popover-head">
+          <p className="popover-label">{title}</p>
+          <button type="button" className="popover-x" onClick={onClose} aria-label={`Close ${label}`}><Icon name="close" size={18} /></button>
+        </div>
+      ) : modal && <button type="button" className="dialog-close" onClick={onClose} aria-label={`Close ${label}`}>Close</button>}
       {children}
     </div>
   );

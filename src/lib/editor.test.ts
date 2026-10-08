@@ -205,3 +205,22 @@ describe("tickets", () => {
     expect(merged.movies.find((movie) => movie.id === "a")?.booking).toMatchObject({ showAt: show, seats: ["F7"] });
   });
 });
+
+describe("finishing a show", () => {
+  const ended = (episodes: string[], over: Partial<Movie> = {}): LibraryDocument => ({
+    movies: [{ id: "s", title: "The Sandman", tmdbType: "tv", productionStatus: "Ended", seasons: [{ number: 1, episodes: 2 }], personal: { episodes, status: "watching" }, ...over } as Movie],
+    deleted: []
+  });
+
+  it("moves an ended show to Watched when its last episode is ticked", () => {
+    const ticked = editor.toggleEpisode(ended(["1:1"]), "s", 1, 2);
+    expect(ticked.ok && ticked.movie.watched).toBeFalsy();
+    const finished = ticked.ok ? editor.finishIfComplete(ticked.document, "s", 5000) : ticked;
+    expect(finished.ok && finished.movie).toMatchObject({ watched: true, watchedAt: 5000, personal: { status: "finished" } });
+  });
+
+  it("leaves a show with an episode left, or one still running, alone", () => {
+    expect(editor.finishIfComplete(ended(["1:1"]), "s")).toEqual({ ok: false, reason: "Unchanged." });
+    expect(editor.finishIfComplete(ended(["1:1", "1:2"], { productionStatus: "Returning Series" }), "s")).toEqual({ ok: false, reason: "Unchanged." });
+  });
+});

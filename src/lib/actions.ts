@@ -86,12 +86,24 @@ export function setNote(id: string, note: string) {
   apply(editor.setNote(getState().library, id, note));
 }
 
+/** An episode or season tick; the one that completes an ended show also moves it to Watched, and Undo takes back both. */
+function tick(result: editor.EditResult, id: string) {
+  const finished = result.ok ? editor.finishIfComplete(result.document, id) : null;
+  if (!finished?.ok) return apply(result);
+  apply(finished, (title) => `That's every episode of ${title}. Moved to Watched`, (before) => commit(before));
+}
+
 export function toggleEpisode(id: string, season: number, episode: number) {
-  apply(editor.toggleEpisode(getState().library, id, season, episode));
+  tick(editor.toggleEpisode(getState().library, id, season, episode), id);
 }
 
 export function toggleSeason(id: string, season: number, total: number, only?: number[]) {
-  apply(editor.toggleSeason(getState().library, id, season, total, Date.now(), only));
+  tick(editor.toggleSeason(getState().library, id, season, total, Date.now(), only), id);
+}
+
+/** A show whose episodes were all ticked before this existed (or in another app): moved to Watched when opened. */
+export function finishIfComplete(id: string) {
+  apply(editor.finishIfComplete(getState().library, id), (title) => `That's every episode of ${title}. Moved to Watched`, (before) => commit(before));
 }
 
 export function removeTitle(id: string) {

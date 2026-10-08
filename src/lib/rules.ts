@@ -503,6 +503,20 @@ export function getShowStatus(movie: Movie, now = Date.now()): ShowStatus | null
   return null;
 }
 
+/**
+ * A show that has ended (or been canceled) with every episode of every season ticked: nothing is left
+ * to watch, so it belongs in Watched. A show still running isn't finished however caught up you are
+ * (SHARED.md: new seasons still matter), and one whose seasons we haven't fully read isn't either.
+ */
+export function isShowFinished(movie: Movie): boolean {
+  if (!isShow(movie) || movie.watched) return false;
+  const schedule = getShowSchedule(movie);
+  if (!/^(ended|canceled)$/i.test(schedule?.status ?? "")) return false;
+  const progress = seasonProgress(movie);
+  if (!progress.length || progress.length < (schedule?.seasons ?? 0)) return false;
+  return progress.every((season) => season.seen >= season.total);
+}
+
 /** The corner badge on a grid tile: what needs attention first. */
 export function gridBadge(movie: Movie, now = Date.now()): { text: string; tone: "due" | "amber" | "green" | "neutral" } | null {
   if (movie.watched) return null;

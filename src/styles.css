@@ -690,13 +690,29 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 /* Sideways rows move by their arrows (or a swipe), never a scrollbar. */
 .cinema-row::-webkit-scrollbar, .cast-row::-webkit-scrollbar, .season-rail::-webkit-scrollbar { display: none; }
 .cinema-row > * { scroll-snap-align: start; }
-/* A scrolling row clips anything that overflows it, so its cards' popovers sit over the page instead. */
-.cinema-row .popover {
-  position: fixed; top: auto; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); z-index: 40;
-  width: min(420px, calc(100vw - 32px)); transform: translateX(-50%);
+/* A scrolling row clips anything that overflows it, so a card's reminder and showtimes open as a dialog over a dimmed page. */
+.cinema-row .popover, .candidate-card .popover {
+  position: fixed; inset: 50% auto auto 50%; z-index: 100; transform: translate(-50%, -50%);
+  width: min(440px, calc(100vw - 32px)); max-height: 80dvh; overflow: auto; padding: 16px 20px 20px; border-radius: 22px;
   box-shadow: 0 24px 64px rgba(11, 13, 15, 0.35);
 }
-@media (max-width: 900px) { .cinema-row .popover { bottom: calc(108px + env(safe-area-inset-bottom)); } }
+/* A modal's heading sits beside its close button, so neither takes a row alone. */
+.popover-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.popover-head .popover-label { margin: 10px 0 0; font-size: 17px; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+.popover-head .popover-label b { font-weight: 700; }
+.popover-x { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin: -4px -10px 0 0; border: 0; border-radius: 50%; background: none; color: var(--ink-soft); cursor: pointer; }
+.popover-x:hover { background: var(--paper-deep); color: var(--ink); }
+/* In a dialog the choices are full-size targets, and Set is the one filled button. */
+.popover[aria-modal="true"] .reminder-choices { gap: 10px; }
+.popover[aria-modal="true"] .reminder-choices .chip-button { height: 44px; padding: 0 18px; }
+.popover[aria-modal="true"] .reminder-custom { gap: 10px; margin-top: 4px; }
+.popover[aria-modal="true"] .reminder-custom input { height: 44px; font-size: 15px; }
+.popover[aria-modal="true"] .reminder-custom .chip-button { padding: 0 22px; border-color: var(--ink); background: var(--ink); color: var(--paper); font-weight: 700; }
+.popover[aria-modal="true"] .reminder-custom .chip-button:hover { opacity: 0.88; }
+@media (max-width: 900px) {
+  /* On a phone it rises from the bottom as a sheet. */
+  .cinema-row .popover, .candidate-card .popover { inset: auto 12px calc(12px + env(safe-area-inset-bottom)) 12px; transform: none; width: auto; }
+}
 
 .title-card { position: relative; display: flex; flex-direction: column; min-width: 0; }
 .title-card-open { display: block; padding: 0; border: 0; background: none; text-align: left; }
@@ -1931,11 +1947,6 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   .discover-toolbar { margin: 12px 0 16px; }
   .category, .titles .toolbar .segmented button { min-height: 44px; height: 44px; padding: 0 14px; font-size: 14px; }
   .titles .toolbar .button.small { height: 44px; min-height: 44px; font-size: 14px; }
-  /* A narrow card's popover would run off the screen: it rises from the bottom instead. */
-  .candidate-card .popover {
-    position: fixed; top: auto; left: 50%; bottom: calc(108px + env(safe-area-inset-bottom)); z-index: 40;
-    width: min(420px, calc(100vw - 32px)); transform: translateX(-50%); box-shadow: 0 24px 64px rgba(11, 13, 15, 0.35);
-  }
   /* The list rises from the bottom over a dimmed sheet, clear of the text beneath. */
   .watch-scrim { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(11, 13, 15, 0.55); animation: fade-in 160ms ease; }
   .watch-on-wrap .popover {

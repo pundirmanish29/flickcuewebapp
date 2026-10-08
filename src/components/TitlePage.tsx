@@ -3,7 +3,7 @@ import { useDialog } from "../lib/useDialog";
 import * as actions from "../lib/actions";
 import { findExisting } from "../lib/editor";
 import {
-  displayTitle, formatReminder, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, localIsoDate, readerDate, seasonProgress, seasonStarts, smartQuotes
+  displayTitle, formatReminder, formatRuntime, getShowStatus, hasActiveReminder, isShow, isShowFinished, isUnreleased, localIsoDate, readerDate, seasonProgress, seasonStarts, smartQuotes
 } from "../lib/rules";
 import { CALENDAR_MIRROR_ENABLED } from "../lib/config";
 import { getSessionGeneration, getState, sync as syncLibrary, useAppState } from "../lib/store";
@@ -377,6 +377,15 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     if (written?.result === details && written.id === movie.id && written.generation === generation) return;
     if (writeBack(movie, details, generation)) detailsWritten.current = { result: details, id: movie.id, generation };
   }, [details, detailsFor, detailsKey, isSaved, movie?.id, readyToWrite]);
+
+  // An ended show with every episode ticked belongs in Watched, however the ticks got there (once per
+  // visit, so an Undo isn't undone).
+  const finishedFor = useRef("");
+  useEffect(() => {
+    if (!isSaved || !movie || !readyToWrite || finishedFor.current === movie.id || !isShowFinished(movie)) return;
+    finishedFor.current = movie.id;
+    actions.finishIfComplete(movie.id);
+  }, [movie, isSaved, readyToWrite]);
 
   // On a phone the stub's bar is pinned above the dock once the stub itself has scrolled away.
   useEffect(() => {
