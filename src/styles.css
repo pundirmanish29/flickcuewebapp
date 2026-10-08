@@ -2226,3 +2226,10 @@ body:has(.popover[aria-modal="true"]) .dock { visibility: hidden; }
  .tonight-actions.has-watch .tonight-long { display: none; }
  .tonight-stats { margin-top: 16px; }
 }
+
+/* The notice shown when the app hits an error it didn't expect (components/ErrorBoundary). */
+.app-error { max-width: 520px; margin: 0 auto; padding: 18vh 24px 48px; }
+.app-error h1 { margin: 0 0 12px; font-size: clamp(28px, 6vw, 40px); }
+.app-error p { margin: 0 0 14px; color: var(--ink-soft); line-height: 1.5; }
+.app-error-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.app-error-actions .button { min-height: 44px; }
