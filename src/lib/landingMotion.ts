@@ -71,12 +71,14 @@ export function startLandingMotion(root: HTMLElement): () => void {
             });
           }
 
-          // The statement: each word from dim to bright as you read past it.
+          // The statement: each word from dim to bright as you read past it. Dim is still readable (about 4:1 on
+          // the page's black, past the 3:1 large text needs), so nobody meets it as an unreadable block.
           const words = qa(".l-statement .l-word");
           if (words.length) {
             gsap.fromTo(
               words,
-              { opacity: 0.14 },
+              // The orange accent words are darker mixed with black, so they start brighter.
+              { opacity: (_index: number, word: Element) => (word.classList.contains("l-word-em") ? 0.65 : 0.4) },
               { opacity: 1, stagger: 0.1, ease: "none", scrollTrigger: { trigger: ".l-statement-text", start: "top 80%", end: "bottom 45%", scrub: true } }
             );
           }

@@ -14,6 +14,24 @@ import { ExtensionIcon, GoogleIcon } from "./Icon";
 // Empty until the Android app has a public listing; the page then says "coming soon".
 const ANDROID_URL = "";
 
+/**
+ * What Google's sign-in will ask for, before its window opens. It has to stay true to the scopes in
+ * lib/config.ts (Drive's private app folder; Calendar only for a calendar FlickCue makes, and only when switched on).
+ */
+export function AskDisclosure() {
+  return (
+    <details className="l-ask">
+      <summary>What does Google ask for?</summary>
+      <ul>
+        <li><b>A private folder for FlickCue in your Google Drive</b>, where your list is kept. Google words it as access to the app's own data. FlickCue can't open any of your files or other folders.</li>
+        <li><b>Your name, email and photo</b>, to show which account is syncing.</li>
+        <li><b>Nothing else.</b> A Google Calendar permission is asked for later, and only if you switch on Google Calendar reminders in Settings. It covers a calendar FlickCue makes, not your other calendars.</li>
+      </ul>
+      <p>You can take the access back any time: Sign out in FlickCue revokes it, or remove FlickCue from your Google Account's third-party access. <a href="./privacy.html">Read the privacy policy</a>.</p>
+    </details>
+  );
+}
+
 const PRIVACY = "Your list lives in your own Google Drive. FlickCue can't see anything else in it, and there's no account with us.";
 
 type ShotName = "queue" | "title" | "discover" | "alerts" | "ticket";
@@ -223,6 +241,7 @@ export function Landing() {
           <p className="l-lede">Save films and shows from anywhere, see what's next for the ones you're watching, and get a nudge when it's time to watch.</p>
           <Actions />
           <p className="l-fine">{PRIVACY}</p>
+          <AskDisclosure />
         </div>
         <p className="l-scroll" aria-hidden="true">Scroll</p>
         {offerExtension && (
