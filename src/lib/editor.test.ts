@@ -93,6 +93,12 @@ describe("library editor", () => {
     if (!cleared.ok) throw new Error();
     expect(cleared.movie.personal?.episodes).toEqual(["1:4"]);
   });
+
+  it("marks a season numbered through the whole run (One Piece, past 1,000)", () => {
+    const marked = editor.toggleSeason(doc(), "a", 23, 3, NOW, [1178, 1179, 1180]);
+    if (!marked.ok) throw new Error();
+    expect(marked.movie.personal?.episodes).toEqual(["23:1178", "23:1179", "23:1180"]);
+  });
 });
 
 describe("rules", () => {

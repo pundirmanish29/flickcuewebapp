@@ -1,7 +1,7 @@
 // The latest episode of a followed show that has aired and hasn't been watched
 // or put away: the title sheet keeps it in front until one of those happens.
 
-import { getShowSchedule, isStartedShow, localIsoDate, readerDate } from "./rules";
+import { getShowSchedule, isStartedShow, localIsoDate, readerDate, seasonStarts } from "./rules";
 import type { Movie } from "./types";
 
 export interface AiredEpisode {
@@ -63,7 +63,7 @@ export interface UpNext extends AiredEpisode {
   state: "next" | "new" | "upcoming";
 }
 
-const order = (season: number, episode: number) => season * 10000 + episode;
+const order = (season: number, episode: number) => season * 1_000_000 + episode;
 
 /** The furthest episode the reader has ticked off ("6:2" → season 6, episode 2), specials aside. */
 function furthestWatched(movie: Movie): { season: number; episode: number } | null {
@@ -98,12 +98,16 @@ export function upNextEpisode(
   // Catching up: the episode after the furthest watched, if it has aired and hasn't been put away.
   const furthest = furthestWatched(movie);
   if (furthest && lastAired) {
-    const count = movie.seasons?.find((season) => season.number === furthest.season)?.episodes
-      ?? (lastAired.season === furthest.season ? lastAired.episode : 0);
-    const after = furthest.episode < Number(count)
+    // Where the furthest watched season ends, and the next begins (One Piece numbers through the run).
+    const starts = seasonStarts(movie);
+    const size = movie.seasons?.find((season) => season.number === furthest.season)?.episodes;
+    const end = size !== undefined ? (starts.get(furthest.season) ?? 1) + Number(size) - 1
+      : lastAired.season === furthest.season ? lastAired.episode : 0;
+    const throughout = (starts.get(furthest.season) ?? 1) > 1;
+    const after = furthest.episode < end
       ? { season: furthest.season, episode: furthest.episode + 1 }
       : movie.seasons?.some((season) => season.number === furthest.season + 1) || lastAired.season > furthest.season
-        ? { season: furthest.season + 1, episode: 1 }
+        ? { season: furthest.season + 1, episode: starts.get(furthest.season + 1) ?? (throughout ? end + 1 : 1) }
         : null;
     const isLast = after && after.season === lastAired.season && after.episode === lastAired.episode;
     if (after && !isLast && order(after.season, after.episode) < order(lastAired.season, lastAired.episode)

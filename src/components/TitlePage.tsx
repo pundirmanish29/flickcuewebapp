@@ -3,7 +3,7 @@ import { useDialog } from "../lib/useDialog";
 import * as actions from "../lib/actions";
 import { findExisting } from "../lib/editor";
 import {
-  displayTitle, formatRating, formatReminder, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, localIsoDate, readerDate, seasonProgress, smartQuotes
+  displayTitle, formatRating, formatReminder, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, localIsoDate, readerDate, seasonProgress, seasonStarts, smartQuotes
 } from "../lib/rules";
 import { CALENDAR_MIRROR_ENABLED } from "../lib/config";
 import { getSessionGeneration, getState, sync as syncLibrary, useAppState } from "../lib/store";
@@ -67,6 +67,27 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
     { tone: "paid", label: "Rent or buy", providers: rentOrBuy }
   ].filter((group) => group.providers.length);
 
+  // Up to three services are laid out as cards (logo, name, how it's paid for); more open a list.
+  if (all.length > 1 && all.length <= 3) {
+    return (
+      <div className="watch-cards">
+        <p className="section-label">{label}</p>
+        <ul>
+          {all.map(({ provider, tone }) => (
+            <li key={provider.name}>
+              <a className="watch-card" href={providerLink(provider.name, title)} target="_blank" rel="noreferrer">
+                <ProviderLogo provider={provider} />
+                <span>
+                  <WatchName name={provider.name} />
+                  <small className={tone === "Included" ? "is-included" : "is-paid"}>{tone === "Included" ? "With subscription" : "Rent or buy"}</small>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
   if (all.length === 1) {
     const only = all[0].provider;
     return (
@@ -141,7 +162,7 @@ function StubButton({ icon, children, href, onClick, kind = "plain", pressed, ex
   children: ReactNode;
   href?: string;
   onClick?: () => void;
-  kind?: "primary" | "plain" | "danger";
+  kind?: "primary" | "plain";
   pressed?: boolean;
   expanded?: boolean;
   disabled?: boolean;
@@ -175,6 +196,13 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const isSaved = Boolean(saved);
 
   const [playing, setPlaying] = useState(false);
+  // Esc closes the trailer (inside YouTube's frame the key is YouTube's own).
+  useEffect(() => {
+    if (!playing) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setPlaying(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [playing]);
   const [details, setDetails] = useState<TitleDetails | null>(null);
   const [detailsFor, setDetailsFor] = useState("");
   const detailsGeneration = useRef(getSessionGeneration());
@@ -182,6 +210,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const [detailsError, setDetailsError] = useState("");
   const [choosingReminder, setChoosingReminder] = useState(false);
   const [confirmingFinish, setConfirmingFinish] = useState(false);
+  // The season the episode strip shows, when the reader picks another than the one they're in.
+  const [pickedSeason, setPickedSeason] = useState<{ id: string; season: number } | null>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
   // The question opens under the buttons, which on a phone can be the bottom of the screen: bring it into view.
   useEffect(() => {
@@ -308,14 +338,38 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   useEffect(() => {
     const stub = stubRef.current;
     if (!stub || typeof ResizeObserver === "undefined") return;
+    // Everything but the poster, measured while the poster shows, so CSS can give the poster whatever height is left.
+    let rest = 0;
     const observer = new ResizeObserver(() => {
       stub.style.setProperty("--stub-h", `${stub.offsetHeight}px`);
-      // Everything but the poster, so CSS can give the poster whatever height is left.
-      const poster = stub.querySelector<HTMLElement>(".tp-poster-stub");
-      stub.style.setProperty("--stub-rest", `${stub.offsetHeight - (poster?.offsetHeight ?? 0)}px`);
+      const poster = stub.querySelector<HTMLElement>(".tp-poster-stub")?.offsetHeight ?? 0;
+      if (poster > 0) {
+        rest = stub.offsetHeight - poster;
+        stub.style.setProperty("--stub-rest", `${rest}px`);
+      }
     });
     observer.observe(stub);
-    return () => observer.disconnect();
+    // Stuck under the header, the poster shrinks to fit the window (CSS, .is-stuck); with too little room even
+    // for a small one it steps aside (.is-artless). At the top of the page it's whole.
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header")) || 64;
+        const stuck = window.scrollY > 0 && stub.getBoundingClientRect().top <= header + 17;
+        stub.classList.toggle("is-stuck", stuck);
+        stub.classList.toggle("is-artless", stuck && window.innerHeight - header - 32 - rest < 140);
+      });
+    };
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    update();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      cancelAnimationFrame(frame);
+    };
   }, [ready]);
 
   const back = (
@@ -348,7 +402,16 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const posterSrc = upscale(movie.poster, "w342");
   // Seasons are written onto the saved title once this visit has synced; until then (or while sync is
   // paused) the details this page just fetched stand in, so a show never claims it has no episodes.
-  const withSeasons = !movie.seasons?.length && details?.seasons.length ? { ...movie, seasons: details.seasons } : movie;
+  // The latest episode tells too whether the show numbers its episodes through the whole run (One Piece).
+  const withSeasons = {
+    ...movie,
+    ...(!movie.seasons?.length && details?.seasons.length ? { seasons: details.seasons } : {}),
+    ...(!movie.lastEpisode && details?.lastEpisode ? { lastEpisode: { season: details.lastEpisode.season, episode: details.lastEpisode.episode, airDate: details.lastEpisode.date } } : {})
+  };
+  const starts = seasonStarts(withSeasons);
+  // "S6 E4", or "Episode 1180" for a show numbered through its whole run, where the season adds nothing.
+  const episodeCode = (season: number, episode: number) => ((starts.get(season) ?? 1) > 1 ? `Episode ${episode}` : `S${season} E${episode}`);
+  const episodeShort = (season: number, episode: number) => ((starts.get(season) ?? 1) > 1 ? `episode ${episode}` : `S${season} E${episode}`);
   const progress = seasonProgress(withSeasons);
   // The episode to watch next: the next one while catching up, the latest aired, or, once caught up, the next to air.
   const newEpisode = isSaved && isShow(movie) ? upNextEpisode(withSeasons, details?.lastEpisode, details?.nextEpisode, dismissedEpisodes) : null;
@@ -382,6 +445,11 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   // An aired episode to watch next: it leads the stub (still, name, length) and opens the season strip below.
   const episodeAction = isSaved && !movie.watched && show && newEpisode && newEpisode.state !== "upcoming" ? newEpisode : null;
   const nextSeason = episodeAction ? progress.find((season) => season.number === episodeAction.season) : undefined;
+  const stripSeason = pickedSeason?.id === movie.id ? pickedSeason.season : episodeAction?.season ?? 0;
+  // A very long show counts the season you're in (20 of 25 in Elbaph), not 20 of 1,180.
+  const furthestSeason = Math.max(0, ...(movie.personal?.episodes ?? []).map((key) => Number(key.split(":")[0]) || 0));
+  const currentSeason = progress.find((season) => season.number === (episodeAction?.season ?? furthestSeason));
+  const seasonCounted = episodesTotal > 100 && currentSeason && currentSeason.seen > 0 ? currentSeason : null;
   const seasons = details?.seasonCount ? `${details.seasonCount} season${details.seasonCount === 1 ? "" : "s"}` : "";
   const statusNamesSeasons = /\bseasons?\b/i.test(status?.text || "");
   const facts = show && details?.seasonCount
@@ -417,7 +485,9 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     releaseDate: show ? details?.releaseDate || movie.releaseDate || "" : details?.regionalRelease || movie.releaseDate || "",
     provider,
     // The up-next row in the stub says it, with the episode's name; otherwise a field names the next one to air.
-    upNext: !episodeAction && nextUnwatched ? `S${nextUnwatched.season} E${nextUnwatched.episode} · ${capitalize(dayLabel(readerDate(nextUnwatched.date)))}` : "",
+    // The next episode to air, or that a returning show has none dated yet.
+    upNext: nextUnwatched ? `${episodeCode(nextUnwatched.season, nextUnwatched.episode)} · ${capitalize(dayLabel(readerDate(nextUnwatched.date)))}`
+      : show && /returning/i.test(details?.status || "") ? "No date yet" : "",
     length: show ? seasons : formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes),
     now: Date.now()
   });
@@ -448,20 +518,22 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     const map: Record<StubPrimary, ReactNode> = {
       save: <StubButton kind="primary" icon="plus" expanded={choosingReminder} onClick={() => (fromBar ? openChoices(true) : setChoosingReminder((open) => !open))}>Save</StubButton>,
       remind: <StubButton kind="primary" icon="clock" expanded={choosingReminder} onClick={() => (fromBar ? openChoices(true) : setChoosingReminder((open) => !open))}>{reminderActive ? "Change reminder" : "Remind me"}</StubButton>,
-      watch: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : `${provider?.included ? "Watch" : "Rent"}${outToday ? ` S${outToday.season} E${outToday.episode}` : ""} on ${providerName}`}</StubButton>,
+      watch: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : `${provider?.included ? "Watch" : "Rent"}${outToday ? ` ${episodeShort(outToday.season, outToday.episode)}` : ""} on ${providerName}`}</StubButton>,
       watched: <StubButton kind="primary" icon="eye" onClick={() => isSaved && actions.toggleWatched(movie.id)}>{show ? "Mark series finished" : "Watched it"}</StubButton>,
       ticket: <StubButton kind="primary" icon="ticket" onClick={showTicket}>{ticketFile ? (fromBar ? "Ticket" : "Show ticket") : fromBar ? "Add ticket" : "Add ticket file"}</StubButton>,
       watchAgain: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? "Watch again" : `Watch again on ${providerName}`}</StubButton>,
       none: null
     };
-    if (watchEpisode) return <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : `${provider?.included ? "Watch" : "Rent"} S${watchEpisode.season} E${watchEpisode.episode} on ${providerName}`}</StubButton>;
-    if (episodeAction) return <StubButton kind="primary" icon="check" onClick={() => actions.toggleEpisode(movie.id, episodeAction.season, episodeAction.episode)}>{fromBar ? `Watched S${episodeAction.season} E${episodeAction.episode}` : `Mark S${episodeAction.season} E${episodeAction.episode} watched`}</StubButton>;
+    if (watchEpisode) return <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : `${provider?.included ? "Watch" : "Rent"} ${episodeShort(watchEpisode.season, watchEpisode.episode)} on ${providerName}`}</StubButton>;
+    if (episodeAction) return <StubButton kind="primary" icon="check" onClick={() => actions.toggleEpisode(movie.id, episodeAction.season, episodeAction.episode)}>{fromBar ? `Watched ${episodeShort(episodeAction.season, episodeAction.episode)}` : `Mark ${episodeShort(episodeAction.season, episodeAction.episode)} watched`}</StubButton>;
     if (show && stub.primary === "watched") return <StubButton kind="primary" icon="play" onClick={() => document.getElementById("episode-progress")?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" })}>Episode progress</StubButton>;
     return map[stub.primary];
   };
 
   // Everything else you can do, under the main button.
   const secondary: ReactNode[] = [];
+  // Under those, as quiet links: the big steps nobody takes by accident (finish the series, remove it).
+  const quiet: ReactNode[] = [];
   if (isSaved) {
     if (movie.watched) {
       secondary.push(<StubButton key="unwatch" icon="eyeOff" onClick={() => actions.toggleWatched(movie.id)}>Unwatch</StubButton>);
@@ -474,7 +546,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
       );
     } else {
       // Finishing a whole series is a big step for one tap: it asks first.
-      if (show) secondary.push(<StubButton key="watched" icon="check" expanded={confirmingFinish} onClick={() => setConfirmingFinish((open) => !open)}>Finish series</StubButton>);
+      if (show) quiet.push(<button key="watched" type="button" className="tp-quiet-link" aria-expanded={confirmingFinish} onClick={() => setConfirmingFinish((open) => !open)}>Mark all watched</button>);
       else if (stub.primary !== "watched") secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.toggleWatched(movie.id)}>Watched it</StubButton>);
       // The label already says Watching; the button only starts or stops it. With episodes ticked it has clearly started.
       if (show && (watchingNow || !movie.personal?.episodes?.length)) secondary.push(<StubButton key="watching" icon={watchingNow ? "pause" : "play"} onClick={() => actions.setWatching(movie.id, !watchingNow)}>{watchingNow ? "Stop watching" : "Start watching"}</StubButton>);
@@ -482,7 +554,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
       if (stub.primary !== "remind") secondary.push(<StubButton key="remind" icon="clock" expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>{reminderActive ? capitalize(formatReminder(Number(movie.remindAt))) : "Remind me"}</StubButton>);
     }
     // Beside a ticket's own "Remove ticket", say which thing goes.
-    secondary.push(<StubButton key="remove" kind="danger" icon="trash" onClick={() => actions.removeTitle(movie.id)}>{movie.booking && !show ? "Remove from list" : "Remove"}</StubButton>);
+    quiet.push(<button key="remove" type="button" className="tp-quiet-link is-danger" onClick={() => actions.removeTitle(movie.id)}>{movie.booking && !show ? "Remove from list" : "Remove"}</button>);
   } else if (candidate && !unreleased) {
     secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.saveWatched(candidate)}>{show ? "Mark series finished" : "Watched it"}</StubButton>);
     if (show) secondary.push(<StubButton key="watching" icon="play" onClick={() => actions.saveWatching(candidate)}>Watching</StubButton>);
@@ -490,17 +562,32 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
 
   return (
     <article className="title-page" aria-labelledby="title-heading">
-      <div className={`tp-hero ${playing ? "playing" : ""}`} style={backdrop ? { backgroundImage: `url(${backdrop})`, ["--hero-hi" as string]: `url(${upscale(backdrop, "original")})` } : undefined}>
-        {playing && details?.trailerKey && (
-          <iframe
-            className="tp-trailer"
-            src={`https://www.youtube-nocookie.com/embed/${details.trailerKey}?autoplay=1&playsinline=1&rel=0`}
-            title={`${title} trailer`}
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-            allowFullScreen
-          />
-        )}
-        {!playing && (
+      {playing && details?.trailerKey ? (
+        // The trailer plays centred in a dark theatre made from a blur of the backdrop, with one row under it.
+        <section className="tp-theatre" aria-label={`${title} trailer`} style={backdrop ? { ["--theatre-art" as string]: `url(${backdrop})` } : undefined}>
+          <div className="tp-theatre-frame">
+            <iframe
+              className="tp-trailer"
+              src={`https://www.youtube-nocookie.com/embed/${details.trailerKey}?autoplay=1&playsinline=1&rel=0`}
+              title={`${title} trailer`}
+              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+              allowFullScreen
+            />
+          </div>
+          <div className="tp-theatre-bar">
+            <button type="button" className="tp-theatre-back" onClick={() => setPlaying(false)}>
+              <Icon name="back" size={18} /> Back to {title}
+            </button>
+            <p className="tp-theatre-note">Trailer · Esc closes it</p>
+            {details.trailer && (
+              <a className="tp-theatre-link" href={details.trailer} target="_blank" rel="noreferrer">
+                Open on YouTube <Icon name="external" size={15} />
+              </a>
+            )}
+          </div>
+        </section>
+      ) : (
+        <div className="tp-hero" style={backdrop ? { backgroundImage: `url(${backdrop})`, ["--hero-hi" as string]: `url(${upscale(backdrop, "original")})` } : undefined}>
           <div className="wrap tp-hero-bar">
             {back}
             {details?.trailerKey && (
@@ -510,15 +597,6 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
               </button>
             )}
           </div>
-        )}
-      </div>
-      {/* YouTube's own controls fill the video, so the way back sits below it. */}
-      {playing && (
-        <div className="trailer-bar">
-          <button type="button" className="trailer-back" onClick={() => setPlaying(false)}>
-            <Icon name="back" size={18} /> Back to details
-          </button>
-          {details?.trailer && <a className="trailer-link" href={details.trailer} target="_blank" rel="noreferrer">YouTube</a>}
         </div>
       )}
 
@@ -573,7 +651,9 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
 
         <aside className={`tp-stub tp-tone-${stub.tone}`} ref={stubRef} aria-label="Your plan for this title">
           <div className="tp-stub-art">
-            <Poster src={posterSrc} title={movie.title} className="tp-poster tp-poster-stub" priority />
+            <div className="tp-stub-frame" style={safeImage(posterSrc) ? { ["--art" as string]: `url("${safeImage(posterSrc)}")` } : undefined}>
+              <Poster src={posterSrc} title={movie.title} className="tp-poster tp-poster-stub" priority />
+            </div>
           </div>
           <div className="tp-perf" aria-hidden="true" />
           <div className="tp-stub-body">
@@ -595,11 +675,14 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
               </dl>
             )}
             {reminderActive && !movie.watched && <CalendarMark movie={movie} label />}
-            {isSaved && show && !movie.watched && episodesSeen > 0 && episodesTotal > 0 && <SeriesProgress seen={episodesSeen} total={episodesTotal} />}
+            {isSaved && show && !movie.watched && (seasonCounted
+              ? <SeriesProgress seen={seasonCounted.seen} total={seasonCounted.total} label={`This season · ${seasonCounted.name && !/^season \d+$/i.test(seasonCounted.name) ? seasonCounted.name : `Season ${seasonCounted.number}`}`} />
+              : episodesSeen > 0 && episodesTotal > 0 && <SeriesProgress seen={episodesSeen} total={episodesTotal} />)}
             {episodeAction && (
               <UpNextRow
                 tmdbId={movie.tmdbId}
                 air={episodeAction}
+                code={episodeCode(episodeAction.season, episodeAction.episode)}
                 fallbackImage={backdrop}
                 tick={Boolean(watchEpisode)}
                 onWatched={() => actions.toggleEpisode(movie.id, episodeAction.season, episodeAction.episode)}
@@ -609,8 +692,9 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             {secondary.length > 0 && (
               <div className="tp-secondary" onClickCapture={(event) => pop((event.target as Element).closest(".tp-button"))}>{secondary}</div>
             )}
+            {quiet.length > 0 && <div className="tp-quiet">{quiet}</div>}
             {confirmingFinish && isSaved && show && !movie.watched && (
-              <div className="tp-confirm" ref={confirmRef} role="group" aria-label="Mark series finished">
+              <div className="tp-confirm" ref={confirmRef} role="group" aria-label="Mark all watched">
                 <p>Mark all of {title} watched? It leaves your queue.</p>
                 <div className="tp-confirm-actions">
                   <button type="button" className="tp-button tp-button-primary" onClick={() => { setConfirmingFinish(false); actions.toggleWatched(movie.id); }}>Mark finished</button>
@@ -701,10 +785,12 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
               {episodeAction && movie.tmdbId && (
                 <EpisodeStrip
                   movie={movie}
-                  season={episodeAction.season}
-                  seasonName={nextSeason?.name}
-                  upNext={episodeAction.episode}
-                  onDismiss={() => setDismissedEpisodes(dismissEpisode(episodeKey(movie.id, episodeAction.season, episodeAction.episode)))}
+                  season={stripSeason}
+                  seasonName={progress.find((season) => season.number === stripSeason)?.name ?? nextSeason?.name}
+                  seasons={progress}
+                  onSeason={(season) => setPickedSeason({ id: movie.id, season })}
+                  upNext={stripSeason === episodeAction.season ? episodeAction.episode : 0}
+                  onDismiss={stripSeason === episodeAction.season ? () => setDismissedEpisodes(dismissEpisode(episodeKey(movie.id, episodeAction.season, episodeAction.episode))) : undefined}
                 />
               )}
               {newEpisode && !(episodeAction && movie.tmdbId) && (
@@ -719,7 +805,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
                   />
                 </>
               )}
-              {progress.length > 0 && <Seasons movie={withSeasons} info={details?.seasons} nested={Boolean(newEpisode) && !(episodeAction && movie.tmdbId)} />}
+              {progress.length > 0 && <Seasons movie={withSeasons} info={details?.seasons} current={episodeAction?.season ?? (furthestSeason || undefined)} nested={Boolean(newEpisode) && !(episodeAction && movie.tmdbId)} />}
             </section>
           )}
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
 import { episodesAired, formatRuntime, localIsoDate, readerDate, seasonProgress } from "../lib/rules";
 import { safeImage } from "../lib/safe";
@@ -14,15 +14,30 @@ const dayText = (iso: string) => {
 };
 
 /**
- * A followed show's seasons as a row of cards, each with its rating and how
- * much has been watched; a season opens to its episodes, each with its still,
- * date, runtime, rating and summary, and a tick to mark it watched.
+ * A followed show's seasons as a row of cards, each with its number, episode
+ * range, rating and how much has been watched, opening at the one you're in;
+ * a season opens to its episodes, each with its still, date, runtime, rating
+ * and summary, and a tick to mark it watched.
  */
-export function Seasons({ movie, info, nested = false }: { movie: Movie; info: Season[] | undefined; /** Under another section heading, so an h3 rather than an h2. */ nested?: boolean }) {
+export function Seasons({ movie, info, current, nested = false }: {
+  movie: Movie;
+  info: Season[] | undefined;
+  /** The season you're in: marked, and the row opens at it. */
+  current?: number;
+  /** Under another section heading, so an h3 rather than an h2. */
+  nested?: boolean;
+}) {
   const [openNumber, setOpenNumber] = useState<number | null>(null);
   const progress = seasonProgress(movie);
   const open = progress.find((season) => season.number === openNumber);
   const rail = useRef<HTMLUListElement>(null);
+
+  // A long show opens at the season you're in, not at season 1.
+  useLayoutEffect(() => {
+    const list = rail.current;
+    const here = list?.querySelector<HTMLElement>(".season-card.is-here")?.closest("li");
+    if (list && here) list.scrollLeft = Math.max(0, here.offsetLeft - list.offsetLeft);
+  }, [current, openNumber, progress.length]);
 
   if (open) {
     return <SeasonView movie={movie} season={open} info={info?.find((item) => item.number === open.number)} onBack={() => setOpenNumber(null)} />;
@@ -36,18 +51,22 @@ export function Seasons({ movie, info, nested = false }: { movie: Movie; info: S
       <ul className="season-rail" ref={rail}>
         {progress.map((season) => {
           const meta = info?.find((item) => item.number === season.number);
+          const here = season.number === current;
+          const name = season.name || `Season ${season.number}`;
           return (
             <li key={season.number}>
-              <button type="button" className="season-card" onClick={() => setOpenNumber(season.number)} aria-label={`${season.name || `Season ${season.number}`}, ${season.seen} of ${season.total} watched`}>
+              <button type="button" className={`season-card${here ? " is-here" : ""}`} onClick={() => setOpenNumber(season.number)} aria-label={`${name}, ${season.seen} of ${season.total} watched${here ? ", the season you're in" : ""}`}>
                 <span className="season-card-art">
-                  <Poster src={upscale(meta?.poster, "w185")} retina={upscale(meta?.poster, "w342")} title={season.name || `Season ${season.number}`} />
+                  <Poster src={upscale(meta?.poster, "w185")} retina={upscale(meta?.poster, "w342")} title={name} />
+                  {here && <span className="season-card-here">You’re here</span>}
                   {meta?.rating && <span className="season-card-rating"><Icon name="star" size={11} /> {meta.rating}</span>}
                 </span>
                 <span className="progress" aria-hidden="true">
                   <span style={{ width: `${Math.round((season.seen / season.total) * 100)}%` }} />
                 </span>
-                <b>{season.name || `Season ${season.number}`}</b>
-                <span className="muted">{season.seen} of {season.total} watched</span>
+                <span className="season-card-range">S{season.number} · E{season.first}–{season.first + season.total - 1}</span>
+                <b>{name}</b>
+                <span className="muted">{season.seen ? `${season.seen} of ${season.total} watched` : `${season.total} episode${season.total === 1 ? "" : "s"}`}</span>
               </button>
             </li>
           );

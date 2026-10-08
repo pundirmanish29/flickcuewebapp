@@ -137,7 +137,8 @@ export function titleStub(input: StubInput): TitleStub {
     label: watching ? "Watching" : due ? "Due now" : "In your queue",
     fields: [
       // A reminder that has gone off is the label ("Due now"); a field would only say it again.
-      ...(due ? [] : [{ label: "Reminder", value: hasActiveReminder(movie, now) ? capital(formatReminder(movie.remindAt!, now)) : "None" }]),
+      // A show's next episode says more than "Reminder: None", so a show only lists a reminder that's set.
+      ...(due || (show && !hasActiveReminder(movie, now)) ? [] : [{ label: "Reminder", value: hasActiveReminder(movie, now) ? capital(formatReminder(movie.remindAt!, now)) : "None" }]),
       ...(show ? field("Next episode", upNext) : []),
       { label: "Where", value: whereText(provider) || "Not streaming here" },
       ...(show ? [] : field("Runtime", length))

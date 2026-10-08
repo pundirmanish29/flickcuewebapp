@@ -281,15 +281,43 @@ export function formatRuntime(minutes?: number): string {
 }
 
 /** Episodes ticked off (stored as "season:episode"), counted per season. */
+/**
+ * The number each season's first episode has. Most shows count each season
+ * from 1, but TMDB numbers some through the whole run (One Piece's season 23
+ * is episodes 1156-1180). A number past its season's size, among the reader's
+ * ticks or the latest and next episodes, means the second kind: then a season
+ * starts after all the episodes of the seasons before it.
+ */
+export function seasonStarts(movie: Pick<Movie, "seasons" | "personal" | "lastEpisode" | "nextEpisode">): Map<number, number> {
+  const seasons = (Array.isArray(movie.seasons) ? movie.seasons : [])
+    .filter((season) => season.number > 0 && Number(season.episodes) > 0)
+    .sort((a, b) => a.number - b.number);
+  const size = new Map(seasons.map((season) => [season.number, Math.min(Number(season.episodes), 1000)]));
+  const known = [
+    ...(movie.personal?.episodes ?? []).map((key) => key.split(":").map(Number)),
+    ...[movie.lastEpisode, movie.nextEpisode].filter(Boolean).map((air) => [Number(air!.season), Number(air!.episode)])
+  ];
+  const throughout = known.some(([season, episode]) => size.has(season) && episode > size.get(season)!);
+  const starts = new Map<number, number>();
+  let next = 1;
+  for (const season of seasons) {
+    starts.set(season.number, throughout ? next : 1);
+    next += size.get(season.number)!;
+  }
+  return starts;
+}
+
 export function seasonProgress(movie: Movie) {
   const marked = new Set(movie.personal?.episodes || []);
+  const starts = seasonStarts(movie);
   return (movie.seasons || [])
     .filter((season) => season.number > 0 && Number(season.episodes) > 0)
     .map((season) => {
       const total = Math.min(Number(season.episodes), 1000);
+      const first = starts.get(season.number) ?? 1;
       let seen = 0;
-      for (let episode = 1; episode <= total; episode++) if (marked.has(`${season.number}:${episode}`)) seen++;
-      return { number: season.number, name: season.name, seen, total };
+      for (let episode = first; episode < first + total; episode++) if (marked.has(`${season.number}:${episode}`)) seen++;
+      return { number: season.number, name: season.name, seen, total, first };
     });
 }
 
@@ -347,13 +375,16 @@ export function scheduleFromAppFields(movie: Movie): ShowSchedule | null {
   const date = (value: unknown) => (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "");
   const count = (value: unknown) => Math.max(0, Math.trunc(Number(value)) || 0);
   const seasons = Array.isArray(movie.seasons) ? movie.seasons : [];
+  const starts = seasonStarts(movie);
   const episode = (entry: unknown) => {
     const air = entry as { season?: unknown; episode?: unknown; airDate?: unknown } | null | undefined;
     if (!air || !date(air.airDate)) return null;
     const season = count(air.season);
     const number = count(air.episode);
     const size = count(seasons.find((item) => count(item?.number) === season)?.episodes);
-    return { date: date(air.airDate), season, episode: number, ...(size > 0 && number >= size ? { finale: true } : {}) };
+    // A finale fills its season: its number is the season's last (One Piece counts through the run).
+    const last = (starts.get(season) ?? 1) + size - 1;
+    return { date: date(air.airDate), season, episode: number, ...(size > 0 && number >= last ? { finale: true } : {}) };
   };
   const next = episode(movie.nextEpisode);
   const last = episode(movie.lastEpisode);

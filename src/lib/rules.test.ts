@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardLine, episodesAired, formatShowTime, gridBadge, hasUpcomingBooking, importDays, isBookingReminder, shortDay, showEndsAt, showsToRefresh, smartQuotes, watchedGroups, watchingShows, watchedPromptDue, yourTake } from "./rules";
+import { cardLine, episodesAired, scheduleFromAppFields, seasonProgress, seasonStarts, formatShowTime, gridBadge, hasUpcomingBooking, importDays, isBookingReminder, shortDay, showEndsAt, showsToRefresh, smartQuotes, watchedGroups, watchingShows, watchedPromptDue, yourTake } from "./rules";
 import type { Movie } from "./types";
 
 describe("short day labels", () => {
@@ -145,5 +145,40 @@ describe("booked tickets on cards", () => {
     expect(watchedPromptDue(movie, now)).toBe(true);
     expect(watchedPromptDue(film({ booking: { showAt: now - HOUR, addedAt: 1 } }), now)).toBe(false);
     expect(watchedPromptDue({ ...movie, booking: { ...movie.booking!, watchedAsked: true } }, now)).toBe(false);
+  });
+});
+
+describe("seasons numbered through the whole run", () => {
+  // One Piece on TMDB: season 23 is episodes 1156-1180, after 1155 in the seasons before it.
+  const onePiece = (episodes: string[], extra: Partial<Movie> = {}): Movie => ({
+    id: "op", title: "One Piece", mediaType: "Show", tmdbType: "tv",
+    seasons: [{ number: 0, episodes: 39 }, { number: 1, episodes: 61 }, { number: 21, episodes: 600 }, { number: 22, episodes: 494 }, { number: 23, episodes: 25 }],
+    personal: { status: "watching", episodes },
+    ...extra
+  });
+
+  it("starts each season at 1 for an ordinary show", () => {
+    const show = onePiece(["1:3", "23:2"]);
+    expect([...seasonStarts(show)]).toEqual([[1, 1], [21, 1], [22, 1], [23, 1]]);
+    expect(seasonProgress(show).find((season) => season.number === 23)).toMatchObject({ seen: 1, total: 25, first: 1 });
+  });
+
+  it("starts a season after the ones before it once a number runs past its size", () => {
+    const show = onePiece(["23:1176", "23:1177", "1:61"]);
+    expect([...seasonStarts(show)]).toEqual([[1, 1], [21, 62], [22, 662], [23, 1156]]);
+    expect(seasonProgress(show).find((season) => season.number === 23)).toMatchObject({ seen: 2, total: 25, first: 1156 });
+    expect(seasonProgress(show).find((season) => season.number === 1)).toMatchObject({ seen: 1, first: 1 });
+  });
+
+  it("tells from the latest episode too, before anything is ticked", () => {
+    const show = onePiece([], { lastEpisode: { season: 23, episode: 1180, airDate: "2026-09-27" } });
+    expect(seasonStarts(show).get(23)).toBe(1156);
+  });
+
+  it("calls only a season's real last episode its finale", () => {
+    const mid = scheduleFromAppFields(onePiece([], { lastEpisode: { season: 23, episode: 1170, airDate: "2026-07-19" }, productionStatus: "Returning Series" }));
+    expect(mid?.last?.finale).toBeUndefined();
+    const end = scheduleFromAppFields(onePiece([], { lastEpisode: { season: 23, episode: 1180, airDate: "2026-09-27" }, productionStatus: "Returning Series" }));
+    expect(end?.last?.finale).toBe(true);
   });
 });
