@@ -14,7 +14,8 @@ import { updateSettings, useAppState } from "../lib/store";
 import { PageHeader } from "../components/PageHeader";
 import { EmptyStart } from "../components/EmptyStart";
 import { AddByHand } from "./DiscoverPage";
-import { extensionStore } from "../lib/extensionStore";
+import { goDiscover } from "../lib/discoverIntent";
+import { EXTENSION_URL, FIREFOX_EXTENSION_URL } from "../lib/config";
 import { fetchDetails, fetchSharpBackdrop, findBackdropByName, upscale } from "../lib/tmdb";
 import { safeImage } from "../lib/safe";
 import { providerLink, splitChannel } from "../lib/providers";
@@ -202,6 +203,8 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
     tonight?.id, ...alsoDue.map((movie) => movie.id), ...onTonight.map(entry => entry.movie.id), ...watching.map((entry) => entry.movie.id), ...radar.map((entry) => entry.movie.id)
   ].filter(Boolean) as string[]), [tonight?.id, alsoDue, onTonight, watching, radar]);
   const searching = Boolean(query.trim());
+  // The box says "Search your titles", so watched ones count too, as a second group.
+  const watchedMatches = searching ? library.movies.filter((movie) => movie.watched && matchesSearch(movie, query)).slice(0, 12) : [];
   const matches = queue.filter((movie) => (kind === "airing" ? isAiring(movie) : matchesKind(movie, kind)) && matchesSearch(movie, query));
   const visible = sortMovies(query ? matches : matches.filter((movie) => !shownAbove.has(movie.id)), sort);
   const skipped = matches.length - visible.length;
@@ -220,7 +223,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
         <Suspense fallback={<div className="landing landing-loading" />}><Landing /></Suspense>
       ) : searching ? (
         // Searching: the matches lead, under a plain heading; the pick and the rows step aside until it's cleared.
-        <PageHeader title="Your queue" meta={`${matches.length} ${matches.length === 1 ? "title matches" : "titles match"} “${query.trim()}”`} className="queue-search-head" />
+        <PageHeader title="Your titles" meta={`Searching for “${query.trim()}”`} className="queue-search-head" />
       ) : tonight ? (
         <h1 className="visually-hidden">What are we watching?</h1>
       ) : (
@@ -257,7 +260,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                 {/* Watching comes first; marking it watched is for afterwards. */}
                 {watchWhere && (
                   <a className="button button-green" href={providerLink(watchWhere.name, tonight.title)} target="_blank" rel="noreferrer">
-                    <Icon name="play" size={16} /> {watchWhere.included ? "Watch" : "Rent"} on {splitChannel(watchWhere.name)[0]}
+                    <Icon name="play" size={16} /> {watchWhere.included ? "Watch" : "Rent"}{isShow(tonight) && watchEpisode ? ` S${watchEpisode.season} E${watchEpisode.episode}` : ""} on {splitChannel(watchWhere.name)[0]}
                   </a>
                 )}
                 {/* Beside a Watch button, marking it watched is a second button, and only when it does something Details doesn't. */}
@@ -373,7 +376,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
               lead={library.movies.length ? "You've watched everything you saved." : "Nothing saved yet."}
               text="Save a few things you're curious about, and FlickCue reminds you when it's time to watch."
               footnote={<>
-                <span className="when-wide">Reading a review or watching a trailer? With the <a href={extensionStore().url} target="_blank" rel="noreferrer">{extensionStore().browser} extension</a>, one click saves it here.</span>
+                <span className="when-wide">Reading a review or watching a trailer? With the FlickCue extension for <a href={EXTENSION_URL} target="_blank" rel="noreferrer">Chrome</a> or <a href={FIREFOX_EXTENSION_URL} target="_blank" rel="noreferrer">Firefox</a>, one click saves it here.</span>
                 <span className="when-narrow">On your computer, the FlickCue extension saves films and shows from any page.</span>
               </>}
             >
@@ -388,7 +391,9 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
       {sync.connected && queue.length > 0 && <section className="paper titles queue-titles" id="titles" tabIndex={-1}>
         <div className="wrap">
           <div className="toolbar">
-            <h2 className="section-title">{searching ? "Matches" : "Queue"} <span className="count">{matches.length}</span></h2>
+            <h2 className="section-title">{searching ? "In your queue" : "Queue"} <span className="count">{matches.length}</span></h2>
+            {/* Nothing matched: nothing to filter or sort. */}
+            {!(searching && !matches.length) && <>
             <div className="segmented" role="group" aria-label="Show">
               {(["all", "movie", "tv", "airing"] as QueueFilter[]).map((value) => (
                 <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
@@ -402,9 +407,10 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                 {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => <option key={mode} value={mode}>{SORT_LABELS[mode]}</option>)}
               </select>
             </label>
+            </>}
           </div>
 
-          {skipped > 0 && visible.length > 0 && <p className="muted small-print queue-note">The {skipped} shown above aren't repeated here.</p>}
+          {skipped > 0 && visible.length > 0 && <p className="muted small-print queue-note">{skipped} more {skipped === 1 ? "is" : "are"} in the rows above.</p>}
           {visible.length ? (
             <>
               <div className="grid" ref={gridRef}>
@@ -418,10 +424,27 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
             </>
           ) : skipped > 0 ? (
             <p className="empty">Everything here is in the rows above.</p>
+          ) : searching && !matches.length ? (
+            // A search that finds nothing saved is often a title to save: look for it, or add it.
+            <div className="queue-no-match">
+              <p className="empty">Nothing in your queue matches “{query.trim()}”.</p>
+              <div className="button-row">
+                <button type="button" className="button button-ink" onClick={() => goDiscover({ search: query.trim() })}><Icon name="search" size={16} /> Search Discover for “{query.trim()}”</button>
+                {!adding && <button type="button" className="button button-quiet" onClick={() => setAdding(true)}><Icon name="plus" size={16} /> Add it by hand</button>}
+              </div>
+              {adding && <AddByHand key={query} initialTitle={query.trim()} onDone={() => setAdding(false)} onOpen={onOpen} />}
+            </div>
           ) : (
-            <p className="empty">
-              {query ? `Nothing in your queue matches “${query}”.` : "Nothing matches this filter."}
-            </p>
+            <p className="empty">Nothing matches this filter.</p>
+          )}
+
+          {watchedMatches.length > 0 && (
+            <div className="queue-watched-matches">
+              <h2 className="section-title">Watched <span className="count">{watchedMatches.length}</span></h2>
+              <div className="grid">
+                {watchedMatches.map((movie) => <TitleCard key={movie.id} movie={movie} onOpen={onOpen} />)}
+              </div>
+            </div>
           )}
         </div>
       </section>}

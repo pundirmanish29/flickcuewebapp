@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { syncErrorText } from "../lib/friendlyError";
 import { timeAgo } from "../components/AccountMenu";
 import { GoogleIcon, Icon } from "../components/Icon";
 import { PageHeader } from "../components/PageHeader";
@@ -134,7 +135,7 @@ function Account() {
                 <button type="button" className="button button-quiet" onClick={() => confirmHeldRemoval()}>Remove them</button>
               </div>
             </div>
-          ) : syncState.error && <p className="error">{syncState.error}</p>}
+          ) : syncState.error && <p className="error">{syncErrorText(syncState.error)}</p>}
           <div className="button-row">
             {syncState.status === "needs-auth" ? (
               <button type="button" className="button button-ink" onClick={() => void connect()}>Resume sync</button>
@@ -152,7 +153,7 @@ function Account() {
             Sign in with the Google account you use in the FlickCue extension or the Android app. Your list is kept in a private
             app folder in your own Google Drive. FlickCue can't see anything else in your Drive.
           </p>
-          {syncState.error && <p className="error">{syncState.error}</p>}
+          {syncState.error && <p className="error">{syncErrorText(syncState.error)}</p>}
           <button type="button" className="button button-ink" onClick={() => void connect()}><GoogleIcon /> Sign in with Google</button>
         </>
       )}
@@ -162,7 +163,7 @@ function Account() {
 
 function Appearance() {
   const { choice } = useTheme();
-  const options: [ThemeChoice, string][] = [["system", "Match device"], ["light", "Light"], ["dark", "Dark"]];
+  const options: [ThemeChoice, string][] = [["system", "Auto"], ["light", "Light"], ["dark", "Dark"]];
   return (
     <article className="card">
       <h2>Appearance</h2>
@@ -171,7 +172,7 @@ function Appearance() {
           <button key={value} type="button" aria-pressed={choice === value} onClick={() => chooseTheme(value)}>{label}</button>
         ))}
       </div>
-      <p className="muted small-print">You can also switch it from your profile menu.</p>
+      <p className="muted small-print">Auto follows your device's light or dark setting. Also in your profile menu.</p>
     </article>
   );
 }
@@ -403,7 +404,7 @@ function Letterboxd() {
           </div>
         </form>
       )}
-      {stats.linked > 0 && <p className="muted small-print">{stats.linked} titles in your list carry Letterboxd ratings, likes or reviews.</p>}
+      {stats.linked > 0 && <p className="muted small-print">{stats.linked} {stats.linked === 1 ? "title in your list carries" : "titles in your list carry"} Letterboxd ratings, likes or reviews.</p>}
     </article>
   );
 }

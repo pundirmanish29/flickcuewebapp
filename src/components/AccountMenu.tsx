@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { syncErrorText } from "../lib/friendlyError";
 import { getStoredToken } from "../lib/auth";
 import { letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import { connect, disconnect, sync, useAppState } from "../lib/store";
@@ -52,7 +53,7 @@ export function AccountMenu() {
   // Words below the profile only when there is something to do or understand.
   const note = expired
     ? "Google's sign-in lasts about an hour. Your changes are safe on this device."
-    : held ? `${state.error} Open Settings to decide.` : failed ? state.error || "Sync failed." : "";
+    : held ? `${state.error} Open Settings to decide.` : failed ? syncErrorText(state.error) || "Sync failed." : "";
   const viaExtension = getStoredToken()?.source === "extension";
   const lb = settings.letterboxd;
   const lbStats = letterboxdStats(library.movies);

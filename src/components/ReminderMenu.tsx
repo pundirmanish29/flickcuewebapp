@@ -28,14 +28,19 @@ export function ReminderChoices({
 
   return (
     <div className="reminder-choices">
+      {/* The quickest way out comes first: save it without a reminder, or clear the one that's set. */}
+      {onNone && <button type="button" className="chip-button ghost reminder-none" onClick={onNone}>{noneLabel ?? "No reminder"}</button>}
       {releaseDay && (
         <button type="button" className="chip-button" onClick={() => onPick(releaseDay)}>On release day</button>
       )}
+      {/* Tonight or tomorrow means nothing for something that isn't out yet: release day, or a date, instead. */}
+      {!releaseDay && (
         <>
           <button type="button" className="chip-button" onClick={() => onPick(tonightReminder())}>Tonight</button>
           <button type="button" className="chip-button" onClick={() => onPick(tomorrowReminder())}>Tomorrow</button>
           <button type="button" className="chip-button" onClick={() => onPick(weekendReminder())}>This weekend</button>
         </>
+      )}
       <form
         className="reminder-custom"
         onSubmit={(event) => {
@@ -47,7 +52,6 @@ export function ReminderChoices({
         <input type="datetime-local" value={custom} min={toInputValue(Date.now())} onChange={(event) => setCustom(event.target.value)} aria-label="Remind me at" />
         <button type="submit" className="chip-button">Set</button>
       </form>
-      {onNone && <button type="button" className="chip-button ghost" onClick={onNone}>{noneLabel ?? "No reminder"}</button>}
     </div>
   );
 }

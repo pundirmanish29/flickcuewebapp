@@ -813,6 +813,10 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 }
 
 .empty { padding: 48px 0; color: var(--ink-soft); font-size: 17px; }
+.queue-no-match .empty { padding-bottom: 16px; }
+.queue-no-match .button-row { margin-bottom: 24px; }
+.queue-watched-matches { margin-top: var(--space-xl); }
+.queue-watched-matches .section-title { margin-bottom: 20px; }
 /* A page with nothing on it yet (components/EmptyStart.tsx): the serif line says so, the sentence says what it's for, the buttons fill it. */
 .empty-start { max-width: 40rem; padding: clamp(36px, 7vw, 80px) 0 clamp(28px, 5vw, 56px); }
 .empty-start-lead { margin: 0; color: var(--ink-soft); font-size: clamp(1.125rem, 1rem + 0.6vw, 1.375rem); line-height: 1.45; text-wrap: pretty; }
@@ -1200,7 +1204,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .linked-row svg { color: var(--muted); vertical-align: -1px; }
 .linked-actions { margin: 0 0 12px; font-size: 14px; color: var(--muted); }
 .about-links { list-style: none; margin: 12px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; font-weight: 600; }
-.about-links a { color: var(--ink); }
+.about-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); }
+.about-links { row-gap: 0; }
 .about-links svg { vertical-align: -1px; color: var(--muted); }
 .card { padding: clamp(20px, 2.4vw, 32px); border-radius: var(--r-l); background: var(--paper-surface); border: 1px solid var(--rule); }
 .card h2 { margin: 0 0 var(--space-xs); font-size: var(--step-1); font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; }
@@ -1281,7 +1286,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tp-stub-label { margin: 0; color: var(--stub-tone); font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
 .tp-summary { display: none; }
 .tp-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; margin: 0; }
-.tp-fields dt { color: var(--stub-muted); font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; }
+.tp-fields dt { color: var(--stub-muted); font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; }
 .tp-fields dd { margin: 3px 0 0; font-size: 16px; font-weight: 800; line-height: 1.25; letter-spacing: -0.01em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .tp-stub .on-calendar { display: flex; align-items: center; gap: 6px; margin: -4px 0 0; color: var(--stub-muted); font-size: 13px; font-weight: 600; }
 .tp-button {
@@ -1297,6 +1302,11 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tp-button.on { border-color: var(--lime); background: var(--lime); color: var(--on-accent); }
 .tp-button-danger:hover { border-color: var(--stub-orange); color: var(--stub-orange); }
 .tp-secondary { display: flex; flex-wrap: wrap; gap: 8px; }
+/* "Mark all of it watched?": asked in the stub, under the button that asked. */
+.tp-confirm { display: grid; gap: 10px; padding: 12px; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--stub-line); }
+.tp-confirm p { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; }
+.tp-confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tp-confirm-actions .tp-button { min-height: 44px; }
 /* A show you're watching (components/ShowProgress.tsx): how far through the series, and the episode to watch next. */
 .tp-series { display: grid; gap: 7px; }
 .tp-series-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
@@ -1351,12 +1361,24 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .ep-name { font-size: 15px; line-height: 1.3; }
 .ep-card.is-done .ep-name { color: var(--ink-soft); font-weight: 600; }
 .ep-card.is-unaired .ep-name { color: var(--muted); }
-.ep-card .ep-dismiss { align-self: flex-start; min-height: 0; margin-top: 2px; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.ep-card .ep-dismiss { align-self: flex-start; display: inline-flex; align-items: center; min-height: 44px; margin-top: -6px; margin-bottom: -10px; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .ep-strip + .seasons-head { margin-top: 36px; }
 .tp-secondary .tp-button { flex: 1 1 auto; }
 .tp-stub :focus-visible { outline-color: var(--paper); }
 /* The reminder choices are page content, set on the page's own colours inside the stub. */
 .tp-choices { padding: 14px; border-radius: 16px; background: var(--paper-surface); color: var(--ink); }
+.tp-choices-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tp-choices-head .popover-label { margin: 0; }
+.tp-choices-close { display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -10px -10px 0; border: 0; border-radius: 50%; background: none; color: var(--ink-soft); cursor: pointer; }
+.tp-choices-close:hover { color: var(--ink); background: var(--paper-deep); }
+.tp-choices .reminder-choices { margin-top: 10px; }
+/* On a phone the choices rise as a sheet over the page, above everything else at the bottom. */
+.tp-sheet.is-sheet { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.tp-sheet-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); animation: fade-in 180ms var(--ease-out); }
+.tp-sheet.is-sheet .tp-choices { position: relative; max-height: 80svh; overflow-y: auto; padding: 16px 16px 18px; border-radius: 24px; box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35); animation: sheet-up 260ms var(--ease-out); }
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .tp-sheet-scrim, .tp-sheet.is-sheet .tp-choices { animation: none; } }
 .tp-bar { display: none; }
 
 @media (min-width: 901px) {
@@ -1399,6 +1421,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
   .tp-stub-body { gap: 14px; padding: 0; }
   .tp-stub-label { margin-bottom: -8px; }
   .tp-summary { display: block; margin: 0; font-size: 18px; font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .tp-summary-sub { margin-top: -10px; color: var(--ink-soft); font-size: 15px; font-weight: 600; }
   .tp-stub .tp-button-primary { border-color: var(--ink); background: var(--ink); color: var(--paper); }
   .tp-stub .tp-button-primary:hover { background: color-mix(in srgb, var(--ink) 88%, var(--paper)); }
   .tp-stub :focus-visible { outline-color: var(--ink); }
@@ -1512,6 +1535,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 /* Critics: a red tomato; audience: an amber popcorn tub. Colour carries them at this size. */
 .score-critics svg { color: #fa320a; fill: currentColor; }
 .score-audience svg { color: #f5a623; }
+.score-link { color: inherit; text-decoration: none; border-radius: 6px; }
+.score-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 600px) { .score-link { position: relative; } .score-link::after { content: ""; position: absolute; inset: -12px -6px; } }
 .imdb-mark { padding: 1px 4px; border-radius: 3px; background: #f5c518; color: #000; font-size: 11px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.3; }
 .sheet-status { margin: 8px 0 0; font-weight: 600; }
 .sheet-status-sub { font-weight: 500; font-size: 0.85em; color: var(--ink-soft); }
@@ -1564,7 +1590,9 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .ticket-where { font-weight: 600; }
 .ticket-seats { color: var(--ink-soft); font-size: 14px; }
 /* On a wide screen the stub beside it already lists the show, cinema and seats; the panel keeps only the rest. */
-@media (min-width: 901px) { .tp-body .ticket-card-head { display: none; } .tp-body .ticket-card > p:first-of-type { margin-top: 0; } }
+/* The stub lists the show, cinema and seats (on a phone too, in its summary); the panel keeps only the rest. */
+.tp-body .ticket-card-head { display: none; }
+.tp-body .ticket-card > p:first-of-type { margin-top: 0; }
 .ticket-confirm { flex-basis: 100%; margin: 0; font-weight: 600; }
 .ticket-id { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 14px; color: var(--ink-soft); }
 .ticket-id code { padding: 2px 8px; border-radius: 6px; background: var(--paper-deep, rgba(0,0,0,.05)); color: var(--ink); font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em; }
@@ -2063,8 +2091,9 @@ html[data-direction] ::view-transition-new(root) { animation: vt-in 160ms ease-o
 body:has(.popover[aria-modal="true"]) .dock { visibility: hidden; }
 .rail .tonight-list { margin-bottom: 20px; }
 @media (max-width: 600px) {
- .cinema-shelf-head:has(.cinema-shelf-title .segmented) { display: grid; grid-template-columns: 1fr; gap: 8px; }
- .cinema-shelf-head:has(.cinema-shelf-title .segmented) .shelf-tools { justify-content: flex-end; }
+ /* The cinema toggle and See all share a row when they fit (they do at 360px), and wrap rather than leave a gap. */
+ .cinema-shelf-head:has(.cinema-shelf-title .segmented) { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+ .cinema-shelf-head:has(.cinema-shelf-title .segmented) .shelf-tools { margin-left: auto; }
  .cinema-shelf-title .segmented button { white-space: nowrap; padding-inline: 16px; }
  .tonight-actions { flex-wrap: wrap; }
  .tonight-actions .button-green { flex-basis: 100%; }

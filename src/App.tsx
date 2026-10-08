@@ -195,6 +195,8 @@ export default function App() {
   const [query, setQuery] = useState("");
   // A search typed on a page with nothing to filter, kept through the move to the queue.
   const carryQuery = useRef<string | null>(null);
+  // Set while a search closes the open title, so the next keystrokes don't go back a second time.
+  const leavingTitle = useRef(false);
   const searchInput = useRef<HTMLInputElement>(null);
   // On phones search is an icon until tapped; with text in it, it stays open.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -211,10 +213,15 @@ export default function App() {
   const connecting = (!sync.connected && sync.status === "connecting")
     || (sync.connected && sync.lastSyncAt === 0 && (sync.status === "idle" || sync.status === "syncing"));
   const route = !sync.connected && !connecting && AUTHENTICATED_ROUTES.has(requestedRoute.route) ? "queue" : requestedRoute.route;
+  const routeNow = useRef(route);
+  routeNow.current = route;
   // Signed out, only titles in the list kept on this device can open.
   const titleWaitsForSignIn = Boolean(requestedRoute.titleId) && !sync.connected && !connecting
     && !library.movies.some((movie) => movie.id === requestedRoute.titleId);
   const titleId = titleWaitsForSignIn ? "" : requestedRoute.titleId;
+  useEffect(() => {
+    if (!titleId) leavingTitle.current = false;
+  }, [titleId]);
 
   useEffect(() => startBackgroundSync(), []);
 
@@ -268,6 +275,8 @@ export default function App() {
   // A genre tapped there opens Discover's genre, so any search is cleared.
   useEffect(() => onIntent(() => {
     const search = takeIntent("search");
+    // If the move to Discover hasn't landed yet, its reset would clear this: hand it over to be kept through it.
+    if (search && routeNow.current !== "discover") carryQuery.current = search;
     if (search) setQuery(search);
     else if (hasIntent("genre")) {
       setQuery("");
@@ -277,7 +286,8 @@ export default function App() {
 
   useEffect(() => {
     sessionStorage.setItem("flickcue.lastRoute", route);
-    const carried = carryQuery.current;
+    // A search typed elsewhere (Settings, a title) or asked for ("Search Discover for …") survives the move.
+    const carried = carryQuery.current ?? takeIntent("search") ?? null;
     carryQuery.current = null;
     setQuery(carried ?? "");
     setSearchOpen(Boolean(carried));
@@ -368,6 +378,10 @@ export default function App() {
                   if (!SEARCHABLE.has(route) && event.target.value) {
                     carryQuery.current = event.target.value;
                     location.hash = "#/";
+                  } else if (titleId && event.target.value && !leavingTitle.current) {
+                    // A title is open over the page the search filters: close it (once) so the results show.
+                    leavingTitle.current = true;
+                    leaveTitle(`#/${route === "queue" ? "" : route}`);
                   }
                   setQuery(event.target.value);
                 }}
