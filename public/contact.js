@@ -93,6 +93,8 @@
     script.onload = function () {
       widget = window.turnstile.render(captchaBox, {
         sitekey: SITE_KEY,
+        // Fills the form's width down to a narrow phone's, instead of a fixed 300px that overflows its card.
+        size: "flexible",
         callback: function (value) { token = value; captchaBroken = false; },
         "expired-callback": function () { token = ""; },
         "error-callback": function () { token = ""; captchaBroken = true; }
