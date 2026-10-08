@@ -156,5 +156,15 @@
     input("name").focus();
   });
 
+  // A link from the site (the title page's "Wrong link?") can fill the subject and message in; it only fills them
+  // in, as text: the person reads it, adds to it and sends it.
+  var prefill = new URLSearchParams(location.search);
+  if (prefill.get("subject")) input("subject").value = line(prefill.get("subject")).slice(0, LIMITS.subject);
+  if (prefill.get("message")) {
+    input("message").value = prefill.get("message").replace(/\r\n?/g, "\n").slice(0, LIMITS.message);
+    input("message").focus();
+    input("message").setSelectionRange(input("message").value.length, input("message").value.length);
+  }
+
   count();
 })();
