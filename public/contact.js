@@ -17,6 +17,15 @@
   var fields = ["name", "email", "subject", "message"];
   if (!form || !banner || !done || !send) return;
 
+  // Cloudflare Turnstile, when the page has a site key (data-turnstile-sitekey on the form): a check that is
+  // usually invisible. Without a key nothing is loaded and nothing is asked for.
+  var SITE_KEY = form.getAttribute("data-turnstile-sitekey") || "";
+  var captchaBox = document.getElementById("captcha");
+  var captchaOn = Boolean(SITE_KEY && captchaBox);
+  var token = "";
+  var widget = null;
+  var captchaBroken = false;
+
   var input = function (name) { return document.getElementById(name); };
   var line = function (text) { return String(text || "").replace(/[\r\n]+/g, " ").replace(/\s{2,}/g, " ").trim(); };
 
@@ -75,6 +84,33 @@
     return span;
   }
 
+  function startCaptcha() {
+    if (!captchaOn) return;
+    captchaBox.hidden = false;
+    var script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.onload = function () {
+      widget = window.turnstile.render(captchaBox, {
+        sitekey: SITE_KEY,
+        callback: function (value) { token = value; captchaBroken = false; },
+        "expired-callback": function () { token = ""; },
+        "error-callback": function () { token = ""; captchaBroken = true; }
+      });
+    };
+    script.onerror = function () {
+      captchaBroken = true;
+      say(emailLink("The spam check couldn't load (a content blocker can stop it). You can email us at"));
+    };
+    document.head.append(script);
+  }
+
+  // A token works once: after any answer, the check starts again.
+  function resetCaptcha() {
+    token = "";
+    if (widget !== null && window.turnstile) window.turnstile.reset(widget);
+  }
+
   function count() {
     var length = input("message").value.length;
     counter.textContent = length.toLocaleString("en-US") + " / 3,000";
@@ -105,6 +141,13 @@
       return;
     }
 
+    if (captchaOn && !token) {
+      say(captchaBroken ? emailLink("The spam check isn't working. You can email us at") : "Please wait a moment for the check to finish, then send again.");
+      banner.focus();
+      return;
+    }
+
+    if (captchaOn) values["cf-turnstile-response"] = token;
     send.disabled = true;
     send.textContent = "Sending…";
     var controller = new AbortController();
@@ -120,12 +163,19 @@
       })
       .then(function (result) {
         if (result.status === 200 && result.data.ok) {
+          resetCaptcha();
           form.reset();
           count();
           show({});
           form.style.display = "none";
           done.classList.add("show");
           done.focus();
+          return;
+        }
+        resetCaptcha();
+        if (result.status === 400 && result.data.captcha) {
+          say("The check didn't pass. Please try once more.");
+          banner.focus();
           return;
         }
         if (result.status === 400 && result.data.fields) {
@@ -139,6 +189,7 @@
         banner.focus();
       })
       .catch(function () {
+        resetCaptcha();
         say(emailLink("Couldn't reach FlickCue. Check your connection, or email us at"));
         banner.focus();
       })
@@ -167,4 +218,5 @@
   }
 
   count();
+  startCaptcha();
 })();
