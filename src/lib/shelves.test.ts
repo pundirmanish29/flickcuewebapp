@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { comingSoonReason, daysSinceRelease, hiddenGemReason, providerReason, providersFor, talkOfTheTownReason } from "./shelves";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { browseStream, comingSoonReason, daysSinceRelease, hiddenGemReason, providerReason, providersFor, talkOfTheTownReason } from "./shelves";
 import type { Candidate } from "./types";
 
 const NOW = new Date(2026, 8, 30, 12, 0).getTime();
@@ -49,5 +49,27 @@ describe("shelf reasons", () => {
     expect(providersFor("IN").map((item) => item.name)).toContain("JioHotstar");
     expect(providersFor("US").map((item) => item.name)).toContain("Disney+");
     expect(providersFor("US").map((item) => item.name)).not.toContain("JioHotstar");
+  });
+});
+
+describe("a streaming list when the title service fails", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const page = (results: unknown[]) => new Response(JSON.stringify({ results, total_pages: 1 }));
+  const film = { id: 1, title: "A Film", poster_path: "/a.jpg", release_date: "2026-01-01", vote_average: 7 };
+
+  it("reports the failure when every request fails, instead of an empty list", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("offline"); }));
+    await expect(browseStream({ id: "free", label: "Free" }, "IN", "all")).rejects.toThrow(/Couldn't reach/);
+  });
+
+  it("keeps what loaded when only one kind fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => (String(url).includes("discover/movie") ? page([film]) : new Response("{}", { status: 500 }))));
+    const { items } = await browseStream({ id: "free", label: "Free" }, "IN", "all");
+    expect(items.map((item) => item.title)).toEqual(["A Film (2026)"]);
+  });
+
+  it("is a real empty list when the service answers with nothing", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => page([])));
+    expect((await browseStream({ id: "free", label: "Free" }, "IN", "all")).items).toEqual([]);
   });
 });
