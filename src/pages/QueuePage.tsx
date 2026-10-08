@@ -18,6 +18,7 @@ import { goDiscover } from "../lib/discoverIntent";
 import { EXTENSION_URL, FIREFOX_EXTENSION_URL } from "../lib/config";
 import { fetchDetails, fetchSharpBackdrop, findBackdropByName, upscale } from "../lib/tmdb";
 import { safeImage } from "../lib/safe";
+import { currentScreen, wantsSharpPicture } from "../lib/sharpScreen";
 import { appLink, splitChannel } from "../lib/providers";
 import { pop, useSwap } from "../lib/motion";
 import { useShowScheduleRefresh } from "../lib/showSync";
@@ -29,11 +30,19 @@ import type { KindFilter, Movie, SortMode } from "../lib/types";
 // so people who are signed in never download them.
 const Landing = lazy(() => import("../components/Landing").then((module) => ({ default: module.Landing })));
 
-/** A big screen, or a sharp one, on a connection that isn't saving data: worth fetching the original-size picture. */
-function wantsSharpPicture() {
-  const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-  if (connection?.saveData || /^(slow-2g|2g|3g)$/.test(connection?.effectiveType ?? "")) return false;
-  return Math.min(window.devicePixelRatio || 1, 2) * window.innerWidth > 1400;
+/** A title page open on top of this one (the page underneath stays mounted): its backdrop isn't worth a big download. */
+function useCoveredByTitle() {
+  const [covered, setCovered] = useState(() => location.hash.startsWith("#/title/"));
+  useEffect(() => {
+    const update = () => setCovered(location.hash.startsWith("#/title/"));
+    window.addEventListener("hashchange", update);
+    window.addEventListener("popstate", update);
+    return () => {
+      window.removeEventListener("hashchange", update);
+      window.removeEventListener("popstate", update);
+    };
+  }, []);
+  return covered;
 }
 
 /**
@@ -46,9 +55,10 @@ function Backdrop({ src, movie }: { src: string; movie: Movie }) {
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   const [sharp, setSharp] = useState("");
   const [sharpReady, setSharpReady] = useState(false);
+  const covered = useCoveredByTitle();
 
   useEffect(() => {
-    if (state !== "ready" || !wantsSharpPicture()) return;
+    if (state !== "ready" || !wantsSharpPicture(currentScreen(covered))) return;
     let live = true;
     fetchSharpBackdrop(movie).then((url) => {
       // Where the title service can't say, the saved picture's own original is the next best thing.
@@ -58,7 +68,7 @@ function Backdrop({ src, movie }: { src: string; movie: Movie }) {
     return () => {
       live = false;
     };
-  }, [state, movie.tmdbId, movie.tmdbType, src]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state, covered, movie.tmdbId, movie.tmdbType, src]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (state === "failed") return null;
   return (
