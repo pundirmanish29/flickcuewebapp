@@ -76,4 +76,16 @@ describe("the episode up next", () => {
   it("leaves shows that aren't being followed alone", () => {
     expect(upNextEpisode(show({ personal: {} }), last, next, [])).toBeNull();
   });
+
+  it("catches up through a season numbered through the whole run", () => {
+    // One Piece: season 23 is episodes 1156-1180; the latest is 1180.
+    const onePiece = (episodes: string[]) => show({
+      seasons: [{ number: 21, episodes: 600 }, { number: 22, episodes: 555 }, { number: 23, episodes: 25 }],
+      personal: { status: "watching", episodes }
+    });
+    const latest = { season: 23, episode: 1180, name: "Elbaph in Despair", date: isoDate(-3) };
+    expect(upNextEpisode(onePiece(["23:1170"]), latest, null, [])).toMatchObject({ season: 23, episode: 1171, state: "next" });
+    expect(upNextEpisode(onePiece(["22:1155"]), latest, null, [])).toMatchObject({ season: 23, episode: 1156, state: "next" });
+    expect(upNextEpisode(onePiece(["23:1179"]), latest, null, [])).toMatchObject({ episode: 1180, state: "new" });
+  });
 });

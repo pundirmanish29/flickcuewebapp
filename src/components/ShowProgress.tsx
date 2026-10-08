@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
-import { episodesAired, formatRuntime, localIsoDate } from "../lib/rules";
+import { episodesAired, formatRuntime, localIsoDate, readerDate } from "../lib/rules";
 import { safeImage } from "../lib/safe";
 import { fetchEpisode, fetchSeason, type EpisodeInfo, type SeasonEpisode } from "../lib/tmdb";
 import type { UpNext } from "../lib/newEpisode";
@@ -11,12 +11,15 @@ import { ScrollArrows } from "./ScrollArrows";
 const realName = (name: string | undefined, episode: number) => (name && !/^episode \d+$/i.test(name) ? name : `Episode ${episode}`);
 
 /**
- * In a show's stub: the episode to watch next, with its still, name and length,
- * and a tick to mark it watched (left out when the stub's main button already does).
+ * In a show's stub: the episode to watch next, its still across the stub with
+ * a tag ("New · Episode 1180") and a tick to mark it watched (left out when the
+ * stub's main button already does), then its name and length under it.
  */
-export function UpNextRow({ tmdbId, air, fallbackImage = "", onWatched, tick }: {
+export function UpNextRow({ tmdbId, air, code, fallbackImage = "", onWatched, tick }: {
   tmdbId: string | undefined;
   air: UpNext;
+  /** "S1 E4", or "Episode 1180" for a show numbered through its whole run. */
+  code: string;
   fallbackImage?: string;
   onWatched: () => void;
   tick: boolean;
@@ -32,36 +35,44 @@ export function UpNextRow({ tmdbId, air, fallbackImage = "", onWatched, tick }: 
   }, [tmdbId, air.season, air.episode]);
 
   const still = safeImage(info?.still) || (info ? safeImage(fallbackImage) : "");
-  const code = `S${air.season} E${air.episode}`;
+  const aired = info?.airDate || air.date;
+  const meta = [
+    info?.runtimeMinutes ? formatRuntime(info.runtimeMinutes) : "",
+    aired ? `Aired ${new Date(`${readerDate(aired)}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""
+  ].filter(Boolean).join(" · ");
   return (
     <div className="tp-upnext">
-      <span className="tp-upnext-tag">{air.state === "new" ? "New" : "Up next"} · {code}</span>
       <div className={`tp-upnext-still ${still && !stillFailed ? "" : "is-empty"}`}>
         {still && !stillFailed && <img src={still} alt="" loading="lazy" decoding="async" onError={() => setStillFailed(true)} />}
+        <span className="tp-upnext-tag">{air.state === "new" ? "New" : "Up next"} · {code}</span>
+        {tick && (
+          <button type="button" className="tp-upnext-tick" onClick={onWatched} aria-label={`Mark ${code} watched`} title="Mark watched">
+            <Icon name="check" size={20} />
+          </button>
+        )}
       </div>
       <div className="tp-upnext-text">
         <b>{realName(info?.name || air.name, air.episode)}</b>
-        {info?.runtimeMinutes ? <span className="tp-upnext-meta">{formatRuntime(info.runtimeMinutes)}</span> : null}
+        {meta && <span className="tp-upnext-meta">{meta}</span>}
       </div>
-      {tick && (
-        <button type="button" className="tp-upnext-tick" onClick={onWatched} aria-label={`Mark ${code} watched`} title="Mark watched">
-          <Icon name="check" size={20} />
-        </button>
-      )}
     </div>
   );
 }
 
-/** How far through the whole show you are: "3 of 16 · 19%", with a thin bar. */
-export function SeriesProgress({ seen, total }: { seen: number; total: number }) {
+/**
+ * How far through you are: "3 of 16 · 19%", with a thin bar. A very long show
+ * counts the season you're in instead ("This season · Elbaph"), since 20 of
+ * 1,180 says nothing.
+ */
+export function SeriesProgress({ seen, total, label = "Series progress" }: { seen: number; total: number; label?: string }) {
   const percent = Math.min(100, Math.round((seen / total) * 100));
   return (
     <div className="tp-series">
       <div className="tp-series-head">
-        <span>Series progress</span>
+        <span>{label}</span>
         <b>{seen} of {total} · {percent}%</b>
       </div>
-      <div className="tp-series-bar" role="progressbar" aria-label="Series progress" aria-valuemin={0} aria-valuemax={total} aria-valuenow={seen} aria-valuetext={`${seen} of ${total} episodes watched`}>
+      <div className="tp-series-bar" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={total} aria-valuenow={seen} aria-valuetext={`${seen} of ${total} episodes watched`}>
         <span style={{ width: `${percent}%` }} />
       </div>
     </div>
@@ -69,14 +80,19 @@ export function SeriesProgress({ seen, total }: { seen: number; total: number })
 }
 
 /**
- * The season you're in as a strip of stills: watched ones dimmed with a tick,
- * the next one outlined, the rest ready to tick. It opens at the next episode.
+ * A season as a strip of stills, headed by its number, episode range, name and
+ * how many you've watched, with a picker for the other seasons. Watched ones
+ * are dimmed with a tick, the next one outlined, the rest ready to tick. It
+ * opens at the next episode.
  */
-export function EpisodeStrip({ movie, season, seasonName, upNext, onDismiss }: {
+export function EpisodeStrip({ movie, season, seasonName, seasons = [], onSeason, upNext, onDismiss }: {
   movie: Movie;
   season: number;
   seasonName?: string;
-  /** The next episode's number in this season, outlined and scrolled to. */
+  /** Every season, for the picker. */
+  seasons?: { number: number; name?: string }[];
+  onSeason?: (season: number) => void;
+  /** The next episode's number in this season, outlined and scrolled to (0: none in this season). */
   upNext: number;
   /** "Not now" for a newly aired episode, as the up-next card had. */
   onDismiss?: () => void;
@@ -94,25 +110,46 @@ export function EpisodeStrip({ movie, season, seasonName, upNext, onDismiss }: {
     return () => { live = false; };
   }, [movie.tmdbId, season]);
 
-  // Open at the next episode, with one watched one before it for context.
+  // Open at the next episode, with one watched one before it for context; another season opens at its start.
   useLayoutEffect(() => {
     const list = row.current;
-    const next = list?.querySelector<HTMLElement>(".ep-card.is-next");
-    if (!list || !next) return;
-    const before = next.previousElementSibling as HTMLElement | null;
-    list.scrollLeft = Math.max(0, (before ?? next).offsetLeft - list.offsetLeft);
+    if (!list) return;
+    const next = list.querySelector<HTMLElement>(".ep-card.is-next");
+    const before = next?.previousElementSibling as HTMLElement | null;
+    list.scrollLeft = next ? Math.max(0, (before ?? next).offsetLeft - list.offsetLeft) : 0;
   }, [episodes, upNext]);
 
   if (failed) return null;
   const aired = episodes ? episodesAired(episodes, localIsoDate()) : [];
   const watched = episodes ? episodes.filter((episode) => seen.has(`${season}:${episode.number}`)).length : 0;
-  const label = seasonName && !/^season \d+$/i.test(seasonName) ? seasonName : `Season ${season}`;
+  const named = Boolean(seasonName && !/^season \d+$/i.test(seasonName));
+  const label = named ? seasonName! : `Season ${season}`;
+  const range = episodes?.length ? `Episodes ${episodes[0].number}–${episodes[episodes.length - 1].number}` : "";
+  const eyebrow = [named ? `Season ${season}` : "", range].filter(Boolean).join(" · ");
 
   return (
     <div className="ep-strip">
-      <div className="rail-head">
-        <h2 className="section-label">{label} {episodes && <span className="count">{watched} of {episodes.length} watched</span>}</h2>
-        <ScrollArrows target={row} label={`${label} episodes`} watch={episodes?.length} />
+      <div className="rail-head ep-strip-head">
+        <div>
+          {eyebrow && <p className="section-label">{eyebrow}</p>}
+          <h2 className="ep-strip-title">{label} {episodes && <span className="count">{watched} of {episodes.length} watched</span>}</h2>
+        </div>
+        <div className="ep-strip-tools">
+          {seasons.length > 1 && onSeason && (
+            <label className="season-pick">
+              <span className="visually-hidden">Season</span>
+              <select value={season} onChange={(event) => onSeason(Number(event.target.value))}>
+                {seasons.map((item) => (
+                  <option key={item.number} value={item.number}>
+                    {item.name && !/^season \d+$/i.test(item.name) ? `Season ${item.number} · ${item.name}` : `Season ${item.number}`}
+                  </option>
+                ))}
+              </select>
+              <Icon name="chevron" size={14} />
+            </label>
+          )}
+          <ScrollArrows target={row} label={`${label} episodes`} watch={episodes?.length} />
+        </div>
       </div>
       {!episodes ? (
         <div className="season-loading" aria-hidden="true"><span /><span /><span /></div>

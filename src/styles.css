@@ -1248,8 +1248,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tp-back:hover, .tp-play:hover { background: rgba(11, 13, 15, 0.9); }
 .tp-play-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85); }
 .tp-play-icon svg { margin-left: 2px; }
-.tp-hero.playing { height: auto; aspect-ratio: 16 / 9; max-height: 78vh; background-image: none !important; }
-.tp-hero.playing::after { display: none; }
 .tp-trailer { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
 .tp-layout { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr); }
@@ -1305,8 +1303,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tp-button-primary { width: 100%; min-height: 52px; border-color: var(--paper); background: var(--paper); color: var(--ink); font-size: 15px; }
 .tp-button-primary:hover { background: color-mix(in srgb, var(--paper) 88%, var(--ink)); }
 .tp-button.on { border-color: var(--lime); background: var(--lime); color: var(--on-accent); }
-.tp-button-danger:hover { border-color: var(--stub-orange); color: var(--stub-orange); }
 .tp-secondary { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Mark all watched · Remove: quiet links under the buttons, a dot between them. */
+.tp-quiet { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: -4px; }
+.tp-quiet-link {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 10px; border: 0; background: none;
+  color: var(--stub-muted); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.tp-quiet-link + .tp-quiet-link::before { content: "·"; margin: 0 14px 0 -10px; color: var(--stub-line); }
+.tp-quiet-link:hover { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.tp-quiet-link.is-danger:hover { color: var(--stub-orange); }
+.tp-quiet-link[aria-expanded="true"] { color: inherit; }
 /* "Mark all of it watched?": asked in the stub, under the button that asked. */
 .tp-confirm { display: grid; gap: 10px; padding: 12px; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--stub-line); }
 .tp-confirm p { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; }
@@ -1319,30 +1326,42 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tp-series-head b { font-variant-numeric: tabular-nums; }
 .tp-series-bar { height: 6px; border-radius: 3px; background: color-mix(in srgb, currentColor 16%, transparent); overflow: hidden; }
 .tp-series-bar span { display: block; height: 100%; border-radius: inherit; background: var(--stub-tone); }
-/* Tag on its own line, then the still, the name and the tick side by side. */
-.tp-upnext {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "tag tag tag" "still text tick"; align-items: center; gap: 8px 12px;
-  padding: 10px 10px 12px; border-radius: 14px; background: color-mix(in srgb, currentColor 4%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent);
-}
-.tp-upnext-tag { grid-area: tag; }
-.tp-upnext-still { grid-area: still; }
-.tp-upnext-text { grid-area: text; }
-.tp-upnext-tick { grid-area: tick; }
-.tp-upnext-still { position: relative; flex: none; width: 96px; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: color-mix(in srgb, currentColor 12%, transparent); }
+/* The episode's still across the stub, its tag and tick on the picture, the name (two lines at most) and length under it. */
+.tp-upnext { display: grid; gap: 10px; }
+.tp-upnext-still { position: relative; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: color-mix(in srgb, currentColor 12%, transparent); }
 .tp-upnext-still img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.tp-upnext-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.tp-upnext-tag { color: var(--stub-tone); font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
-.tp-upnext-text b { font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
-.tp-upnext-meta { color: color-mix(in srgb, var(--stub-muted) 70%, currentColor); font-size: 12px; }
+.tp-upnext-tag { position: absolute; left: 10px; top: 10px; padding: 4px 9px; border-radius: 7px; background: rgba(11, 13, 15, 0.82); color: var(--blue); font-size: 12px; font-weight: 700; line-height: 1.3; }
+.tp-upnext-text { display: grid; gap: 2px; min-width: 0; }
+.tp-upnext-text b { font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tp-upnext-meta { color: var(--stub-muted); font-size: 13px; }
 .tp-upnext-tick {
-  flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
-  border: 1.5px solid currentColor; background: none; color: inherit; cursor: pointer; transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+  position: absolute; right: 10px; bottom: 10px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
+  border: 2px solid rgba(244, 241, 232, 0.9); background: rgba(11, 13, 15, 0.55); color: #f4f1e8; cursor: pointer;
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease, color var(--dur-fast) ease;
 }
 .tp-upnext-tick:hover { background: var(--green); border-color: var(--green); color: var(--on-accent); }
 .tp-upnext-tick:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
 /* This season's episodes as a strip of stills, opening at the next one. */
-.ep-strip .rail-head { margin-bottom: 14px; }
-.ep-strip .section-label { margin: 0; display: flex; align-items: baseline; gap: 10px; }
+/* The season's heading: number and episode range, its name and your progress, then a picker for the other seasons and the arrows. */
+.ep-strip .rail-head { margin-bottom: 16px; align-items: flex-end; }
+.ep-strip .section-label { margin: 0 0 6px; }
+.ep-strip-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-size: clamp(22px, 1.4rem + 0.5vw, 30px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+.ep-strip-title .count { font-family: inherit; font-size: 14px; font-weight: 500; letter-spacing: 0; }
+.ep-strip-tools { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.season-pick { position: relative; display: inline-flex; align-items: center; }
+.season-pick select {
+  appearance: none; height: 40px; max-width: 240px; padding: 0 34px 0 14px; border-radius: 999px; border: 1px solid var(--rule);
+  background: var(--paper-surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; text-overflow: ellipsis; cursor: pointer;
+}
+.season-pick select:hover { border-color: var(--ink); }
+.season-pick svg { position: absolute; right: 12px; pointer-events: none; }
+/* On a phone the heading takes the full width and the picker sits under it. */
+@media (max-width: 600px) {
+  .ep-strip .rail-head { flex-direction: column; align-items: stretch; gap: 12px; }
+  .ep-strip-tools { justify-content: space-between; }
+  .season-pick { flex: 1; min-width: 0; }
+  .season-pick select { width: 100%; max-width: none; }
+}
 .ep-row { list-style: none; margin: 0; padding: 4px 4px 8px; display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
 .ep-row::-webkit-scrollbar { display: none; }
 .ep-card { flex: none; width: clamp(168px, 16vw, 208px); display: flex; flex-direction: column; gap: 4px; scroll-snap-align: start; }
@@ -1363,7 +1382,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .ep-tick:disabled { cursor: default; opacity: 0.45; }
 .ep-tick:focus-visible { outline: 2px solid var(--lime); outline-offset: -4px; border-radius: 50%; }
 .ep-meta { margin: 0; color: var(--muted); font-family: var(--font-mono); font-size: 12px; }
-.ep-name { font-size: 15px; line-height: 1.3; }
+.ep-name { font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ep-card.is-done .ep-name { color: var(--ink-soft); font-weight: 600; }
 .ep-card.is-unaired .ep-name { color: var(--muted); }
 .ep-card .ep-dismiss { align-self: flex-start; display: inline-flex; align-items: center; min-height: 44px; margin-top: -6px; margin-bottom: -10px; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
@@ -1394,15 +1413,19 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
   /* The stub stays in view while the details scroll; one taller than the window keeps its buttons on screen. */
   /* Its top lines up with the first line of the details beside it (.tp-head's padding). */
   .tp-stub { margin-top: 36px; grid-column: 1; grid-row: 1 / span 2; align-self: start; position: sticky; top: min(calc(var(--header) + 16px), calc(100vh - var(--stub-h, 0px) - 16px)); }
-  /* On a short window the poster gives up height (never below 180px) so the whole stub fits under the header; --stub-rest is the rest of the stub. */
-  .tp-poster-stub { max-height: max(180px, calc(100vh - var(--header) - 32px - var(--stub-rest, 0px))); object-position: 50% 20%; }
-  /* Under the main button: two to a row, the odd one out across both, and Remove as a quiet link below them. */
+  /* Stuck under the header on a short window, the poster gives up height (down to 140px, else it steps aside) so the whole stub fits; --stub-rest is the rest of the stub. */
+  .tp-stub.is-stuck .tp-poster-stub { max-height: max(140px, calc(100vh - var(--header) - 32px - var(--stub-rest, 0px))); }
+  /* Shrunk, the poster stays whole (its logo is often at the foot) and narrows, centred on a blur of itself. */
+  img.tp-poster-stub { width: auto; max-width: 100%; margin: 0 auto; }
+  .tp-stub-frame { position: relative; border-radius: 12px; overflow: hidden; background: var(--paper-deep); }
+  .tp-stub-frame::before { content: ""; position: absolute; inset: -24px; background: var(--art) center / cover no-repeat; filter: blur(18px) saturate(1.1); opacity: 0.7; }
+  .tp-stub-frame .tp-poster-stub { position: relative; }
+  .tp-stub.is-artless .tp-stub-art, .tp-stub.is-artless .tp-perf { display: none; }
+  .tp-stub.is-artless .tp-stub-body { padding-top: 20px; }
+  /* Under the main button: two to a row, the odd one out across both. */
   .tp-stub .tp-secondary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tp-stub .tp-secondary .tp-button { gap: 6px; padding: 0 8px; white-space: nowrap; }
-  .tp-stub .tp-secondary .tp-button:only-child,
-  .tp-stub .tp-secondary .tp-button:not(.tp-button-danger):nth-child(odd):nth-last-child(2) { grid-column: 1 / -1; }
-  .tp-stub .tp-secondary .tp-button-danger { grid-column: 1 / -1; justify-self: center; min-height: 40px; padding: 0 12px; border-color: transparent; color: var(--stub-muted); }
-  .tp-stub .tp-secondary .tp-button-danger:hover { border-color: transparent; color: var(--stub-orange); }
+  .tp-stub .tp-secondary .tp-button:nth-child(odd):last-child { grid-column: 1 / -1; }
   .tp-body { grid-column: 2; grid-row: 2; }
   html[data-opening] .tp-poster-stub { view-transition-name: title-poster; }
 }
@@ -1419,6 +1442,10 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
   .tp-facts { font-size: 13px; }
   .tp-head .watch-on { height: 38px; margin-top: 10px; font-size: 12px; padding-left: 12px; }
   .tp-head .watch-on img, .tp-head .watch-on b { width: 28px; height: 28px; }
+  .watch-cards { margin-top: 12px; }
+  .watch-card { min-height: 48px; padding: 6px 12px 6px 6px; gap: 10px; }
+  .watch-card img, .watch-card b { width: 32px; height: 32px; border-radius: 8px; }
+  .watch-card .watch-name { font-size: 14px; }
   /* Back and Trailer as round icons: the header already names the page. */
   .tp-back, .tp-play { width: 44px; padding: 0; justify-content: center; }
   .tp-play-icon { width: 30px; height: 30px; box-shadow: none; }
@@ -1447,7 +1474,6 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
   .tp-stub .tp-secondary .tp-button svg { width: 22px; height: 22px; }
   .tp-stub .tp-secondary .tp-button.on { background: none; color: var(--ink); }
   .tp-stub .tp-secondary .tp-button.on svg { padding: 5px; box-sizing: content-box; margin: -5px; border-radius: 50%; background: var(--lime); color: var(--on-accent); }
-  .tp-stub .tp-secondary .tp-button-danger:hover { color: var(--page-orange); }
   .tp-stub .on-calendar { margin-top: -6px; }
   html[data-opening] .tp-poster-head { view-transition-name: title-poster; }
   .tp-body .sheet-section { margin-top: 40px; }
@@ -1490,6 +1516,20 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
 .watch-on em { font-style: normal; font-size: 13px; font-weight: 700; padding: 0 2px; }
 .watch-on > svg:last-child { margin-right: 8px; opacity: 0.8; }
 .watch-on-wrap { position: relative; }
+/* Two or three services: a card each, so nothing hides behind a menu. */
+.watch-cards { margin-top: 18px; }
+.watch-cards .section-label { margin-bottom: 10px; }
+.watch-cards ul { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.watch-card {
+  display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 16px 8px 8px; border-radius: 16px;
+  background: color-mix(in srgb, var(--paper-deep) 80%, transparent); box-shadow: inset 0 0 0 1px var(--rule);
+  color: var(--ink); text-decoration: none; transition: box-shadow 160ms ease;
+}
+.watch-card:hover { box-shadow: inset 0 0 0 1px var(--ink); }
+.watch-card img, .watch-card b { width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; object-fit: cover; display: grid; place-items: center; background: #fff; color: var(--on-accent); font-size: 11px; }
+.watch-card .watch-name { display: block; font-size: 15px; font-weight: 700; line-height: 1.2; }
+.watch-card .watch-name small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
+.watch-card > span > small { display: block; color: var(--ink-soft); font-size: 12.5px; }
 .watch-on-wrap { display: inline-block; }
 .watch-on-wrap .popover {
   left: 0; width: min(280px, calc(100vw - 32px)); max-height: min(400px, 60vh); overflow-y: auto; overscroll-behavior: contain;
@@ -1520,15 +1560,26 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
 .watch-name small { display: block; color: var(--muted); font-size: 11px; font-weight: 500; }
 .watch-list a > svg { color: var(--muted); flex-shrink: 0; transition: color 160ms ease, transform 160ms ease; }
 .watch-list a:hover > svg { color: var(--ink); transform: translate(1px, -1px); }
-.trailer-bar {
-  display: flex; align-items: center; gap: 8px; padding: 10px clamp(12px, 3vw, 24px);
-  background: var(--night); color: #fff; border-bottom: 1px solid var(--dark-line);
+/* The trailer: centred, at most 1120px wide and short enough to leave room for its row, over a dark blur of the backdrop. */
+.tp-theatre { --theatre-w: min(1120px, 100%, calc((100vh - var(--header) - 120px) * 16 / 9)); position: relative; overflow: hidden; padding: 24px var(--gutter) 22px; background: var(--night); color: #fff; }
+.tp-theatre::before { content: ""; position: absolute; inset: -60px; background: var(--theatre-art, none) center / cover no-repeat; filter: blur(40px) saturate(1.2); opacity: 0.45; }
+.tp-theatre::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(11, 13, 15, 0.55), rgba(11, 13, 15, 0.85)); }
+.tp-theatre-frame { position: relative; z-index: 1; width: var(--theatre-w); aspect-ratio: 16 / 9; margin: 0 auto; border-radius: 18px; overflow: hidden; background: #000; box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.tp-theatre-bar { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; width: var(--theatre-w); margin: 16px auto 0; }
+.tp-theatre-back {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; max-width: 60%; padding: 0 18px 0 14px; border: 0; border-radius: 999px;
+  background: #f4f1e8; color: #0b0d0f; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.trailer-back {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px 0 12px; border: 0; border-radius: 999px;
-  background: var(--lime); color: var(--on-accent); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+.tp-theatre-back:hover { background: #fff; }
+.tp-theatre-note { margin: 0; color: #c9c3b6; font-size: 14px; }
+.tp-theatre-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: #fff; font-size: 14px; font-weight: 700; text-decoration: none; }
+.tp-theatre-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 900px) {
+  .tp-theatre { padding: 0 0 12px; }
+  .tp-theatre-frame { width: 100%; border-radius: 0; }
+  .tp-theatre-bar { width: auto; padding: 0 var(--gutter); margin-top: 12px; }
+  .tp-theatre-note { display: none; }
 }
-.trailer-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; margin-left: auto; color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; }
 .sheet-status.tone-green, .sheet-status.tone-amber { font-weight: 700; }
 .take { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 15px; }
 .take-stars, .take-liked { display: inline-flex; align-items: center; gap: 6px; }
@@ -1946,7 +1997,7 @@ html[data-direction] ::view-transition-new(root) { animation: vt-in 160ms ease-o
 /* ---- Seasons: a row of season cards, opening to a list of episodes ---- */
 .seasons-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .seasons-head .section-label { margin: 0; display: flex; align-items: baseline; gap: 10px; }
-.season-rail { display: flex; gap: 14px; margin: 0; padding: 0 0 6px; list-style: none; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+.season-rail { display: flex; gap: 14px; margin: -4px -4px 0; padding: 4px 4px 6px; scroll-padding-left: 4px; list-style: none; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
 .season-rail li { flex: 0 0 auto; width: 136px; scroll-snap-align: start; }
 .season-card { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .season-card-art { position: relative; display: block; aspect-ratio: 2 / 3; border-radius: 14px; overflow: hidden; background: var(--paper-deep); }
@@ -1958,8 +2009,13 @@ html[data-direction] ::view-transition-new(root) { animation: vt-in 160ms ease-o
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
 }
 .season-card .progress { display: block; margin-top: 4px; }
-.season-card b { font-size: 15px; line-height: 1.25; }
+.season-card b { font-size: 15px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .season-card .muted { font-size: 13px; }
+.season-card-range { color: var(--muted); font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+/* The season you're in: outlined, with a tag on its poster. */
+.season-card.is-here .season-card-art { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--blue); }
+.season-card.is-here .progress span { background: var(--blue); }
+.season-card-here { position: absolute; left: 8px; bottom: 8px; padding: 3px 8px; border-radius: 6px; background: rgba(11, 13, 15, 0.82); color: var(--blue); font-size: 11px; font-weight: 700; }
 
 .season-view { animation: rise-in 220ms cubic-bezier(0.16, 1, 0.3, 1); }
 .season-view-head { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; margin-bottom: 16px; }

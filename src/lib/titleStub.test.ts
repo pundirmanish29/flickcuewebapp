@@ -57,7 +57,10 @@ describe("titleStub", () => {
     expect(due.fields.map((item) => item.label)).not.toContain("Reminder");
     const dueShow = titleStub(input({ movie: film({ tmdbType: "tv", mediaType: "Show", remindAt: now - 60_000 }), show: true, upNext: "S6 E4 · Today", provider: { name: "Apple TV", included: true } }));
     expect(dueShow.fields).toEqual([{ label: "Next episode", value: "S6 E4 · Today" }, { label: "Where", value: "Apple TV" }]);
-    expect(titleStub(input({ movie: film({ tmdbType: "tv", mediaType: "Show", personal: { status: "watching" } }), show: true })).label).toBe("Watching");
+    const watching = titleStub(input({ movie: film({ tmdbType: "tv", mediaType: "Show", personal: { status: "watching" } }), show: true, upNext: "No date yet" }));
+    expect(watching.label).toBe("Watching");
+    // No reminder set: a show lists its next episode instead of "Reminder: None".
+    expect(watching.fields.map((item) => item.label)).toEqual(["Next episode", "Where"]);
   });
 
   it("shows a booked film's show, cinema, screen and seats, with the ticket as the main button", () => {

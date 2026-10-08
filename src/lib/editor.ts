@@ -142,7 +142,8 @@ export function toggleSeason(document: LibraryDocument, id: string, season: numb
   return edit(document, id, now, (movie) => {
     const episodes = new Set(movie.personal?.episodes ?? []);
     const keys = only
-      ? only.filter((number) => Number.isInteger(number) && number > 0 && number <= 1000).map((number) => `${season}:${number}`)
+      // Up to 100000: some shows number episodes through the whole run (One Piece is past 1,100).
+      ? only.filter((number) => Number.isInteger(number) && number > 0 && number <= 100000).map((number) => `${season}:${number}`)
       : Array.from({ length: Math.min(total, 1000) }, (_, index) => `${season}:${index + 1}`);
     const complete = keys.every((key) => episodes.has(key));
     for (const key of keys) {
