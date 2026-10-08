@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Contact FlickCue: questions, bug reports and feedback about the web app and browser extension go straight to the person who builds it." />
+    <meta name="theme-color" content="#0b0d0f" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="96x96" href="./favicon-96.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./favicon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="canonical" href="https://flickcue.in/contact.html" />
+    <link rel="stylesheet" href="./fonts/fonts.css" />
+    <title>Contact FlickCue</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src https://api.flickcue.in http://localhost:5173; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <!-- The light/dark choice made in the app, applied before the page paints. -->
+    <script src="./theme.js"></script>
+    <style>
+      /* The app's paper and ink (src/styles.css). */
+      :root { --night: #0b0d0f; --paper: #f3f0e8; --surface: #fffdf8; --ink: #16181b; --muted: #5d6166; --rule: #d6d0c5; --link: #13783f; --field: #fffdf8; --error: #b3261e; --ok: #13783f; --on-ink: #f4f1e8; color-scheme: light; }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) { --paper: #151719; --surface: #1d2023; --ink: #f4f1e8; --muted: #b3b8bd; --rule: #3f454b; --link: #7ee2a1; --field: #151719; --error: #ff9b8f; --ok: #7ee2a1; --on-ink: #151719; color-scheme: dark; }
+      }
+      :root[data-theme="dark"] { --paper: #151719; --surface: #1d2023; --ink: #f4f1e8; --muted: #b3b8bd; --rule: #3f454b; --link: #7ee2a1; --field: #151719; --error: #ff9b8f; --ok: #7ee2a1; --on-ink: #151719; color-scheme: dark; }
+      * { box-sizing: border-box; }
+      html { background: var(--night); }
+      body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.6 "Archivo", ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+      a { color: var(--link); font-weight: 600; text-decoration: none; text-underline-offset: 3px; }
+      a:not([class]):hover { text-decoration: underline; }
+      .bar { background: var(--night); color: #fff; }
+      .bar-inner, .foot-inner { max-width: 1280px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); display: flex; align-items: center; gap: 16px; }
+      .bar-inner { height: 64px; justify-content: space-between; }
+      .brand { display: inline-flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 800; letter-spacing: 0.08em; font-size: 15px; }
+      .dots { display: inline-flex; gap: 4px; }
+      .dots i { width: 9px; height: 9px; border-radius: 50%; display: block; }
+      .back { color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 8px 14px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2); }
+      .back:hover { background: rgba(255, 255, 255, 0.08); }
+      main { max-width: 1040px; margin: 0 auto; padding: 48px clamp(16px, 4vw, 40px) 88px; }
+      h1 { font-size: clamp(34px, 6vw, 52px); line-height: 1.05; letter-spacing: -0.035em; margin: 0 0 12px; font-weight: 800; }
+      h2 { font-size: 20px; letter-spacing: -0.015em; margin: 0 0 8px; }
+      .lede { max-width: 56ch; margin: 0 0 36px; color: var(--muted); font-size: 19px; }
+      .layout { display: grid; gap: 28px; align-items: start; }
+      @media (min-width: 900px) { .layout { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 48px; } }
+      .card { padding: clamp(20px, 3vw, 32px); border-radius: 22px; background: var(--surface); border: 1px solid var(--rule); }
+      .field { margin: 0 0 20px; }
+      label { display: block; margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+      label small { color: var(--muted); font-weight: 500; }
+      input, textarea { width: 100%; padding: 12px 14px; border: 1.5px solid var(--rule); border-radius: 12px; background: var(--field); color: var(--ink); font: inherit; font-size: 16px; line-height: 1.4; }
+      textarea { min-height: 160px; resize: vertical; }
+      input:hover, textarea:hover { border-color: var(--muted); }
+      input:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid var(--link); outline-offset: 2px; }
+      input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--error); }
+      .error { display: none; margin: 6px 0 0; color: var(--error); font-size: 14px; font-weight: 600; }
+      .field.has-error .error { display: block; }
+      .count { margin: 6px 0 0; color: var(--muted); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+      .count.over { color: var(--error); font-weight: 700; }
+      /* The trap for bots: out of sight and out of the tab order, but present for anything that fills every field. */
+      .trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+      .submit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 28px; border: 0; border-radius: 999px; background: var(--ink); color: var(--on-ink); font: inherit; font-size: 16px; font-weight: 800; cursor: pointer; }
+      .submit:hover { opacity: 0.9; }
+      .submit[disabled] { opacity: 0.6; cursor: progress; }
+      .note { margin: 16px 0 0; color: var(--muted); font-size: 14px; }
+      .banner { display: none; margin: 0 0 20px; padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--error); font-size: 15px; font-weight: 600; }
+      .banner.show { display: block; }
+      .banner a { text-decoration: underline; }
+      .done { display: none; text-align: center; padding: clamp(8px, 3vw, 24px) 0; }
+      .done.show { display: block; }
+      .done .tick { display: grid; place-items: center; width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 50%; background: var(--ok); color: var(--surface); }
+      .done h2 { font-size: 26px; letter-spacing: -0.025em; }
+      .done p { margin: 0 auto 20px; max-width: 42ch; color: var(--muted); }
+      .again { padding: 10px 20px; border: 1.5px solid var(--rule); border-radius: 999px; background: none; color: var(--ink); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+      .again:hover { border-color: var(--ink); }
+      .side { display: grid; gap: 16px; }
+      .side .card { padding: 22px 24px; }
+      .side p { margin: 0; color: var(--muted); font-size: 15px; }
+      .side ul { margin: 8px 0 0; padding-left: 20px; color: var(--muted); font-size: 15px; }
+      .side li + li { margin-top: 4px; }
+      .address { overflow-wrap: anywhere; }
+      .foot { background: var(--night); color: #9aa1a8; padding: 28px 0 36px; font-size: 14px; }
+      .foot-inner { flex-wrap: wrap; }
+      .foot a { color: #9aa1a8; }
+      noscript p { margin: 0 0 16px; padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--rule); }
+      /* On a phone, every link and button is at least 44px to tap. */
+      @media (max-width: 700px) {
+        .brand, .back, .foot-inner a, .address a { display: inline-flex; align-items: center; min-height: 44px; }
+        .foot-inner { gap: 4px 18px; }
+        .note a { display: inline-block; padding: 12px 0; margin: -12px 0; }
+        .side p a { display: inline-block; padding: 12px 0; margin: -12px 0; }
+      }
+      @media (prefers-reduced-motion: no-preference) { .banner, .done { animation: rise 220ms ease-out; } }
+      @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+    </style>
+  </head>
+  <body>
+    <header class="bar">
+      <div class="bar-inner">
+        <a class="brand" href="./"><span class="dots" aria-hidden="true"><i style="background:#64d48a"></i><i style="background:#ff8c45"></i><i style="background:#55a9ff"></i></span>FLICKCUE</a>
+        <a class="back" href="./">Back to FlickCue</a>
+      </div>
+    </header>
+
+    <main>
+      <h1>Contact us</h1>
+      <p class="lede">A question, a bug, a title that's wrong, an idea. Write to us here; messages go straight to the person who builds FlickCue, and we reply by email.</p>
+
+      <div class="layout">
+        <section class="card" aria-labelledby="form-title">
+          <h2 id="form-title" class="visually-hidden" style="position:absolute;left:-9999px">Send a message</h2>
+
+          <div id="banner" class="banner" role="alert" tabindex="-1"></div>
+
+          <form id="contact" novalidate>
+            <noscript><p>The form needs JavaScript. You can email us at <a href="mailto:support@flickcue.in">support@flickcue.in</a> instead.</p></noscript>
+            <div class="field">
+              <label for="name">Your name</label>
+              <input id="name" name="name" type="text" autocomplete="name" maxlength="100" required aria-describedby="name-error" />
+              <p class="error" id="name-error"></p>
+            </div>
+            <div class="field">
+              <label for="email">Email address <small>(so we can reply)</small></label>
+              <input id="email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" required aria-describedby="email-error" />
+              <p class="error" id="email-error"></p>
+            </div>
+            <div class="field">
+              <label for="subject">Subject</label>
+              <input id="subject" name="subject" type="text" maxlength="150" required aria-describedby="subject-error" />
+              <p class="error" id="subject-error"></p>
+            </div>
+            <div class="field">
+              <label for="message">Message</label>
+              <textarea id="message" name="message" required aria-describedby="message-error message-count"></textarea>
+              <p class="error" id="message-error"></p>
+              <p class="count" id="message-count" aria-live="polite">0 / 3,000</p>
+            </div>
+            <div class="trap" aria-hidden="true">
+              <label for="website">Leave this empty</label>
+              <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" />
+            </div>
+            <button class="submit" type="submit" id="send">Send message</button>
+            <p class="note">We use your name and email only to reply. See the <a href="./privacy.html#contact-form">privacy policy</a>.</p>
+          </form>
+
+          <div id="done" class="done" role="status" tabindex="-1">
+            <div class="tick" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+            <h2>Message sent</h2>
+            <p>Thanks. We've got it and will reply to the address you gave, usually within a few days.</p>
+            <button type="button" class="again" id="again">Send another message</button>
+          </div>
+        </section>
+
+        <aside class="side" aria-label="Other ways to reach us">
+          <div class="card">
+            <h2>By email</h2>
+            <p class="address"><a href="mailto:support@flickcue.in">support@flickcue.in</a></p>
+          </div>
+          <div class="card">
+            <h2>Reporting a bug?</h2>
+            <p>It helps to say:</p>
+            <ul>
+              <li>the title and the page you were on,</li>
+              <li>your browser or phone, and whether you use the web app or the extension,</li>
+              <li>what you expected and what happened.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h2>Your data</h2>
+            <p>Questions about your list, Google Drive or deleting your data are answered in the <a href="./privacy.html">privacy policy</a>.</p>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <div class="foot-inner">
+        <span>FlickCue</span>
+        <a href="./">Home</a>
+        <a href="./privacy.html">Privacy</a>
+        <a href="./contact.html" aria-current="page">Contact</a>
+      </div>
+    </footer>
+    <script src="./contact.js"></script>
+  </body>
+</html>

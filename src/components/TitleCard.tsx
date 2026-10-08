@@ -5,6 +5,8 @@ import { upscale } from "../lib/tmdb";
 import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
 import { RatingScore } from "./RatingScore";
+import { RatingChips } from "./RatingsPanel";
+import { savedRatings } from "../lib/ratings";
 import { verdictLabel, verdictOf } from "../lib/verdict";
 import { CalendarMark } from "./CalendarMark";
 import { Poster } from "./Poster";
@@ -39,6 +41,7 @@ export function TitleCard({ movie, onOpen, priority = false }: { movie: Movie; o
             {[movie.mediaType, movie.year].filter(Boolean).join(" · ")}
             {formatRating(movie.rating) && <>{" · "}<RatingScore value={movie.rating} /></>}
           </p>
+          <RatingChips ratings={savedRatings(movie)} />
           {(line || take.stars > 0 || take.liked) && (
             <p className={`meta ${statusLine ? `tone-${status!.tone}` : ""}`}>
               {line}

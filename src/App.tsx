@@ -9,7 +9,6 @@ import { closePreview } from "./lib/preview";
 import { goToTitle, leaveTitle, scrollToRestore } from "./lib/titleRoute";
 import { useMetaRefresh } from "./lib/showSync";
 import { ToastHost } from "./components/Toast";
-import { ContactReveal } from "./components/ContactReveal";
 import { canAskExtension, preloadGoogleSignIn } from "./lib/auth";
 import { EXTENSION_URL, FIREFOX_EXTENSION_URL } from "./lib/config";
 import { onPhone } from "./lib/device";
@@ -463,7 +462,7 @@ export default function App() {
             <span className="footer-tag">One watchlist. Everywhere.</span>
             <nav className="footer-links" aria-label="Footer">
               <a className="footer-link" href="./privacy.html">Privacy</a>
-              <ContactReveal label="Contact" className="footer-link" />
+              <a className="footer-link" href="./contact.html">Contact</a>
               {/* Not offered to a phone, or to someone who already has it. */}
               {!onPhone() && !canAskExtension() && (
                 <>

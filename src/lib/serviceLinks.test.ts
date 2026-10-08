@@ -12,6 +12,13 @@ describe("a title's own page on a streaming service", () => {
     expect(serviceLink("Apple TV Plus", { P9751: "umc.cmc.2szz3fdt71tl1ulnbp8utgq5o" })).toBe("https://tv.apple.com/show/umc.cmc.2szz3fdt71tl1ulnbp8utgq5o");
   });
 
+  it("builds JioHotstar's address from its ten-digit content ID, and ignores the short old ones", () => {
+    expect(serviceLink("JioHotstar", { P11049: "1260017229" }, { title: "Cars", tmdbType: "movie" })).toBe("https://www.hotstar.com/in/movies/cars/1260017229");
+    expect(serviceLink("JioHotstar", { P11049: "1971002880" }, { title: "Game of Thrones (2011)", tmdbType: "tv" })).toBe("https://www.hotstar.com/in/shows/game-of-thrones/1971002880");
+    expect(serviceLink("JioHotstar", { P11049: "Amélie: Part 2!" }, { title: "x" })).toBe("");
+    expect(serviceLink("JioHotstar", { P11049: "316" }, { title: "Cars", tmdbType: "movie" })).toBe("");
+  });
+
   it("is nothing for a service or title it has no ID for", () => {
     expect(serviceLink("Lionsgate Play", { P1874: "1" })).toBe("");
     expect(serviceLink("Netflix", {})).toBe("");

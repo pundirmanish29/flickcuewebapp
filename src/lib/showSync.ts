@@ -8,6 +8,7 @@
 import { useEffect } from "react";
 import { enrich } from "./editor";
 import { freshFields, metaIsStale, staleTitles } from "./metaRefresh";
+import { missingRatingFields, type RatingSet } from "./ratings";
 import { showsToRefresh } from "./rules";
 import { commit, getSessionGeneration, getState, type SyncStatus } from "./store";
 import { syncReady } from "./syncReady";
@@ -16,6 +17,15 @@ import type { EpisodeAir, Movie } from "./types";
 
 const air = (episode: TitleDetails["nextEpisode"]): EpisodeAir | undefined =>
   episode ? { season: episode.season, episode: episode.episode, airDate: episode.date, ...(episode.name ? { name: episode.name } : {}) } : undefined;
+
+/** Writes the scores a saved title lacks (lib/ratings.ts) onto it, once this visit has synced. */
+export function writeRatings(movie: Movie, ratings: RatingSet, generation = getSessionGeneration()): boolean {
+  if (generation !== getSessionGeneration() || !syncReady(getState().sync)) return false;
+  const library = getState().library;
+  const next = enrich(library, movie.id, missingRatingFields(movie, ratings));
+  if (next) commit(next);
+  return true;
+}
 
 export function writeBack(movie: Movie, details: TitleDetails, generation = getSessionGeneration()): boolean {
   if (generation !== getSessionGeneration() || !syncReady(getState().sync)) return false;

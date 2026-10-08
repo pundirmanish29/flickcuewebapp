@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 // The static files search engines read: the page head, robots.txt, the sitemap and the guides.
 const files = import.meta.glob(
-  ["../../index.html", "../../public/robots.txt", "../../public/sitemap.xml", "../../public/privacy.html", "../../public/guides/**/index.html"],
+  ["../../index.html", "../../public/robots.txt", "../../public/sitemap.xml", "../../public/privacy.html", "../../public/contact.html", "../../public/guides/**/index.html"],
   { query: "?raw", import: "default", eager: true }
 ) as Record<string, string>;
 
@@ -21,9 +21,10 @@ describe("sitemap and robots", () => {
     expect(read("public/robots.txt")).not.toMatch(/Disallow: \/\s*$/m);
   });
 
-  it("list the home page, the privacy page and every guide, and nothing that doesn't exist", () => {
+  it("list the home page, the privacy and contact pages and every guide, and nothing that doesn't exist", () => {
     expect(listed).toContain("https://flickcue.in/");
     expect(listed).toContain("https://flickcue.in/privacy.html");
+    expect(listed).toContain("https://flickcue.in/contact.html");
     for (const guide of guides) expect(listed).toContain(`https://flickcue.in/${guide.replace("public/", "").replace("index.html", "")}`);
     for (const url of listed) {
       const path = url.replace("https://flickcue.in/", "");
@@ -53,6 +54,39 @@ describe("the home page head", () => {
     const root = /<div id="root">([\s\S]*?)<\/div>\s*<script type="module"/.exec(home)?.[1] ?? "";
     expect(root).toMatch(/<h1>/);
     for (const [, href] of root.matchAll(/href="\.\/(guides\/[^"]+)"/g)) expect(byPath.has(`public/${href}index.html`), href).toBe(true);
+  });
+});
+
+describe("the contact page", () => {
+  const html = read("public/contact.html");
+
+  it("has its own title, description, canonical address and one heading", () => {
+    expect(title(html)).toBe("Contact FlickCue");
+    expect(meta(html, "description").length).toBeGreaterThanOrEqual(70);
+    expect(meta(html, "description").length).toBeLessThanOrEqual(160);
+    expect(/<link rel="canonical" href="([^"]*)"/.exec(html)?.[1]).toBe("https://flickcue.in/contact.html");
+    expect(html.match(/<h1>/g)?.length).toBe(1);
+  });
+
+  it("asks for a name, an email, a subject and a message, each labelled", () => {
+    for (const id of ["name", "email", "subject", "message"]) {
+      expect(html, id).toMatch(new RegExp(`<label for="${id}"`));
+      expect(html, id).toMatch(new RegExp(`id="${id}"`));
+    }
+    expect(html).toMatch(/<input id="website"[^>]*tabindex="-1"/);
+  });
+
+  it("may talk to the title service and nothing else, and loads no inline script", () => {
+    const policy = /Content-Security-Policy" content="([^"]*)"/.exec(html)?.[1] ?? "";
+    expect(policy).toMatch(/script-src 'self'(;|$)/);
+    expect(policy).toMatch(/connect-src https:\/\/api\.flickcue\.in/);
+    expect(html).not.toMatch(/<script>[^<]/);
+  });
+
+  it("is linked from the home page, the privacy page and every guide", () => {
+    expect(read("index.html")).toContain("./contact.html");
+    expect(read("public/privacy.html")).toContain("./contact.html");
+    for (const path of guides) expect(read(path), path).toContain("../../contact.html");
   });
 });
 
