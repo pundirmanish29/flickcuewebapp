@@ -21,6 +21,7 @@ import { Icon, type IconName } from "./Icon";
 import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
 import { appLink, splitChannel } from "../lib/providers";
+import { fetchServiceIds, serviceLink, type ServiceIds } from "../lib/serviceLinks";
 import { regionName } from "../lib/cinemas";
 import { writeBack } from "../lib/showSync";
 import { dismissEpisode, episodeKey, readDismissed, upNextEpisode } from "../lib/newEpisode";
@@ -57,7 +58,9 @@ function WatchName({ name }: { name: string }) {
  * opening that service; more as a "Watch on" pill opening a list of every
  * service, included ones first.
  */
-function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Provider[]; rentOrBuy: Provider[] }) {
+function WatchOn({ title, streaming, rentOrBuy, ids }: { title: string; streaming: Provider[]; rentOrBuy: Provider[]; ids: ServiceIds | null }) {
+  // The title's own page on the service when it's known, else the service's search.
+  const href = (provider: Provider) => appLink(provider.name, title, undefined, serviceLink(provider.name, ids));
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
@@ -79,7 +82,7 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
         <ul>
           {all.map(({ provider, tone }) => (
             <li key={provider.name}>
-              <a className="watch-card" href={appLink(provider.name, title)} target="_blank" rel="noreferrer">
+              <a className="watch-card" href={href(provider)} target="_blank" rel="noreferrer">
                 <ProviderLogo provider={provider} />
                 <span>
                   <WatchName name={provider.name} />
@@ -118,7 +121,7 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
             <ul className="watch-list">
               {group.providers.map((provider) => (
                 <li key={provider.name}>
-                  <a href={appLink(provider.name, title)} target="_blank" rel="noreferrer" onClick={close}>
+                  <a href={href(provider)} target="_blank" rel="noreferrer" onClick={close}>
                     <ProviderLogo provider={provider} />
                     <WatchName name={provider.name} />
                   </a>
@@ -170,6 +173,23 @@ function StubButton({ icon, children, href, onClick, kind = "plain", pressed, ex
 }
 
 /**
+ * The stub's main button when it opens a streaming service: the service's
+ * logo, what it does ("Watch episode 1177") and where ("on Crunchyroll"), on
+ * two lines so neither wraps.
+ */
+function WatchButton({ href, provider, action, where }: { href: string; provider: Provider | null; action: string; where: string }) {
+  return (
+    <a className="tp-button tp-button-primary tp-watch" href={href} target="_blank" rel="noreferrer" aria-label={`${action} on ${where}`}>
+      {provider?.logo
+        ? <img className="tp-watch-logo" src={provider.logo} srcSet={`${provider.logo} 1x, ${provider.logo.replace("/w154/", "/w300/")} 2x`} alt="" decoding="async" />
+        : <span className="tp-watch-logo is-icon"><Icon name="play" size={18} /></span>}
+      <span className="tp-watch-text"><b>{action}</b><small>on {where}</small></span>
+      <Icon name="external" size={16} className="tp-watch-out" />
+    </a>
+  );
+}
+
+/**
  * A title's own page: a saved one by its id, or one that isn't saved by its
  * Discover key (tmdb:<type>:<id>), which offers Save and turns into the saved
  * view once it's saved. A ticket stub holds where you stand with the title and
@@ -199,6 +219,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     return () => window.removeEventListener("keydown", onKey);
   }, [playing]);
   const [details, setDetails] = useState<TitleDetails | null>(null);
+  // The title's own pages on streaming services (lib/serviceLinks.ts), for this title only.
+  const [serviceIdsFor, setServiceIdsFor] = useState<{ key: string; ids: ServiceIds } | null>(null);
   const [detailsFor, setDetailsFor] = useState("");
   const detailsGeneration = useRef(getSessionGeneration());
   const detailsWritten = useRef<{ result: TitleDetails; id: string; generation: number } | null>(null);
@@ -310,6 +332,19 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     // Only a different title or region needs a new lookup, not every edit to this one.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tmdbKey, settings.region, sessionGeneration]);
+
+  // Which services have a page of their own for this title, so their buttons open it rather than a search.
+  const serviceKey = `${movie?.tmdbType}:${movie?.tmdbId}`;
+  useEffect(() => {
+    if (!movie?.tmdbId) return;
+    let live = true;
+    fetchServiceIds(movie.tmdbType, movie.tmdbId).then((ids) => live && setServiceIdsFor({ key: serviceKey, ids }));
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceKey]);
+  const serviceIds = serviceIdsFor?.key === serviceKey ? serviceIdsFor.ids : null;
 
   const readyToWrite = syncReady(syncState);
   useEffect(() => {
@@ -473,8 +508,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     : "";
 
   // The stub: where you stand, and the one thing to do next.
-  const provider = details?.streaming[0] ? { name: details.streaming[0].name, included: true }
-    : details?.rentOrBuy[0] ? { name: details.rentOrBuy[0].name, included: false } : null;
+  const provider = details?.streaming[0] ? { ...details.streaming[0], included: true }
+    : details?.rentOrBuy[0] ? { ...details.rentOrBuy[0], included: false } : null;
   const stub = titleStub({
     movie, saved: isSaved, show, unreleased,
     releaseDate: show ? details?.releaseDate || movie.releaseDate || "" : details?.regionalRelease || movie.releaseDate || "",
@@ -496,7 +531,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const watchEpisode = episodeAction && provider ? episodeAction : null;
   // Where it streams always shows beside the title, even when the stub's button goes to the same place.
   const watchOnShown = providerCount > 0;
-  const watchHref = provider ? appLink(provider.name, movie.title) : "";
+  const watchHref = provider ? appLink(provider.name, movie.title, undefined, serviceLink(provider.name, serviceIds)) : "";
 
   const openChoices = (fromBar = false) => {
     setChoosingReminder(true);
@@ -514,13 +549,19 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     const map: Record<StubPrimary, ReactNode> = {
       save: <StubButton kind="primary" icon="plus" expanded={choosingReminder} onClick={() => (fromBar ? openChoices(true) : setChoosingReminder((open) => !open))}>Save</StubButton>,
       remind: <StubButton kind="primary" icon="clock" expanded={choosingReminder} onClick={() => (fromBar ? openChoices(true) : setChoosingReminder((open) => !open))}>{reminderActive ? "Change reminder" : "Remind me"}</StubButton>,
-      watch: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : `${provider?.included ? "Watch" : "Rent"}${outToday ? ` ${episodeShort(outToday.season, outToday.episode)}` : ""} on ${providerName}`}</StubButton>,
+      watch: fromBar
+        ? <StubButton kind="primary" icon="play" href={watchHref}>{provider?.included ? "Watch" : "Rent"}</StubButton>
+        : <WatchButton href={watchHref} provider={provider} action={`${provider?.included ? "Watch" : "Rent or buy"}${outToday ? ` ${episodeShort(outToday.season, outToday.episode)}` : ""}`} where={providerName} />,
       watched: <StubButton kind="primary" icon="eye" onClick={() => isSaved && actions.toggleWatched(movie.id)}>{show ? "Mark series finished" : "Watched it"}</StubButton>,
       ticket: <StubButton kind="primary" icon="ticket" onClick={showTicket}>{ticketFile ? (fromBar ? "Ticket" : "Show ticket") : fromBar ? "Add ticket" : "Add ticket file"}</StubButton>,
-      watchAgain: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? "Watch again" : `Watch again on ${providerName}`}</StubButton>,
+      watchAgain: fromBar
+        ? <StubButton kind="primary" icon="play" href={watchHref}>Watch again</StubButton>
+        : <WatchButton href={watchHref} provider={provider} action="Watch again" where={providerName} />,
       none: null
     };
-    if (watchEpisode) return <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : `${provider?.included ? "Watch" : "Rent"} ${episodeShort(watchEpisode.season, watchEpisode.episode)} on ${providerName}`}</StubButton>;
+    if (watchEpisode) return fromBar
+      ? <StubButton kind="primary" icon="play" href={watchHref}>{provider?.included ? "Watch" : "Rent"}</StubButton>
+      : <WatchButton href={watchHref} provider={provider} action={`${provider?.included ? "Watch" : "Rent"} ${episodeShort(watchEpisode.season, watchEpisode.episode)}`} where={providerName} />;
     if (episodeAction) return <StubButton kind="primary" icon="check" onClick={() => actions.toggleEpisode(movie.id, episodeAction.season, episodeAction.episode)}>{fromBar ? `Watched ${episodeShort(episodeAction.season, episodeAction.episode)}` : `Mark ${episodeShort(episodeAction.season, episodeAction.episode)} watched`}</StubButton>;
     if (show && stub.primary === "watched") return <StubButton kind="primary" icon="play" onClick={() => document.getElementById("episode-progress")?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" })}>Episode progress</StubButton>;
     return map[stub.primary];
@@ -641,7 +682,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
               </p>
             ) : status && <p className={`sheet-status tone-${status.tone}`}>{status.text}</p>}
             {facts && <p className="tp-facts">{facts}</p>}
-            {watchOnShown && details && <WatchOn title={movie.title} streaming={details.streaming} rentOrBuy={details.rentOrBuy} />}
+            {watchOnShown && details && <WatchOn title={movie.title} streaming={details.streaming} rentOrBuy={details.rentOrBuy} ids={serviceIds} />}
           </div>
         </header>
 

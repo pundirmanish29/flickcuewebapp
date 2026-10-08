@@ -1303,6 +1303,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tp-button-primary { width: 100%; min-height: 52px; border-color: var(--paper); background: var(--paper); color: var(--ink); font-size: 15px; }
 .tp-button-primary:hover { background: color-mix(in srgb, var(--paper) 88%, var(--ink)); }
 .tp-button.on { border-color: var(--lime); background: var(--lime); color: var(--on-accent); }
+/* Watch on a service: its logo, what it does and where, on two lines, so a long service name never wraps the button. */
+.tp-watch { justify-content: flex-start; gap: 12px; min-height: 60px; padding: 0 18px 0 8px; text-align: left; }
+.tp-watch-logo { flex: none; width: 44px; height: 44px; border-radius: 12px; object-fit: cover; }
+.tp-watch-logo.is-icon { display: grid; place-items: center; background: color-mix(in srgb, currentColor 12%, transparent); }
+.tp-watch-text { display: grid; flex: 1; min-width: 0; line-height: 1.2; }
+.tp-watch-text b { font-size: 15px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-watch-text small { font-size: 12.5px; font-weight: 600; opacity: 0.72; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-watch-out { flex: none; opacity: 0.6; }
 .tp-secondary { display: flex; flex-wrap: wrap; gap: 8px; }
 /* Mark all watched · Remove: quiet links under the buttons, a dot between them. */
 .tp-quiet { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: -4px; }
@@ -1423,10 +1431,12 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
   .tp-stub-frame .tp-poster-stub { position: relative; }
   .tp-stub.is-artless .tp-stub-art, .tp-stub.is-artless .tp-perf { display: none; }
   .tp-stub.is-artless .tp-stub-body { padding-top: 20px; }
-  /* Under the main button: two to a row, the odd one out across both. */
-  .tp-stub .tp-secondary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .tp-stub .tp-secondary .tp-button { gap: 6px; padding: 0 8px; white-space: nowrap; }
-  .tp-stub .tp-secondary .tp-button:nth-child(odd):last-child { grid-column: 1 / -1; }
+  /* The other two as one split pill: same width each, a hairline between. */
+  .tp-stub .tp-secondary { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0; border-radius: 999px; box-shadow: inset 0 0 0 1.5px var(--stub-line); overflow: hidden; }
+  .tp-stub .tp-secondary .tp-button { gap: 6px; padding: 0 8px; border: 0; border-radius: 0; white-space: nowrap; }
+  .tp-stub .tp-secondary .tp-button + .tp-button { box-shadow: inset 1.5px 0 0 var(--stub-line); }
+  .tp-stub .tp-secondary .tp-button:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
+  .tp-stub .tp-secondary .tp-button.on { box-shadow: none; }
   .tp-body { grid-column: 2; grid-row: 2; }
   html[data-opening] .tp-poster-stub { view-transition-name: title-poster; }
 }

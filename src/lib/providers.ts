@@ -52,8 +52,9 @@ const ANDROID_APPS: [RegExp, string][] = [
   [/mubi/i, "com.mubi"]
 ];
 
-export function appLink(provider: string, title: string, userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent): string {
-  const web = providerLink(provider, title);
+/** `direct` is the title's own page on the service when it's known (lib/serviceLinks.ts); otherwise its search. */
+export function appLink(provider: string, title: string, userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent, direct = ""): string {
+  const web = /^https:\/\//.test(direct) ? direct : providerLink(provider, title);
   const app = /android/i.test(userAgent) ? ANDROID_APPS.find(([pattern]) => pattern.test(provider)) : undefined;
   if (!app || web.startsWith("https://www.google.com/")) return web;
   const url = new URL(web);
