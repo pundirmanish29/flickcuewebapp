@@ -1546,6 +1546,9 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
 /* Two or three services: a card each, so nothing hides behind a menu. */
 .watch-cards { margin-top: 18px; }
 .watch-cards .section-label { margin-bottom: 10px; }
+.watch-credit { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
+.watch-credit a { color: inherit; text-underline-offset: 2px; }
+.popover .watch-credit { margin: 6px 10px 2px; }
 .watch-cards ul { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .watch-card {
   display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 16px 8px 8px; border-radius: 16px;

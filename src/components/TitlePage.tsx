@@ -21,7 +21,8 @@ import { Icon, type IconName } from "./Icon";
 import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
 import { appLink, splitChannel } from "../lib/providers";
-import { fetchServiceIds, serviceLink, type ServiceIds } from "../lib/serviceLinks";
+import { fetchServiceIds, type ServiceIds } from "../lib/serviceLinks";
+import { directLink, fetchStreamSources, type StreamSource } from "../lib/streamLinks";
 import { regionName } from "../lib/cinemas";
 import { writeBack, writeRatings } from "../lib/showSync";
 import { dismissEpisode, episodeKey, readDismissed, upNextEpisode } from "../lib/newEpisode";
@@ -59,9 +60,11 @@ function WatchName({ name }: { name: string }) {
  * opening that service; more as a "Watch on" pill opening a list of every
  * service, included ones first.
  */
-function WatchOn({ title, tmdbType, streaming, rentOrBuy, ids }: { title: string; tmdbType?: string; streaming: Provider[]; rentOrBuy: Provider[]; ids: ServiceIds | null }) {
+function WatchOn({ title, streaming, rentOrBuy, direct, credit }: { title: string; streaming: Provider[]; rentOrBuy: Provider[]; direct: (provider: string) => string; credit: boolean }) {
   // The title's own page on the service when it's known, else the service's search.
-  const href = (provider: Provider) => appLink(provider.name, title, undefined, serviceLink(provider.name, ids, { title, tmdbType }));
+  const href = (provider: Provider) => appLink(provider.name, title, undefined, direct(provider.name));
+  // Watchmode's terms ask for a credit wherever its pages are used.
+  const creditLine = credit ? <p className="watch-credit">Links by <a href="https://api.watchmode.com" target="_blank" rel="noreferrer">Watchmode</a></p> : null;
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
@@ -93,6 +96,7 @@ function WatchOn({ title, tmdbType, streaming, rentOrBuy, ids }: { title: string
             </li>
           ))}
         </ul>
+        {creditLine}
       </div>
     );
   }
@@ -131,6 +135,7 @@ function WatchOn({ title, tmdbType, streaming, rentOrBuy, ids }: { title: string
             </ul>
           </section>
         ))}
+        {creditLine}
       </Popover>
     </div>
   );
@@ -348,6 +353,19 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceKey]);
   const serviceIds = serviceIdsFor?.key === serviceKey ? serviceIdsFor.ids : null;
+  // And Watchmode's, for the ones Wikidata has none for (Prime Video, most of all).
+  const [streamFor, setStreamFor] = useState<{ key: string; sources: StreamSource[] } | null>(null);
+  const streamKey = `${serviceKey}:${settings.region}`;
+  useEffect(() => {
+    if (!movie?.tmdbId) return;
+    let live = true;
+    fetchStreamSources(movie.tmdbType, movie.tmdbId, settings.region).then((sources) => live && setStreamFor({ key: streamKey, sources }));
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streamKey]);
+  const streamSources = streamFor?.key === streamKey ? streamFor.sources : null;
 
   useEffect(() => {
     if (!movie?.tmdbId) return;
@@ -562,7 +580,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const watchEpisode = episodeAction && provider ? episodeAction : null;
   // Where it streams always shows beside the title, even when the stub's button goes to the same place.
   const watchOnShown = providerCount > 0;
-  const watchHref = provider ? appLink(provider.name, movie.title, undefined, serviceLink(provider.name, serviceIds, { title: movie.title, tmdbType: movie.tmdbType })) : "";
+  const watchHref = provider ? appLink(provider.name, movie.title, undefined, directLink(provider.name, serviceIds, streamSources, { title: movie.title, tmdbType: movie.tmdbType })) : "";
 
   const openChoices = (fromBar = false) => {
     setChoosingReminder(true);
@@ -687,7 +705,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
               </p>
             ) : status && <p className={`sheet-status tone-${status.tone}`}>{status.text}</p>}
             {facts && <p className="tp-facts">{facts}</p>}
-            {watchOnShown && details && <WatchOn title={movie.title} tmdbType={movie.tmdbType} streaming={details.streaming} rentOrBuy={details.rentOrBuy} ids={serviceIds} />}
+            {watchOnShown && details && <WatchOn title={movie.title} streaming={details.streaming} rentOrBuy={details.rentOrBuy} direct={(name) => directLink(name, serviceIds, streamSources, { title: movie.title, tmdbType: movie.tmdbType })} credit={Boolean(streamSources?.length)} />}
           </div>
         </header>
 
