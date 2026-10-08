@@ -13,6 +13,18 @@
 
 .l-eyebrow { margin: 0 0 var(--space-xs); color: var(--tone, var(--green)); font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; }
 .l-fine { max-width: 46ch; margin: var(--space-s) 0 0; color: var(--dark-muted); font-size: 0.875rem; line-height: 1.45; }
+/* "What does Google ask for?": a quiet disclosure under the privacy line, open on request. */
+.l-ask { max-width: 46ch; margin: 0; color: var(--dark-muted); font-size: 0.875rem; line-height: 1.45; }
+.l-ask summary { display: inline-block; padding: 12px 0; color: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.l-ask summary:hover { color: var(--dark-ink, #fff); }
+/* Open, it sits on a dark panel: the posters behind the hero are busy. */
+.l-ask[open] { padding: 2px 16px 4px; border-radius: 16px; background: rgba(11, 13, 15, 0.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); margin-left: -16px; }
+.l-ask[open] summary { padding-bottom: 6px; }
+.l-ask ul { margin: 0 0 10px; padding-left: 1.1em; }
+.l-ask li { margin: 0 0 8px; }
+.l-ask b { color: var(--dark-ink, #fff); font-weight: 600; }
+.l-ask p { margin: 0 0 12px; }
+.l-ask a { color: inherit; text-underline-offset: 3px; }
 .l-note { margin: 14px 0 0; color: var(--soft); font-size: 0.9375rem; }
 .l-note a, .l-link, .l-step-link a { color: var(--blue); font-weight: 700; }
 .l-note:has(.l-ext-link) { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
@@ -20,7 +32,7 @@
 .l-ext-link:hover span, .l-note a:hover, .l-link:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .l-link { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; }
 .l-step-link { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: var(--space-xs) 0 0; }
-.l-step-or { color: var(--muted, inherit); font-weight: 500; }
+.l-step-or { color: var(--dark-muted, inherit); font-weight: 500; }
 .l-ext-also { font-size: 0.9375rem; }
 .l-step-link a { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .l-step-link a:hover { text-decoration: underline; text-underline-offset: 3px; }
