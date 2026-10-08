@@ -112,7 +112,7 @@
       <p>Titles, posters, cast and where-to-watch information come from <a href="https://www.themoviedb.org/">TMDB</a>, through FlickCue's title service: a Cloudflare Worker that adds FlickCue's TMDB key. Requests to it contain:</p>
       <ul>
         <li>what you search for, and the lists you browse in Discover;</li>
-        <li>the titles you open, with your streaming region; and, for the Tomatometer, audience and IMDb scores shown on a title's page, its TMDB number, which the title service passes to <a href="https://mdblist.com/">MDBList</a>;</li>
+        <li>the titles you open, with your streaming region; and, for the Tomatometer, audience and IMDb scores shown on a title's page, its TMDB number, which the title service passes to <a href="https://mdblist.com/">MDBList</a>; and, so a streaming service's button can open the title itself rather than a search, its TMDB number and your region, which the title service passes to <a href="https://api.watchmode.com/">Watchmode</a>;</li>
         <li>titles from your list, by their TMDB number: your recent saves for "For you" suggestions, and shows you're watching, to keep their episode schedules current.</li>
       </ul>
       <p>They never include your Google account, your name or your list as a whole. Like any website, the title service sees your IP address; it uses it only to limit how many requests one connection can make, and doesn't store or log it.</p>
@@ -176,6 +176,7 @@
       <tr><td><a href="https://www.tvmaze.com/site/privacy">TVmaze</a></td><td>Candidate title</td><td>Directly from your browser</td></tr>
       <tr><td><a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy">Wikidata</a></td><td>Candidate title</td><td>Directly from your browser</td></tr>
       <tr><td><a href="https://mdblist.com/">MDBList</a></td><td>Confirmed TMDB id</td><td>FlickCue's proxy</td></tr>
+      <tr><td><a href="https://api.watchmode.com/">Watchmode</a></td><td>Confirmed TMDB id and streaming region</td><td>FlickCue's proxy</td></tr>
       <tr><td><a href="https://www.omdbapi.com/">OMDb</a></td><td>The confirmed IMDb id when known, otherwise the confirmed title and year</td><td>FlickCue's proxy</td></tr>
       <tr><td><a href="https://fanart.tv/">Fanart.tv</a></td><td>Confirmed TMDB/TheTVDB id</td><td>Always via FlickCue's proxy</td></tr>
       </tbody>
