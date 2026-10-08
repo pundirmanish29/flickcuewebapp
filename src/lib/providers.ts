@@ -1,7 +1,8 @@
 // Where a streaming service's button goes: that service's own search for the
 // title, which on a phone opens its app when installed, rather than a
-// listings page. Services without a search address we could confirm get a
-// Google search for the title on that service.
+// listings page; or its search page when it can't take the title. Services
+// without either that we could confirm get a Google search for the title on
+// that service.
 
 const plain = (title: string) => title.replace(/\s*\(\d{4}\)$/, "").trim();
 
@@ -20,10 +21,19 @@ const SEARCHES: [RegExp, (query: string) => string][] = [
   [/^aha\b/i, (q) => `https://www.aha.video/search?q=${q}`]
 ];
 
+// Services whose search page can't be opened with the title already in it
+// (Lionsgate Play's app takes no search term in its address): the button
+// opens the service's own search, rather than a search engine.
+const SEARCH_PAGES: [RegExp, string][] = [
+  [/lionsgate\s?play/i, "https://www.lionsgateplay.com/search"]
+];
+
 export function providerLink(provider: string, title: string): string {
   const name = plain(title);
   const search = SEARCHES.find(([pattern]) => pattern.test(provider));
   if (search) return search[1](encodeURIComponent(name));
+  const page = SEARCH_PAGES.find(([pattern]) => pattern.test(provider));
+  if (page) return page[1];
   return `https://www.google.com/search?q=${encodeURIComponent(`watch "${name}" on ${provider}`)}`;
 }
 
