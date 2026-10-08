@@ -37,10 +37,11 @@ describe("titleStub", () => {
   it("puts where it streams first in the queue and makes watching it the main button", () => {
     const stub = titleStub(input({
       movie: film({ tmdbType: "tv", mediaType: "Show", remindAt: new Date(2026, 9, 7, 21, 0).getTime() }),
-      show: true, provider: { name: "Netflix", included: true }, upNext: "S1 E1"
+      show: true, provider: { name: "Netflix", included: true }, upNext: "S1 E2 · Tomorrow"
     }));
     expect(stub).toMatchObject({ tone: "blue", label: "In your queue", primary: "watch" });
-    expect(values(stub)).toMatchObject({ Reminder: expect.stringMatching(/^Today/), Where: "Netflix", "Up next": "S1 E1" });
+    expect(stub.fields.map((item) => item.label)).toEqual(["Reminder", "Next episode", "Where"]);
+    expect(values(stub)).toMatchObject({ Reminder: expect.stringMatching(/^Today/), Where: "Netflix", "Next episode": "S1 E2 · Tomorrow" });
   });
 
   it("makes Watched it the main button when nothing streams it", () => {
@@ -50,7 +51,12 @@ describe("titleStub", () => {
   });
 
   it("says Due now once the reminder has passed, and Watching for a show in progress", () => {
-    expect(titleStub(input({ movie: film({ remindAt: now - 60_000 }) })).label).toBe("Due now");
+    const due = titleStub(input({ movie: film({ remindAt: now - 60_000 }) }));
+    expect(due.label).toBe("Due now");
+    // The label says it; no Reminder field repeats "Due now".
+    expect(due.fields.map((item) => item.label)).not.toContain("Reminder");
+    const dueShow = titleStub(input({ movie: film({ tmdbType: "tv", mediaType: "Show", remindAt: now - 60_000 }), show: true, upNext: "S6 E4 · Today", provider: { name: "Apple TV", included: true } }));
+    expect(dueShow.fields).toEqual([{ label: "Next episode", value: "S6 E4 · Today" }, { label: "Where", value: "Apple TV" }]);
     expect(titleStub(input({ movie: film({ tmdbType: "tv", mediaType: "Show", personal: { status: "watching" } }), show: true })).label).toBe("Watching");
   });
 

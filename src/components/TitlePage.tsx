@@ -3,7 +3,7 @@ import { useDialog } from "../lib/useDialog";
 import * as actions from "../lib/actions";
 import { findExisting } from "../lib/editor";
 import {
-  displayTitle, formatRating, formatReminder, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, readerDate, seasonProgress, smartQuotes
+  displayTitle, formatRating, formatReminder, formatRuntime, getShowStatus, hasActiveReminder, isShow, isUnreleased, localIsoDate, readerDate, seasonProgress, smartQuotes
 } from "../lib/rules";
 import { CALENDAR_MIRROR_ENABLED } from "../lib/config";
 import { getSessionGeneration, getState, sync as syncLibrary, useAppState } from "../lib/store";
@@ -308,7 +308,12 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   useEffect(() => {
     const stub = stubRef.current;
     if (!stub || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => stub.style.setProperty("--stub-h", `${stub.offsetHeight}px`));
+    const observer = new ResizeObserver(() => {
+      stub.style.setProperty("--stub-h", `${stub.offsetHeight}px`);
+      // Everything but the poster, so CSS can give the poster whatever height is left.
+      const poster = stub.querySelector<HTMLElement>(".tp-poster-stub");
+      stub.style.setProperty("--stub-rest", `${stub.offsetHeight - (poster?.offsetHeight ?? 0)}px`);
+    });
     observer.observe(stub);
     return () => observer.disconnect();
   }, [ready]);
@@ -369,6 +374,9 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     ? { text: `S${details.nextEpisode.season} E${details.nextEpisode.episode} · ${dayLabel(readerDate(details.nextEpisode.date))}`, sub: details.nextEpisode.name && !/^episode \d+$/i.test(details.nextEpisode.name) ? `“${details.nextEpisode.name}”` : "" }
     : null;
 
+  // The next episode to air that isn't ticked off; one out today is the one to watch.
+  const nextUnwatched = show && details?.nextEpisode && !movie.personal?.episodes?.includes(`${details.nextEpisode.season}:${details.nextEpisode.episode}`) ? details.nextEpisode : null;
+  const outToday = nextUnwatched && readerDate(nextUnwatched.date) === localIsoDate() ? nextUnwatched : null;
   const episodesSeen = progress.reduce((sum, season) => sum + season.seen, 0);
   const episodesTotal = progress.reduce((sum, season) => sum + season.total, 0);
   // An aired episode to watch next: it leads the stub (still, name, length) and opens the season strip below.
@@ -408,8 +416,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     movie, saved: isSaved, show, unreleased,
     releaseDate: show ? details?.releaseDate || movie.releaseDate || "" : details?.regionalRelease || movie.releaseDate || "",
     provider,
-    // The up-next row in the stub says it, with the episode's name; a field would repeat it.
-    upNext: "",
+    // The up-next row in the stub says it, with the episode's name; otherwise a field names the next one to air.
+    upNext: !episodeAction && nextUnwatched ? `S${nextUnwatched.season} E${nextUnwatched.episode} · ${capitalize(dayLabel(readerDate(nextUnwatched.date)))}` : "",
     length: show ? seasons : formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes),
     now: Date.now()
   });
@@ -438,7 +446,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     const map: Record<StubPrimary, ReactNode> = {
       save: <StubButton kind="primary" icon="plus" expanded={choosingReminder} onClick={() => (fromBar ? openChoices(true) : setChoosingReminder((open) => !open))}>Save</StubButton>,
       remind: <StubButton kind="primary" icon="clock" expanded={choosingReminder} onClick={() => (fromBar ? openChoices(true) : setChoosingReminder((open) => !open))}>{reminderActive ? "Change reminder" : "Remind me"}</StubButton>,
-      watch: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : provider?.included ? `Watch on ${providerName}` : `Rent on ${providerName}`}</StubButton>,
+      watch: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? (provider?.included ? "Watch" : "Rent") : `${provider?.included ? "Watch" : "Rent"}${outToday ? ` S${outToday.season} E${outToday.episode}` : ""} on ${providerName}`}</StubButton>,
       watched: <StubButton kind="primary" icon="eye" onClick={() => isSaved && actions.toggleWatched(movie.id)}>{show ? "Mark series finished" : "Watched it"}</StubButton>,
       ticket: <StubButton kind="primary" icon="ticket" onClick={showTicket}>{ticketFile ? (fromBar ? "Ticket" : "Show ticket") : fromBar ? "Add ticket" : "Add ticket file"}</StubButton>,
       watchAgain: <StubButton kind="primary" icon="play" href={watchHref}>{fromBar ? "Watch again" : `Watch again on ${providerName}`}</StubButton>,
@@ -464,10 +472,10 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
       );
     } else {
       // Finishing a whole series is a big step for one tap: it asks first.
-      if (show) secondary.push(<StubButton key="watched" icon="eye" expanded={confirmingFinish} onClick={() => setConfirmingFinish((open) => !open)}>Mark series finished</StubButton>);
+      if (show) secondary.push(<StubButton key="watched" icon="check" expanded={confirmingFinish} onClick={() => setConfirmingFinish((open) => !open)}>Finish series</StubButton>);
       else if (stub.primary !== "watched") secondary.push(<StubButton key="watched" icon="eye" onClick={() => actions.toggleWatched(movie.id)}>Watched it</StubButton>);
-      // The label already says Watching; the button only starts or stops it.
-      if (show) secondary.push(<StubButton key="watching" icon={watchingNow ? "pause" : "play"} onClick={() => actions.setWatching(movie.id, !watchingNow)}>{watchingNow ? "Stop watching" : "Start watching"}</StubButton>);
+      // The label already says Watching; the button only starts or stops it. With episodes ticked it has clearly started.
+      if (show && (watchingNow || !movie.personal?.episodes?.length)) secondary.push(<StubButton key="watching" icon={watchingNow ? "pause" : "play"} onClick={() => actions.setWatching(movie.id, !watchingNow)}>{watchingNow ? "Stop watching" : "Start watching"}</StubButton>);
       // A set reminder shows its time rather than a lit button.
       if (stub.primary !== "remind") secondary.push(<StubButton key="remind" icon="clock" expanded={choosingReminder} onClick={() => setChoosingReminder((open) => !open)}>{reminderActive ? capitalize(formatReminder(Number(movie.remindAt))) : "Remind me"}</StubButton>);
     }
