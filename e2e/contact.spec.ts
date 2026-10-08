@@ -89,7 +89,7 @@ test("is filled in from a 'Wrong link?' address, as text", async ({ page }) => {
 
 test.describe("the optional spam check", () => {
   // A stand-in for Cloudflare's script: renders, hands over a token after a moment, and counts resets.
-  const widget = `window.__resets = 0; window.turnstile = { render(el, o) { window.__o = o; el.dataset.rendered = o.sitekey; setTimeout(() => o.callback("good-token"), 1500); return "w"; }, reset() { window.__resets++; setTimeout(() => window.__o.callback("good-token"), 100); } };`;
+  const widget = `window.__resets = 0; window.turnstile = { render(el, o) { window.__o = o; el.dataset.rendered = o.sitekey; el.dataset.size = o.size; setTimeout(() => o.callback("good-token"), 1500); return "w"; }, reset() { window.__resets++; setTimeout(() => window.__o.callback("good-token"), 100); } };`;
 
   async function withKey(page: Page, stubs: Stubs = {}, script = true) {
     const { posted } = await stub(page, stubs);
@@ -104,6 +104,8 @@ test.describe("the optional spam check", () => {
     await page.route(/challenges\.cloudflare\.com/, (route) => route.fulfill({ contentType: "text/javascript", body: widget }));
     await page.goto("/contact.html");
     await expect(page.locator("#captcha")).toHaveAttribute("data-rendered", /^0x4AAAAAA/);
+    // Asked to fit the form's width, so it can't overflow a narrow phone.
+    await expect(page.locator("#captcha")).toHaveAttribute("data-size", "flexible");
   });
 
   test("without a site key shows nothing and loads nothing", async ({ page }) => {
