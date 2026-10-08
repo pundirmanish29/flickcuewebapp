@@ -272,6 +272,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const { place } = useWhere();
   const showing = Boolean(movie && inCinemas?.has(cinemaKey(movie)));
   const castRow = useRef<HTMLUListElement>(null);
+  const moreRow = useRef<HTMLDivElement>(null);
   const stubRef = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const ticketRef = useRef<HTMLElement>(null);
@@ -968,8 +969,11 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
 
           {details && details.recommendations.length > 0 && (
             <section className="sheet-section">
-              <h2 className="section-label">More like this</h2>
-              <div className="cinema-row more-row">
+              <div className="rail-head">
+                <h2 className="section-label">More like this</h2>
+                <ScrollArrows target={moreRow} label="More like this" watch={details.recommendations} />
+              </div>
+              <div className="cinema-row more-row" ref={moreRow}>
                 {details.recommendations.map((item) => (
                   <CandidateCard key={item.key} candidate={item} onOpenSaved={(savedId) => openWithMotion(() => goToTitle(savedId))} />
                 ))}
