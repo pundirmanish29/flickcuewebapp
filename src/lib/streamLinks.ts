@@ -37,7 +37,11 @@ const ORDER = ["sub", "free", "tve", "rent", "buy"];
 export function streamLink(provider: string, sources: StreamSource[] | null | undefined): string {
   const rule = HOSTS.find(([name]) => name.test(provider));
   if (!rule || !sources?.length) return "";
+  // Prime Video also sells other services as channels ("Crunchyroll (Via Prime) Amazon Channel"), on its own address:
+  // those belong to the other service, not to Prime Video itself.
+  const prime = /prime video|amazon/i.test(provider);
   const own = sources.filter((source) => {
+    if (prime && /channel|\(via/i.test(source.name)) return false;
     try {
       const page = new URL(source.url);
       return page.protocol === "https:" && rule[1].test(page.hostname);

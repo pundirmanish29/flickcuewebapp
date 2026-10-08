@@ -18,6 +18,12 @@ describe("a service's page from Watchmode", () => {
     expect(streamLink("Amazon Prime Video", [primeRent])).toBe(primeRent.url);
   });
 
+  it("doesn't take another service's channel on Prime Video for Prime Video itself", () => {
+    const channel: StreamSource = { name: "Crunchyroll Premium (Via Prime) Amazon Channel", type: "sub", url: "https://app.primevideo.com/detail?gti=amzn1.dv.gti.channel" };
+    expect(streamLink("Amazon Prime Video", [channel])).toBe("");
+    expect(streamLink("Amazon Prime Video", [channel, { name: "Prime Video", type: "sub", url: "https://app.primevideo.com/detail?gti=amzn1.dv.gti.own" }])).toBe("https://app.primevideo.com/detail?gti=amzn1.dv.gti.own");
+  });
+
   it("is nothing for a service it has no page for, or an unknown one", () => {
     expect(streamLink("Netflix", [crunchy])).toBe("");
     expect(streamLink("Some Service", [netflix])).toBe("");
