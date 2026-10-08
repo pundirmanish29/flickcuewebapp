@@ -32,7 +32,7 @@ export interface StubInput {
   releaseDate: string;
   /** Where it streams in the reader's region: a subscription service first, else one to rent or buy. */
   provider: { name: string; included: boolean } | null;
-  /** Shows: the episode to watch next ("S1 E1"), or "". */
+  /** Shows: the next episode and when ("S6 E4 · Today"), or "" when the stub's up-next row says it. */
   upNext: string;
   /** "2h 25m", "2 seasons", or "". */
   length: string;
@@ -136,9 +136,11 @@ export function titleStub(input: StubInput): TitleStub {
     tone: "blue",
     label: watching ? "Watching" : due ? "Due now" : "In your queue",
     fields: [
-      { label: "Reminder", value: hasActiveReminder(movie, now) ? capital(formatReminder(movie.remindAt!, now)) : due ? "Due now" : "None" },
+      // A reminder that has gone off is the label ("Due now"); a field would only say it again.
+      ...(due ? [] : [{ label: "Reminder", value: hasActiveReminder(movie, now) ? capital(formatReminder(movie.remindAt!, now)) : "None" }]),
+      ...(show ? field("Next episode", upNext) : []),
       { label: "Where", value: whereText(provider) || "Not streaming here" },
-      ...(show ? field("Up next", upNext) : field("Runtime", length))
+      ...(show ? [] : field("Runtime", length))
       // When it was saved (and from where) is under the details, not repeated here.
     ].slice(0, 4),
     primary: provider ? "watch" : "watched"

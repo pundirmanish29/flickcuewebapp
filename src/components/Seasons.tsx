@@ -30,11 +30,8 @@ export function Seasons({ movie, info, nested = false }: { movie: Movie; info: S
   return (
     <>
       <div className="seasons-head">
-        {nested ? <h3 className="section-label">Seasons</h3> : <h2 className="section-label">Seasons</h2>}
-        <span className="seasons-tools">
-          <ScrollArrows target={rail} label="Seasons" watch={progress.length} />
-          <span className="muted">{progress.length}</span>
-        </span>
+        {nested ? <h3 className="section-label">Seasons <span className="count">{progress.length}</span></h3> : <h2 className="section-label">Seasons <span className="count">{progress.length}</span></h2>}
+        <ScrollArrows target={rail} label="Seasons" watch={progress.length} />
       </div>
       <ul className="season-rail" ref={rail}>
         {progress.map((season) => {

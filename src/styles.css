@@ -630,6 +630,10 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 @media (min-width: 901px) {
   .rails-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); column-gap: 40px; }
   .rails-grid .radar-list { margin: 16px 0 0; padding: 0 0 8px; scroll-padding: 0; }
+  /* Three side by side: a smaller heading keeps each on one line, so the three rows of posters start level. */
+  .rails-grid .section-title { font-size: clamp(1.375rem, 0.9rem + 0.75vw, 1.75rem); white-space: nowrap; }
+  /* As tall as the scroll arrows, so a row without them starts level with the rows that have them. */
+  .rails-grid .rail-head { min-height: 34px; }
 }
 .queue-note { margin: -8px 0 16px; }
 .radar-title { font-size: 14px; font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -1387,7 +1391,17 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
   .tp-head { grid-column: 2; grid-row: 1; padding-top: 36px; }
   .tp-poster-head { display: none; }
   /* The stub stays in view while the details scroll; one taller than the window keeps its buttons on screen. */
-  .tp-stub { grid-column: 1; grid-row: 1 / span 2; align-self: start; position: sticky; top: min(calc(var(--header) + 16px), calc(100vh - var(--stub-h, 0px) - 16px)); }
+  /* Its top lines up with the first line of the details beside it (.tp-head's padding). */
+  .tp-stub { margin-top: 36px; grid-column: 1; grid-row: 1 / span 2; align-self: start; position: sticky; top: min(calc(var(--header) + 16px), calc(100vh - var(--stub-h, 0px) - 16px)); }
+  /* On a short window the poster gives up height (never below 180px) so the whole stub fits under the header; --stub-rest is the rest of the stub. */
+  .tp-poster-stub { max-height: max(180px, calc(100vh - var(--header) - 32px - var(--stub-rest, 0px))); object-position: 50% 20%; }
+  /* Under the main button: two to a row, the odd one out across both, and Remove as a quiet link below them. */
+  .tp-stub .tp-secondary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tp-stub .tp-secondary .tp-button { gap: 6px; padding: 0 8px; white-space: nowrap; }
+  .tp-stub .tp-secondary .tp-button:only-child,
+  .tp-stub .tp-secondary .tp-button:not(.tp-button-danger):nth-child(odd):nth-last-child(2) { grid-column: 1 / -1; }
+  .tp-stub .tp-secondary .tp-button-danger { grid-column: 1 / -1; justify-self: center; min-height: 40px; padding: 0 12px; border-color: transparent; color: var(--stub-muted); }
+  .tp-stub .tp-secondary .tp-button-danger:hover { border-color: transparent; color: var(--stub-orange); }
   .tp-body { grid-column: 2; grid-row: 2; }
   html[data-opening] .tp-poster-stub { view-transition-name: title-poster; }
 }
@@ -1928,8 +1942,7 @@ html[data-direction] ::view-transition-new(root) { animation: vt-in 160ms ease-o
 
 /* ---- Seasons: a row of season cards, opening to a list of episodes ---- */
 .seasons-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.seasons-head .section-label { margin: 0; }
-.seasons-tools { display: inline-flex; align-items: center; gap: 14px; }
+.seasons-head .section-label { margin: 0; display: flex; align-items: baseline; gap: 10px; }
 .season-rail { display: flex; gap: 14px; margin: 0; padding: 0 0 6px; list-style: none; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
 .season-rail li { flex: 0 0 auto; width: 136px; scroll-snap-align: start; }
 .season-card { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }

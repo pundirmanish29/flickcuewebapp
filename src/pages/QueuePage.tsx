@@ -197,6 +197,9 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
   const alsoDue = due.reminders;
   const onTonight = due.airing;
   useShowScheduleRefresh(library.movies, settings.region || "IN", syncReady(sync));
+  // A show that's due today is already in the row beside this one (or is tonight's pick): it isn't listed twice.
+  const dueIds = new Set([tonight?.id, ...alsoDue.map((movie) => movie.id), ...onTonight.map((entry) => entry.movie.id)]);
+  const watchingShown = watching.filter((entry) => !dueIds.has(entry.movie.id));
 
   // The rows above are shortcuts into the queue; the grid doesn't repeat them, unless searching.
   const shownAbove = useMemo(() => new Set([
@@ -298,7 +301,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
 
 
 
-      {sync.connected && !searching && (alsoDue.length > 0 || onTonight.length > 0 || watching.length > 0 || radar.length > 0) && (
+      {sync.connected && !searching && (alsoDue.length > 0 || onTonight.length > 0 || watchingShown.length > 0 || radar.length > 0) && (
         // Side by side on a wide screen: each row is short, and a band each would be mostly empty.
         <section className="paper radar rails">
           <div className="wrap rails-grid">
@@ -311,14 +314,14 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
                 <TonightStrip entries={onTonight} reminders={alsoDue} onOpen={onOpen} embedded listRef={dueRow} />
               </div>
             )}
-            {watching.length > 0 && (
+            {watchingShown.length > 0 && (
               <div className="rail" aria-labelledby="watching-title">
                 <div className="rail-head">
-                  <h2 id="watching-title" className="section-title">Continue watching <span className="count">{watching.length}</span></h2>
-                  <ScrollArrows target={watchingRow} label="Continue watching" watch={watching.length} />
+                  <h2 id="watching-title" className="section-title">Continue watching <span className="count">{watchingShown.length}</span></h2>
+                  <ScrollArrows target={watchingRow} label="Continue watching" watch={watchingShown.length} />
                 </div>
                 <ul className="radar-list" ref={watchingRow}>
-                {watching.map(({ movie, label, detail, tone }) => {
+                {watchingShown.map(({ movie, label, detail, tone }) => {
                   const progress = seasonProgress(movie).filter((season) => season.seen > 0).at(-1);
                   return (
                     <li key={movie.id}>
@@ -340,7 +343,7 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
             {radar.length > 0 && (
               <div className="rail" aria-labelledby="radar-title">
                 <div className="rail-head">
-                  <h2 id="radar-title" className="section-title">Upcoming</h2>
+                  <h2 id="radar-title" className="section-title">Upcoming <span className="count">{radar.length}</span></h2>
                   <ScrollArrows target={radarRow} label="Upcoming" watch={radar.length} />
                 </div>
                 <ul className="radar-list" ref={radarRow}>
