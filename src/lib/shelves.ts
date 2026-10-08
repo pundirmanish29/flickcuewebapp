@@ -72,15 +72,24 @@ async function mixed(
   kind: "all" | "movie" | "tv" = "all", page = 1
 ): Promise<{ items: Candidate[]; more: boolean }> {
   const types = kind === "all" ? (["movie", "tv"] as const) : ([kind] as const);
+  // One kind failing still leaves the other's titles; only when every request fails is that an error to report
+  // (an empty list would read as "nothing on this service").
+  let failure: unknown = null;
+  let failed = 0;
   const results = await Promise.all(
     types.map((type) =>
       browse({
         id: `${id}-${type}`, label, path: `discover/${type}`, type,
         params: { ...params, ...(since ? { [type === "tv" ? "first_air_date.gte" : "primary_release_date.gte"]: since } : {}) },
         reason
-      }, page).catch(() => ({ items: [] as Candidate[], more: false }))
+      }, page).catch((error) => {
+        failed++;
+        failure = error;
+        return { items: [] as Candidate[], more: false };
+      })
     )
   );
+  if (failed === types.length) throw failure;
   const items: Candidate[] = [];
   for (let index = 0; index < Math.max(...results.map((result) => result.items.length)); index++) {
     for (const result of results) if (result.items[index]) items.push(result.items[index]);

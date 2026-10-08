@@ -171,13 +171,16 @@ function Results({ items, onOpen, showtimes = false, ranked = false, compact = f
 }
 
 /** A sideways row of titles, with arrows for a mouse in place of a scrollbar. */
-function Row({ title, heading, bare = false, items, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true, compact = false, swapKey }: {
+function Row({ title, heading, bare = false, items, failed = false, onRetry, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true, compact = false, swapKey }: {
   title: string;
   /** What the heading shows in place of the plain title, such as a menu. */
   heading?: ReactNode;
   /** The heading is itself a control, so it is not a heading element. */
   bare?: boolean;
   items: Candidate[] | null;
+  /** The list couldn't be loaded (not the same as having nothing in it): say so, and offer another try. */
+  failed?: boolean;
+  onRetry?: () => void;
   onOpen: (id: string) => void;
   onSeeAll?: () => void;
   ranked?: boolean;
@@ -202,8 +205,10 @@ function Row({ title, heading, bare = false, items, onOpen, onSeeAll, ranked = f
           {onSeeAll && <button type="button" className="link-button" onClick={onSeeAll}>See all</button>}
         </div>
       </div>
-      <div className="cinema-row" ref={row} aria-busy={!items}>
-        {items
+      <div className="cinema-row" ref={row} aria-busy={!items && !failed}>
+        {failed
+          ? <p className="row-failed" role="status">Couldn't load this list. {onRetry && <button type="button" className="link-button" onClick={onRetry}>Try again</button>}</p>
+          : items
           ? items.map((item, index) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} showtimes={showtimes} rank={ranked ? index + 1 : undefined} compact={compact} />)
           : Array.from({ length: 6 }, (_, index) => <div key={index} className="skeleton-card" />)}
       </div>
@@ -250,20 +255,27 @@ const readStream = (): string => {
 function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved: Set<string>; onOpen: (id: string) => void; onSeeAll: (list: string) => void }) {
   const [chosen, setMode] = useState<"now" | "soon">("soon");
   const [lists, setLists] = useState<Record<"now" | "soon", Candidate[] | null>>({ now: null, soon: null });
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let live = true;
     setLists({ now: null, soon: null });
+    setFailed(false);
     const fetchList = (key: "now" | "soon", category: DiscoverCategory) =>
       browse(category, 1, region)
         .then(({ items }) => live && setLists((current) => ({ ...current, [key]: items })))
-        .catch(() => live && setLists((current) => ({ ...current, [key]: [] })));
+        .catch(() => {
+          if (!live) return;
+          setLists((current) => ({ ...current, [key]: [] }));
+          setFailed(true);
+        });
     void fetchList("now", IN_CINEMAS);
     void fetchList("soon", COMING_SOON);
     return () => {
       live = false;
     };
-  }, [region]);
+  }, [region, attempt]);
 
   // Nothing coming soon in this region: show what's in cinemas instead of an empty row.
   const mode = chosen === "soon" && lists.soon?.length === 0 && lists.now?.length ? "now" : chosen;
@@ -271,7 +283,7 @@ function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved:
   const items = lists[mode]
     ? [...lists[mode]!.filter((item) => !saved.has(item.key)), ...lists[mode]!.filter((item) => saved.has(item.key))].slice(0, 12)
     : null;
-  if (lists.now && lists.soon && !lists.now.length && !lists.soon.length) return null;
+  if (!failed && lists.now && lists.soon && !lists.now.length && !lists.soon.length) return null;
   return (
     <Row
       title="At the cinema"
@@ -283,6 +295,8 @@ function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved:
         </div>
       }
       items={items}
+      failed={failed && !items?.length}
+      onRetry={() => setAttempt((count) => count + 1)}
       onOpen={onOpen}
       onSeeAll={() => onSeeAll(mode === "now" ? IN_CINEMAS.id : "upcoming")}
       showtimes={mode === "now"}
@@ -304,15 +318,22 @@ function StreamingRow({ region, streams, saved, onOpen, onSeeAll }: {
   // Netflix unless one was picked before (and is still on offer in this region).
   const choice = streams.find((item) => item.id === chosen) ?? streams[1] ?? streams[0];
   const [items, setItems] = useState<Candidate[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let live = true;
     setItems(null);
-    browseStream(choice, region, "all", 1).then(({ items: found }) => live && setItems(found)).catch(() => live && setItems([]));
+    setFailed(false);
+    browseStream(choice, region, "all", 1).then(({ items: found }) => live && setItems(found)).catch(() => {
+      if (!live) return;
+      setItems([]);
+      setFailed(true);
+    });
     return () => {
       live = false;
     };
-  }, [choice.id, region]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [choice.id, region, attempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const label = (item: StreamChoice) => (item.id === "free" ? "Free to watch" : `On ${item.label}`);
   const pick = (id: string) => {
@@ -329,6 +350,8 @@ function StreamingRow({ region, streams, saved, onOpen, onSeeAll }: {
       title={label(choice)}
       heading={<HeadingMenu label="Streaming service" value={choice.id} options={streams.map((item) => ({ id: item.id, label: label(item) }))} onPick={pick} />}
       items={shown}
+      failed={failed}
+      onRetry={() => setAttempt((count) => count + 1)}
       onOpen={onOpen}
       onSeeAll={() => onSeeAll(STREAM_PREFIX + choice.id)}
       compact
@@ -353,6 +376,8 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [trending, setTrending] = useState<Candidate[] | null>(null);
   const [rentals, setRentals] = useState<Candidate[] | null>(null);
+  const [rowsFailed, setRowsFailed] = useState({ trending: false, rentals: false });
+  const [rowsAttempt, setRowsAttempt] = useState(0);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [manual, setManual] = useState(false);
@@ -408,12 +433,21 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   useEffect(() => {
     if (!root) return;
     let live = true;
-    browse(TALK_OF_THE_TOWN, 1, region).then(({ items }) => live && setTrending(items)).catch(() => live && setTrending([]));
-    browse(NEW_TO_RENT, 1, region).then(({ items }) => live && setRentals(items)).catch(() => live && setRentals([]));
+    setRowsFailed({ trending: false, rentals: false });
+    browse(TALK_OF_THE_TOWN, 1, region).then(({ items }) => live && setTrending(items)).catch(() => {
+      if (!live) return;
+      setTrending([]);
+      setRowsFailed((current) => ({ ...current, trending: true }));
+    });
+    browse(NEW_TO_RENT, 1, region).then(({ items }) => live && setRentals(items)).catch(() => {
+      if (!live) return;
+      setRentals([]);
+      setRowsFailed((current) => ({ ...current, rentals: true }));
+    });
     return () => {
       live = false;
     };
-  }, [root, region]);
+  }, [root, region, rowsAttempt]);
 
   const fetchPage = (pageNumber: number) =>
     genre ? browseGenre(genre, kind === "all" ? "all" : kind, pageNumber)
@@ -549,14 +583,14 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
           {root && (
             <>
               <CinemaRow region={region} saved={saved} onOpen={onOpen} onSeeAll={openList} />
-              {(!rentalItems || rentalItems.length > 0) && (
-                <Row title="New to rent" items={rentalItems} onOpen={onOpen} onSeeAll={() => openList(NEW_TO_RENT.id)} compact />
+              {(!rentalItems || rentalItems.length > 0 || rowsFailed.rentals) && (
+                <Row title="New to rent" items={rentalItems} failed={rowsFailed.rentals} onRetry={() => setRowsAttempt((count) => count + 1)} onOpen={onOpen} onSeeAll={() => openList(NEW_TO_RENT.id)} compact />
               )}
               <StreamingRow region={region} streams={streams} saved={saved} onOpen={onOpen} onSeeAll={openList} />
               {forYou && load.state === "loading" && <Row title="For you" items={null} onOpen={onOpen} compact />}
               {forYouRow && forYouRow.items.length > 0 && <Row title={forYouRow.title} items={forYouRow.items} onOpen={onOpen} compact />}
-              {(!trendingItems || trendingItems.length > 0) && (
-                <Row title="Trending now" items={trendingItems} onOpen={onOpen} onSeeAll={() => openList("trending")} compact />
+              {(!trendingItems || trendingItems.length > 0 || rowsFailed.trending) && (
+                <Row title="Trending now" items={trendingItems} failed={rowsFailed.trending} onRetry={() => setRowsAttempt((count) => count + 1)} onOpen={onOpen} onSeeAll={() => openList("trending")} compact />
               )}
               <section className="genre-browse" aria-labelledby="explore-title">
                 <h2 id="explore-title">Explore more</h2>

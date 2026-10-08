@@ -478,7 +478,10 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
           {missingSaved ? <>
             <p role="status">{waiting ? "Looking for this title in your synced list…" : missingLookup === "error" ? syncState.status === "needs-auth" ? "Resume sync in your account menu, then retry this title." : "Couldn't sync your list. Your title link is kept here." : "This title isn't in your synced list yet. If you just saved it in the extension, let it finish syncing and try again."}</p>
             {!waiting && <button type="button" className="button button-quiet" onClick={() => setMissingRetry(value => value + 1)}>Retry title</button>}
-          </> : lookupError ? <p>{lookupError}</p> : <p className="muted loading-text">Loading…</p>}
+          </> : lookupError ? <>
+            <p role="status">{lookupError}</p>
+            <button type="button" className="button button-quiet" onClick={() => setMissingRetry(value => value + 1)}>Try again</button>
+          </> : <p className="muted loading-text">Loading…</p>}
         </div>
       </article>
     );
