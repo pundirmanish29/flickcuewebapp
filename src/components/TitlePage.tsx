@@ -53,8 +53,9 @@ function WatchName({ name }: { name: string }) {
 }
 
 /**
- * The "Watch on" pill beside the title. One service links straight to it; more open
- * a list of every service, included ones first, each opening that service.
+ * Where it streams, beside the title: up to three services as cards, each
+ * opening that service; more as a "Watch on" pill opening a list of every
+ * service, included ones first.
  */
 function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Provider[]; rentOrBuy: Provider[] }) {
   const [open, setOpen] = useState(false);
@@ -71,7 +72,7 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
   ].filter((group) => group.providers.length);
 
   // Up to three services are laid out as cards (logo, name, how it's paid for); more open a list.
-  if (all.length > 1 && all.length <= 3) {
+  if (all.length <= 3) {
     return (
       <div className="watch-cards">
         <p className="section-label">{label}</p>
@@ -89,15 +90,6 @@ function WatchOn({ title, streaming, rentOrBuy }: { title: string; streaming: Pr
           ))}
         </ul>
       </div>
-    );
-  }
-  if (all.length === 1) {
-    const only = all[0].provider;
-    return (
-      <a className="watch-on" href={appLink(only.name, title)} target="_blank" rel="noreferrer" aria-label={`${label} ${only.name}`}>
-        <span>{label}</span>
-        <ProviderLogo provider={only} />
-      </a>
     );
   }
   return (
@@ -498,12 +490,12 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   // "No date yet" without its label reads as nothing too; the status line beside the title already says it.
   const barFields = stub.fields.filter((item) => !(item.label === "Reminder" && item.value === "None") && !(item.label === "Next episode" && item.value === "No date yet"));
   const providerName = provider ? splitChannel(provider.name)[0] : "";
-  // Every service, beside the title, unless the stub's main button already is the only one.
+  // Every service, beside the title.
   const providerCount = (details?.streaming.length ?? 0) + (details?.rentOrBuy.length ?? 0);
   // With somewhere to watch it, the next episode's main button plays it there and its tick sits in the up-next row.
   const watchEpisode = episodeAction && provider ? episodeAction : null;
-  const primaryWatches = Boolean(watchEpisode) || stub.primary === "watch" || stub.primary === "watchAgain";
-  const watchOnShown = providerCount > 1 || (providerCount === 1 && !primaryWatches);
+  // Where it streams always shows beside the title, even when the stub's button goes to the same place.
+  const watchOnShown = providerCount > 0;
   const watchHref = provider ? appLink(provider.name, movie.title) : "";
 
   const openChoices = (fromBar = false) => {

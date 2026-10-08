@@ -10,6 +10,11 @@ describe("streaming links", () => {
     expect(providerLink("Netflix Standard with Ads", "Heat")).toContain("netflix.com/search");
   });
 
+  it("opens the service's own search page when it can't take the title", () => {
+    expect(providerLink("Lionsgate Play", "Normal People")).toBe("https://www.lionsgateplay.com/search");
+    expect(providerLink("Lionsgate Play Amazon Channel", "Normal People")).toBe("https://www.lionsgateplay.com/search");
+  });
+
   it("falls back to a Google search for a service it has no address for", () => {
     expect(providerLink("Disney Plus", "Heat")).toBe("https://www.google.com/search?q=watch%20%22Heat%22%20on%20Disney%20Plus");
   });
