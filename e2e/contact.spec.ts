@@ -8,8 +8,18 @@ const fill = async (page: Page) => {
   await page.fill("#message", "Could you add Pune cinemas to the showtimes list, please?");
 };
 
+/** The page as served, with its Turnstile site key replaced (empty: no check; or a stand-in the tests' fake widget accepts). */
+async function serveWithKey(page: Page, key: string) {
+  await page.route("**/contact.html", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: (await response.text()).replace(/data-turnstile-sitekey="[^"]*"/, `data-turnstile-sitekey="${key}"`) });
+  });
+}
+
+/** The contact page with the spam check off, so each test is about the form. */
 async function open(page: Page, stubs: Stubs = {}) {
   const { posted } = await stub(page, stubs);
+  await serveWithKey(page, "");
   await page.goto("/contact.html");
   return posted;
 }
@@ -84,13 +94,17 @@ test.describe("the optional spam check", () => {
   async function withKey(page: Page, stubs: Stubs = {}, script = true) {
     const { posted } = await stub(page, stubs);
     await page.route(/challenges\.cloudflare\.com/, (route) => (script ? route.fulfill({ contentType: "text/javascript", body: widget }) : route.abort()));
-    await page.route("**/contact.html", async (route) => {
-      const response = await route.fetch();
-      await route.fulfill({ response, body: (await response.text()).replace('data-turnstile-sitekey=""', 'data-turnstile-sitekey="0xTESTKEY"') });
-    });
+    await serveWithKey(page, "0xTESTKEY");
     await page.goto("/contact.html");
     return posted;
   }
+
+  test("the page as shipped shows the check, with the real site key", async ({ page }) => {
+    await stub(page);
+    await page.route(/challenges\.cloudflare\.com/, (route) => route.fulfill({ contentType: "text/javascript", body: widget }));
+    await page.goto("/contact.html");
+    await expect(page.locator("#captcha")).toHaveAttribute("data-rendered", /^0x4AAAAAA/);
+  });
 
   test("without a site key shows nothing and loads nothing", async ({ page }) => {
     await open(page);
