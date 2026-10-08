@@ -46,7 +46,7 @@ describe("the home page head", () => {
   it("carries structured data that parses", () => {
     const block = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(home)?.[1] ?? "";
     const data = JSON.parse(block);
-    expect(data["@graph"].map((node: { "@type": string }) => node["@type"])).toEqual(["WebSite", "WebApplication"]);
+    expect(data["@graph"].map((node: { "@type": string }) => node["@type"])).toEqual(["WebSite", "WebApplication", "Organization"]);
   });
 
   it("holds text and links for a crawler that doesn't run scripts, and each link goes somewhere", () => {
