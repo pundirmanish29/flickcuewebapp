@@ -21,6 +21,7 @@ import { Icon, type IconName } from "./Icon";
 import { Poster } from "./Poster";
 import { Popover, ReminderChoices } from "./ReminderMenu";
 import { appLink, splitChannel } from "../lib/providers";
+import { linkReportHref } from "../lib/linkReport";
 import { fetchServiceIds, type ServiceIds } from "../lib/serviceLinks";
 import { directLink, fetchStreamSources, type StreamSource } from "../lib/streamLinks";
 import { regionName } from "../lib/cinemas";
@@ -60,11 +61,19 @@ function WatchName({ name }: { name: string }) {
  * opening that service; more as a "Watch on" pill opening a list of every
  * service, included ones first.
  */
-function WatchOn({ title, streaming, rentOrBuy, direct, credit }: { title: string; streaming: Provider[]; rentOrBuy: Provider[]; direct: (provider: string) => string; credit: boolean }) {
+function WatchOn({ title, tmdb, region, streaming, rentOrBuy, direct, credit }: { title: string; tmdb: { type?: string; id?: string }; region: string; streaming: Provider[]; rentOrBuy: Provider[]; direct: (provider: string) => string; credit: boolean }) {
   // The title's own page on the service when it's known, else the service's search.
   const href = (provider: Provider) => appLink(provider.name, title, undefined, direct(provider.name));
-  // Watchmode's terms ask for a credit wherever its pages are used.
-  const creditLine = credit ? <p className="watch-credit">Links by <a href="https://api.watchmode.com" target="_blank" rel="noreferrer">Watchmode</a></p> : null;
+  // A button opens the title's own page, or the service's search when there's no page to open: say which.
+  const isSearch = (provider: Provider) => !direct(provider.name);
+  // Watchmode's terms ask for a credit wherever its pages are used; "Wrong link?" sends what these buttons offered.
+  const report = linkReportHref({ title, tmdbType: tmdb.type, tmdbId: tmdb.id, region, links: [...streaming, ...rentOrBuy].map((provider) => ({ provider: provider.name, url: direct(provider.name) })) });
+  const creditLine = (
+    <p className="watch-credit">
+      {credit && <>Links by <a href="https://api.watchmode.com" target="_blank" rel="noreferrer">Watchmode</a> · </>}
+      <a href={report}>Wrong link?</a>
+    </p>
+  );
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
@@ -86,11 +95,11 @@ function WatchOn({ title, streaming, rentOrBuy, direct, credit }: { title: strin
         <ul>
           {all.map(({ provider, tone }) => (
             <li key={provider.name}>
-              <a className="watch-card" href={href(provider)} target="_blank" rel="noreferrer">
+              <a className="watch-card" href={href(provider)} target="_blank" rel="noreferrer" aria-label={`${provider.name}, ${tone === "Included" ? "with subscription" : "rent or buy"}, opens ${isSearch(provider) ? "its search" : "the title"}`}>
                 <ProviderLogo provider={provider} />
                 <span>
                   <WatchName name={provider.name} />
-                  <small className={tone === "Included" ? "is-included" : "is-paid"}>{tone === "Included" ? "With subscription" : "Rent or buy"}</small>
+                  <small className={tone === "Included" ? "is-included" : "is-paid"}>{tone === "Included" ? "With subscription" : "Rent or buy"}{isSearch(provider) && <em className="watch-search"> · opens search</em>}</small>
                 </span>
               </a>
             </li>
@@ -129,6 +138,7 @@ function WatchOn({ title, streaming, rentOrBuy, direct, credit }: { title: strin
                   <a href={href(provider)} target="_blank" rel="noreferrer" onClick={close}>
                     <ProviderLogo provider={provider} />
                     <WatchName name={provider.name} />
+                    {isSearch(provider) && <em className="watch-search-tag">Search</em>}
                   </a>
                 </li>
               ))}
@@ -183,13 +193,13 @@ function StubButton({ icon, children, href, onClick, kind = "plain", pressed, ex
  * logo, what it does ("Watch episode 1177") and where ("on Crunchyroll"), on
  * two lines so neither wraps.
  */
-function WatchButton({ href, provider, action, where }: { href: string; provider: Provider | null; action: string; where: string }) {
+function WatchButton({ href, provider, action, where, search }: { href: string; provider: Provider | null; action: string; where: string; search: boolean }) {
   return (
-    <a className="tp-button tp-button-primary tp-watch" href={href} target="_blank" rel="noreferrer" aria-label={`${action} on ${where}`}>
+    <a className="tp-button tp-button-primary tp-watch" href={href} target="_blank" rel="noreferrer" aria-label={`${action} on ${where}${search ? " (opens its search)" : ""}`}>
       {provider?.logo
         ? <img className="tp-watch-logo" src={provider.logo} srcSet={`${provider.logo} 1x, ${provider.logo.replace("/w154/", "/w300/")} 2x`} alt="" decoding="async" />
         : <span className="tp-watch-logo is-icon"><Icon name="play" size={18} /></span>}
-      <span className="tp-watch-text"><b>{action}</b><small>on {where}</small></span>
+      <span className="tp-watch-text"><b>{action}</b><small>{search ? `search on ${where}` : `on ${where}`}</small></span>
       <Icon name="external" size={16} className="tp-watch-out" />
     </a>
   );
@@ -580,6 +590,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const watchEpisode = episodeAction && provider ? episodeAction : null;
   // Where it streams always shows beside the title, even when the stub's button goes to the same place.
   const watchOnShown = providerCount > 0;
+  const watchDirect = provider ? directLink(provider.name, serviceIds, streamSources, { title: movie.title, tmdbType: movie.tmdbType }) : "";
+  const watchIsSearch = Boolean(provider) && !watchDirect;
   const watchHref = provider ? appLink(provider.name, movie.title, undefined, directLink(provider.name, serviceIds, streamSources, { title: movie.title, tmdbType: movie.tmdbType })) : "";
 
   const openChoices = (fromBar = false) => {
@@ -600,17 +612,17 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
       remind: <StubButton kind="primary" icon="clock" expanded={choosingReminder} onClick={() => (fromBar ? openChoices(true) : setChoosingReminder((open) => !open))}>{reminderActive ? "Change reminder" : "Remind me"}</StubButton>,
       watch: fromBar
         ? <StubButton kind="primary" icon="play" href={watchHref}>{provider?.included ? "Watch" : "Rent"}</StubButton>
-        : <WatchButton href={watchHref} provider={provider} action={`${provider?.included ? "Watch" : "Rent or buy"}${outToday ? ` ${episodeShort(outToday.season, outToday.episode)}` : ""}`} where={providerName} />,
+        : <WatchButton href={watchHref} provider={provider} action={`${provider?.included ? "Watch" : "Rent or buy"}${outToday ? ` ${episodeShort(outToday.season, outToday.episode)}` : ""}`} where={providerName} search={watchIsSearch} />,
       watched: <StubButton kind="primary" icon="eye" onClick={() => isSaved && actions.toggleWatched(movie.id)}>{show ? "Mark series finished" : "Watched it"}</StubButton>,
       ticket: <StubButton kind="primary" icon="ticket" onClick={showTicket}>{ticketFile ? (fromBar ? "Ticket" : "Show ticket") : fromBar ? "Add ticket" : "Add ticket file"}</StubButton>,
       watchAgain: fromBar
         ? <StubButton kind="primary" icon="play" href={watchHref}>Watch again</StubButton>
-        : <WatchButton href={watchHref} provider={provider} action="Watch again" where={providerName} />,
+        : <WatchButton href={watchHref} provider={provider} action="Watch again" where={providerName} search={watchIsSearch} />,
       none: null
     };
     if (watchEpisode) return fromBar
       ? <StubButton kind="primary" icon="play" href={watchHref}>{provider?.included ? "Watch" : "Rent"}</StubButton>
-      : <WatchButton href={watchHref} provider={provider} action={`${provider?.included ? "Watch" : "Rent"} ${episodeShort(watchEpisode.season, watchEpisode.episode)}`} where={providerName} />;
+      : <WatchButton href={watchHref} provider={provider} action={`${provider?.included ? "Watch" : "Rent"} ${episodeShort(watchEpisode.season, watchEpisode.episode)}`} where={providerName} search={watchIsSearch} />;
     if (episodeAction) return <StubButton kind="primary" icon="check" onClick={() => actions.toggleEpisode(movie.id, episodeAction.season, episodeAction.episode)}>{fromBar ? `Watched ${episodeShort(episodeAction.season, episodeAction.episode)}` : `Mark ${episodeShort(episodeAction.season, episodeAction.episode)} watched`}</StubButton>;
     if (show && stub.primary === "watched") return <StubButton kind="primary" icon="play" onClick={() => document.getElementById("episode-progress")?.scrollIntoView({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" })}>Episode progress</StubButton>;
     return map[stub.primary];
@@ -705,7 +717,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
               </p>
             ) : status && <p className={`sheet-status tone-${status.tone}`}>{status.text}</p>}
             {facts && <p className="tp-facts">{facts}</p>}
-            {watchOnShown && details && <WatchOn title={movie.title} streaming={details.streaming} rentOrBuy={details.rentOrBuy} direct={(name) => directLink(name, serviceIds, streamSources, { title: movie.title, tmdbType: movie.tmdbType })} credit={Boolean(streamSources?.length)} />}
+            {watchOnShown && details && <WatchOn title={movie.title} tmdb={{ type: movie.tmdbType, id: movie.tmdbId }} region={settings.region} streaming={details.streaming} rentOrBuy={details.rentOrBuy} direct={(name) => directLink(name, serviceIds, streamSources, { title: movie.title, tmdbType: movie.tmdbType })} credit={Boolean(streamSources?.length)} />}
           </div>
         </header>
 

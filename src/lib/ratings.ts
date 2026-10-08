@@ -20,7 +20,11 @@ export interface RatingSet {
   imdb?: Score;
 }
 
+// Not a number: a missing score arrives as null (MDBList) or an empty string, and Number(null) is 0, which
+// would show as a real "0%".
 const number = (value: unknown): number | null => {
+  if (value === null || value === undefined || typeof value === "boolean") return null;
+  if (typeof value === "string" && !value.trim()) return null;
   const n = typeof value === "string" ? Number(value.replace(/,/g, "")) : Number(value);
   return Number.isFinite(n) ? n : null;
 };
@@ -58,8 +62,9 @@ export function savedRatings(movie: Pick<Movie, "criticScore" | "audienceScore" 
   const critic = percent(movie.criticScore);
   const audience = percent(movie.audienceScore);
   const imdb = number(movie.imdbRating);
-  if (critic !== null && movie.criticScore != null) out.critic = { value: critic, count: countOf(movie.criticCount) };
-  if (audience !== null && movie.audienceScore != null) out.audience = { value: audience, count: countOf(movie.audienceCount) };
+  // A 0% with no reviews or ratings behind it is "no score" (an earlier version stored missing scores as 0), not a real 0%.
+  if (critic !== null && movie.criticScore != null && !(critic === 0 && !countOf(movie.criticCount))) out.critic = { value: critic, count: countOf(movie.criticCount) };
+  if (audience !== null && movie.audienceScore != null && !(audience === 0 && !countOf(movie.audienceCount))) out.audience = { value: audience, count: countOf(movie.audienceCount) };
   if (imdb !== null && imdb > 0) out.imdb = { value: Math.round(imdb * 10) / 10, count: countOf(movie.imdbVotes) };
   return out;
 }
@@ -100,7 +105,9 @@ export function formatCount(count: number): string {
   return String(count);
 }
 
-const STORE_KEY = "flickcue.ratings";
+// v2: the first version kept a missing score as 0%; those answers are dropped rather than shown for another day.
+const STORE_KEY = "flickcue.ratings.v2";
+const OLD_STORE_KEY = "flickcue.ratings";
 const KEEP_MS = 24 * 60 * 60 * 1000;
 const KEEP_TITLES = 200;
 
@@ -117,6 +124,7 @@ function readStore(): Stored {
 
 function writeStore(store: Stored) {
   try {
+    localStorage.removeItem(OLD_STORE_KEY);
     localStorage.setItem(STORE_KEY, JSON.stringify(Object.fromEntries(Object.entries(store).sort((a, b) => b[1].at - a[1].at).slice(0, KEEP_TITLES))));
   } catch {
     // Without storage the scores are asked for again next time.

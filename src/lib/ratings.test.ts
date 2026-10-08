@@ -20,6 +20,23 @@ describe("scores from MDBList", () => {
     });
   });
 
+  it("doesn't turn a score MDBList doesn't have (null) into 0%", () => {
+    // One Piece's real answer: IMDb has a score, the Rotten Tomatoes ones are null.
+    const onePiece = { ratings: [{ source: "imdb", value: 9.0, votes: 369641 }, { source: "tomatoes", value: null, votes: null }, { source: "popcorn", value: null, votes: null }] };
+    expect(parseMdbListRatings(onePiece)).toEqual({ imdb: { value: 9, count: 369641 } });
+    expect(parseMdbListRatings({ ratings: [{ source: "tomatoes", value: "" }, { source: "popcorn", value: undefined }] })).toEqual({});
+    expect(savedRatings({ criticScore: null, audienceScore: "", imdbRating: null } as never)).toEqual({});
+  });
+
+  it("treats a stored 0% with nothing behind it as no score, but keeps a real one", () => {
+    expect(savedRatings({ criticScore: 0, audienceScore: 0, imdbRating: 9 } as never)).toEqual({ imdb: { value: 9, count: undefined } });
+    expect(savedRatings({ criticScore: 0, criticCount: 12 } as never)).toEqual({ critic: { value: 0, count: 12 } });
+  });
+
+  it("still shows a real 0%", () => {
+    expect(parseMdbListRatings({ ratings: [{ source: "tomatoes", value: 0, votes: 12 }] })).toEqual({ critic: { value: 0, count: 12 } });
+  });
+
   it("leaves out what's missing or out of range, and copes with nothing", () => {
     expect(parseMdbListRatings({ ratings: [{ source: "tomatoes", value: 140 }, { source: "imdb", value: null }, { source: "popcorn", value: 55 }] })).toEqual({ audience: { value: 55, count: undefined } });
     expect(parseMdbListRatings(null)).toEqual({});
