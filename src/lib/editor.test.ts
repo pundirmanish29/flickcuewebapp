@@ -147,6 +147,17 @@ describe("your take", () => {
     const cleared = rated.ok ? editor.setTake(rated.document, "m", { rating: 0 }, NOW) : rated;
     expect(cleared.ok && cleared.movie.personal).toEqual({ note: "keep", liked: true });
   });
+
+  it("keeps a review trimmed and at most 4000 characters, and removes it when emptied", () => {
+    const base: LibraryDocument = { movies: [{ id: "m", title: "Heat", personal: { rating: 4 } } as Movie], deleted: [] };
+    const written = editor.setReview(base, "m", "  Tense, and the diner scene.  ", NOW);
+    expect(written.ok && written.movie.personal).toEqual({ rating: 4, review: "Tense, and the diner scene." });
+    const long = editor.setReview(base, "m", "x".repeat(5000), NOW);
+    expect(long.ok && String(long.movie.personal?.review).length).toBe(4000);
+    const emptied = written.ok ? editor.setReview(written.document, "m", "   ", NOW) : written;
+    expect(emptied.ok && emptied.movie.personal).toEqual({ rating: 4 });
+    expect(written.ok && editor.setReview(written.document, "m", "Tense, and the diner scene.", NOW)).toMatchObject({ ok: false, reason: "Unchanged." });
+  });
 });
 
 describe("tickets", () => {

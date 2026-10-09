@@ -1740,6 +1740,11 @@ a.rating-link:hover .rating-value { text-decoration: underline; text-decoration-
 .take-heart { display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; }
 .take-heart.on { color: var(--orange); }
 .take-heart.on svg { fill: currentColor; }
+/* Letterboxd's take is shown, not set: no pointer, no press. */
+.take-stars-edit.is-static .star, .take-heart.is-static { cursor: default; }
+.section-label .take-source { margin-left: 6px; color: var(--muted); font-family: var(--font-ui); font-size: 12px; letter-spacing: 0; text-transform: none; }
+/* Your review: the note's box, under the stars. */
+.take-review-edit { margin-top: 12px; }
 .add-note {
   display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 1px dashed var(--rule); border-radius: 999px;
   background: none; color: var(--ink-soft); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
@@ -2191,26 +2196,11 @@ html[data-direction] ::view-transition-new(root) { animation: vt-in 160ms ease-o
 .tonight-watched:active { transform: scale(0.92); }
 @media (max-width: 600px) { .tonight-card { width: 210px; } }
 
-/* ---- Your take as a verdict ---- */
-.verdict-scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
-.verdict {
-  min-height: 42px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--rule); background: none; color: var(--ink);
-  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
-}
-.verdict:hover { border-color: var(--ink); }
-.verdict:active { transform: scale(0.96); }
-.verdict.on { color: var(--on-accent); border-color: transparent; }
-.verdict-skip.on { background: var(--red); color: #fff; }
-.verdict-timepass.on { background: var(--orange); }
-.verdict-go.on { background: color-mix(in srgb, var(--green) 60%, var(--orange)); }
-.verdict-perfection.on { background: var(--green); }
-/* On a poster card the verdict is a coloured word, like the scores. */
+/* ---- Your take as a verdict word: on a poster card it's coloured, like the scores ---- */
 .verdict-word.verdict-skip { color: var(--red); }
 .verdict-word.verdict-timepass { color: var(--orange-ink); }
 .verdict-word.verdict-go { color: color-mix(in srgb, var(--green-ink) 55%, var(--orange-ink)); }
 .verdict-word.verdict-perfection { color: var(--green-ink); }
-@media (max-width: 420px) { .verdict { font-size: 13px; padding: 0 4px; } }
 
 /* ---- Discover: the cinema first, then streaming ---- */
 .list-head { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; }

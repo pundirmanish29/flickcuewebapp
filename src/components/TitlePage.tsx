@@ -32,7 +32,6 @@ import { Seasons } from "./Seasons";
 import { RatingsPanel } from "./RatingsPanel";
 import { fetchRatings, mergeRatings, savedRatings, type RatingSet } from "../lib/ratings";
 import { ScrollArrows } from "./ScrollArrows";
-import { VerdictScale } from "./VerdictScale";
 import { goDiscover } from "../lib/discoverIntent";
 import { openTitle as openWithMotion, pop, reducedMotion } from "../lib/motion";
 import { usePreview } from "../lib/preview";
@@ -281,6 +280,9 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     if (choosingReminder) setSheet(window.matchMedia("(max-width: 900px)").matches);
   }, [choosingReminder]);
   useDialog(choosingReminder && sheet, sheetRef, () => setChoosingReminder(false));
+  // Your review while you type it (null when not editing, so the synced one shows), saved when you leave the box.
+  const syncedReview = String(movie?.personal?.review ?? "");
+  const [reviewDraft, setReviewDraft] = useState<string | null>(null);
   const syncedNote = movie?.personal?.note ?? "";
   const [draft, setDraft] = useState(() => noteDraft(syncedNote));
   const note = draft.text;
@@ -546,6 +548,10 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const take = takeRating || takeLiked || takeReview
     ? { rating: takeRating, liked: takeLiked, review: takeReview, source: !personalRating && !movie.personal?.review && (letterboxd.rating || letterboxd.review) ? "Letterboxd" : "" }
     : null;
+  // A title Letterboxd has your rating or review for shows those, as they are; otherwise you rate and review it here.
+  const ownTake = Boolean(personalRating || movie.personal?.review || movie.personal?.liked);
+  const fromLetterboxd = !ownTake && Boolean(Number(letterboxd.rating) || String(letterboxd.review || "").trim());
+  const starFill = (star: number) => (takeRating >= star ? "full" : takeRating >= star - 0.5 ? "half" : "");
 
   const sourceHost = (() => {
     try {
@@ -869,14 +875,34 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             </section>
           )}
 
-          {isSaved && (movie.watched || take) && (
+          {isSaved && (movie.watched || take) && (fromLetterboxd ? (
+            // From Letterboxd: its stars, heart and review as they are, read only.
+            <section className="sheet-section">
+              <h2 className="section-label">Your take <span className="take-source">from Letterboxd</span></h2>
+              <div className="take">
+                {takeRating > 0 && (
+                  <span className="take-stars-edit is-static" role="img" aria-label={`${takeRating} out of 5 stars on Letterboxd`}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <span key={star} className={`star ${starFill(star)}`} aria-hidden="true">
+                        <Icon name="star" size={22} />
+                        {starFill(star) === "half" && <span className="star-half"><Icon name="star" size={22} /></span>}
+                      </span>
+                    ))}
+                  </span>
+                )}
+                {takeRating > 0 && <b className="take-number">{takeRating}</b>}
+                {takeLiked && <span className="take-heart on is-static" role="img" aria-label="Liked on Letterboxd"><Icon name="heart" size={20} /></span>}
+              </div>
+              {take?.review && <blockquote className="take-review">{take.review}</blockquote>}
+            </section>
+          ) : (
+            // FlickCue's own: your stars and heart, and your review.
             <section className="sheet-section">
               <h2 className="section-label">Your take</h2>
-              <VerdictScale stars={takeRating} ownStars={personalRating} onPick={(stars) => actions.setTake(movie.id, { rating: stars })} />
               <div className="take" onClickCapture={(event) => pop((event.target as Element).closest("button"))}>
                 <span className="take-stars-edit" role="group" aria-label="Your rating">
                   {[1, 2, 3, 4, 5].map((star) => {
-                    const fill = takeRating >= star ? "full" : takeRating >= star - 0.5 ? "half" : "";
+                    const fill = starFill(star);
                     // Tapping a star sets it; tapping it again takes off half, then clears.
                     const next = takeRating === star ? star - 0.5 : takeRating === star - 0.5 ? 0 : star;
                     return (
@@ -891,11 +917,21 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
                 <button type="button" className={`take-heart ${takeLiked ? "on" : ""}`} aria-pressed={takeLiked} aria-label="Liked" onClick={() => actions.setTake(movie.id, { liked: !takeLiked })}>
                   <Icon name="heart" size={20} />
                 </button>
-                {take?.source && <span className="take-source">from {take.source}</span>}
               </div>
-              {take?.review && <blockquote className="take-review">{take.review}</blockquote>}
+              <label className="visually-hidden" htmlFor="review">Your review</label>
+              <textarea
+                id="review"
+                className="note take-review-edit"
+                rows={3}
+                maxLength={4000}
+                placeholder="Your review: what worked, what didn't…"
+                value={reviewDraft ?? syncedReview}
+                onFocus={() => setReviewDraft(syncedReview)}
+                onChange={(event) => setReviewDraft(event.target.value)}
+                onBlur={() => { if (reviewDraft !== null) actions.setReview(movie.id, reviewDraft); setReviewDraft(null); }}
+              />
             </section>
-          )}
+          ))}
 
           {isSaved && (
             <section className="sheet-section">

@@ -1,7 +1,6 @@
-// "Your take" as four plain verdicts. They are kept as the same 0-5 stars the
-// list has always held (and the extension, Android app and Letterboxd use), so
-// nothing else needs to change: a verdict sets its stars, and stars read back
-// as the verdict they fall in.
+// Stars read as one of four plain words, for a short line on a card or the
+// bar. The 0-5 stars the list holds (as the extension, Android app and
+// Letterboxd use) are what's set and stored; a word is only how they read.
 
 export type Verdict = "skip" | "timepass" | "go" | "perfection";
 
@@ -23,8 +22,3 @@ export function verdictOf(stars: unknown): Verdict | null {
 }
 
 export const verdictLabel = (verdict: Verdict) => VERDICTS.find((item) => item.id === verdict)!.label;
-
-/** The stars to save for a tap on a verdict: none when it's already the one held (tapping again clears it). */
-export function starsForTap(verdict: Verdict, current: unknown): number {
-  return verdictOf(current) === verdict ? 0 : VERDICTS.find((item) => item.id === verdict)!.stars;
-}

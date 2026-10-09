@@ -63,6 +63,10 @@ export function setTake(id: string, take: { rating?: number; liked?: boolean }) 
   apply(editor.setTake(getState().library, id, take));
 }
 
+export function setReview(id: string, review: string) {
+  apply(editor.setReview(getState().library, id, review));
+}
+
 /** Saves a title and marks it watched in one go, from a title not yet in the list. */
 export function saveWatched(candidate: Candidate) {
   const added = editor.addFromCandidate(getState().library, candidate, null);

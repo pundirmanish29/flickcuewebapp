@@ -120,6 +120,19 @@ export function setTake(document: LibraryDocument, id: string, take: { rating?: 
   });
 }
 
+/** Your written review, in personal (SHARED.md: trimmed, at most 4000 characters, removed when empty). */
+export function setReview(document: LibraryDocument, id: string, review: string, now = Date.now()): EditResult {
+  return edit(document, id, now, (movie) => {
+    const trimmed = review.trim().slice(0, 4000);
+    if ((movie.personal?.review ?? "") === trimmed) return "Unchanged.";
+    const personal = { ...(movie.personal ?? {}) };
+    if (trimmed) personal.review = trimmed;
+    else delete personal.review;
+    movie.personal = personal;
+    return null;
+  });
+}
+
 export function setNote(document: LibraryDocument, id: string, note: string, now = Date.now()): EditResult {
   return edit(document, id, now, (movie) => {
     const trimmed = note.slice(0, 2000);
