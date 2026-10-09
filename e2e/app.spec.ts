@@ -49,6 +49,73 @@ test.describe("Discover while the posters are still downloading", () => {
   });
 });
 
+test.describe("Discover's cinema row", () => {
+  const film = (id: number, extra: Record<string, unknown> = {}) => ({ id, title: `Film ${id}`, poster_path: `/p${id}.jpg`, release_date: "2026-09-20", vote_average: 7, vote_count: 100, ...extra });
+  const show = (id: number) => ({ id, name: `Show ${id}`, poster_path: `/s${id}.jpg`, first_air_date: "2026-09-25", vote_average: 7, vote_count: 100 });
+  const results = (items: unknown[], total_pages = 1) => ({ results: items, total_pages });
+  const stubs = (path: string, params: URLSearchParams) => {
+    const page = Number(params.get("page") || "1");
+    // Three pages of films in cinemas (4 a page), one page coming soon, one of them without a poster.
+    if (path === "movie/now_playing") return results([1, 2, 3, 4].map((n) => film(page * 10 + n)), 3);
+    if (path === "movie/upcoming") return results([film(901), film(902, { poster_path: null }), film(903)]);
+    if (path === "discover/tv") return results([show(1), show(2)]);
+    if (path === "discover/movie") return results([film(71), film(72)]);
+    return undefined;
+  };
+
+  test("shows every film in cinemas and every film coming soon, not the first few", async ({ page }) => {
+    await stub(page, { tmdb: stubs });
+    await signedIn(page);
+    await page.goto("/#/discover");
+    const cards = page.locator(".cinema-shelf").first().locator(".candidate-card");
+    await expect(cards).toHaveCount(3);
+    await expect(page.getByText("Film 902")).toBeVisible();
+    await page.getByRole("button", { name: "In cinemas", exact: true }).click();
+    // 3 pages of 4, loaded behind the first.
+    await expect(cards).toHaveCount(12);
+  });
+
+  test("has a New toggle with the latest films and shows together, and its own full list", async ({ page }) => {
+    await stub(page, { tmdb: stubs });
+    await signedIn(page);
+    await page.goto("/#/discover");
+    const row = page.locator(".cinema-shelf").first();
+    await row.getByRole("button", { name: "New", exact: true }).click();
+    await expect(row.getByRole("button", { name: "New", exact: true })).toHaveAttribute("aria-pressed", "true");
+    const names = row.locator(".candidate-card h3");
+    await expect(names).toHaveText(["Film 71", "Show 1", "Film 72", "Show 2"]);
+    await expect(row.getByText("New Show").first()).toBeVisible();
+    await row.getByRole("button", { name: "See all" }).click();
+    await expect(page.getByRole("heading", { name: "New movies and shows" })).toBeVisible();
+    await expect(page.locator(".candidate-card")).toHaveCount(4);
+    // A kind filter, as on a genre.
+    await page.getByRole("button", { name: "Shows", exact: true }).click();
+    await expect(page.locator(".candidate-card h3")).toHaveText(["Show 1", "Show 2"]);
+  });
+});
+
+test.describe("a cast member with no photo", () => {
+  test("is a blank cover with a user icon, in the same frame as the photos", async ({ page }) => {
+    const credits = { cast: [{ name: "No Photo", character: "A role", profile_path: null }, { name: "Has Photo", character: "Another", profile_path: "/face.jpg" }] };
+    await stub(page, { tmdb: (path) => (path.startsWith("tv/1001") ? showDetails({ credits }) : undefined) });
+    // The photo never arrives, so the frame is what is on show.
+    await page.route("https://image.tmdb.org/**", () => new Promise(() => {}));
+    await signedIn(page, [title()]);
+    await page.goto("/#/title/t1");
+    const blank = page.locator(".cast-row li").first().locator(".poster-person");
+    await expect(blank).toBeVisible();
+    await expect(blank.locator("svg")).toBeVisible();
+    await expect(blank).not.toContainText("NP");
+    const box = (await blank.boundingBox())!;
+    expect(box.width).toBeCloseTo(96, 0);
+    expect(box.height).toBeCloseTo(144, 0);
+    // The one with a photo still on its way keeps the same frame.
+    const waiting = (await page.locator(".cast-row li").nth(1).locator(".cast-photo").boundingBox())!;
+    expect(waiting.width).toBeCloseTo(96, 0);
+    expect(waiting.height).toBeCloseTo(144, 0);
+  });
+});
+
 test.describe("a title's page", () => {
   const prime = { name: "Prime Video", type: "sub", url: "https://app.primevideo.com/detail?gti=amzn1.dv.gti.test" };
 

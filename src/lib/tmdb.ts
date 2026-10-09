@@ -264,6 +264,8 @@ export interface DiscoverCategory {
   regional?: boolean;
   /** Filtered by what's on offer in the reader's region (watch_region), which TMDB needs for any watch-monetization filter. */
   watchRegional?: boolean;
+  /** Keep titles TMDB has no poster for (shown as a blank cover): a list that should be every film in cinemas, not just the ones with artwork. */
+  keepPosterless?: boolean;
   /** A chart: shown numbered, saved titles kept in place. */
   ranked?: boolean;
   /** A few words on why each title is here, shown under its name ("New Movie"); empty says nothing. */
@@ -279,8 +281,8 @@ const SIX_MONTHS_AGO = isoDay(new Date(new Date().setMonth(new Date().getMonth()
 export const DISCOVER_CATEGORIES: DiscoverCategory[] = [
   { id: "trending", label: "Trending", path: "trending/all/week" },
   { id: "trending-shows", label: "Trending shows", path: "trending/tv/week", type: "tv", ranked: true },
-  { id: "now-playing", label: "In cinemas", path: "movie/now_playing", type: "movie", regional: true },
-  { id: "upcoming", label: "Coming soon", path: "movie/upcoming", type: "movie", regional: true },
+  { id: "now-playing", label: "In cinemas", path: "movie/now_playing", type: "movie", regional: true, keepPosterless: true },
+  { id: "upcoming", label: "Coming soon", path: "movie/upcoming", type: "movie", regional: true, keepPosterless: true },
   {
     id: "to-rent", label: "New to rent", path: "discover/movie", type: "movie", watchRegional: true,
     // Films from the last six months that can be rented in the reader's region: most are just out of cinemas.
@@ -371,13 +373,13 @@ export function inCinemasNow(region: string): Promise<Set<string>> {
 export const cinemaKey = (movie: { tmdbId?: string; tmdbType?: string }) =>
   movie.tmdbId && movie.tmdbType !== "tv" ? `tmdb:movie:${movie.tmdbId}` : "";
 
-export async function browse(category: DiscoverCategory, page = 1, region = ""): Promise<{ items: Candidate[]; more: boolean }> {
+export async function browse(category: DiscoverCategory, page = 1, region = ""): Promise<{ items: Candidate[]; more: boolean; pages: number }> {
   const params: Record<string, string> = { include_adult: "false", page: String(page), ...(category.params ?? {}) };
   if (category.regional && /^[A-Z]{2}$/i.test(region)) params.region = region.toUpperCase();
   if (category.watchRegional) params.watch_region = /^[A-Z]{2}$/i.test(region) ? region.toUpperCase() : "US";
   const data = await tmdbGet(category.path, params);
   const items = dedupe((data.results ?? [])
-    .filter((item: any) => item.poster_path && (category.type || item.media_type === "movie" || item.media_type === "tv"))
+    .filter((item: any) => (category.keepPosterless || item.poster_path) && (category.type || item.media_type === "movie" || item.media_type === "tv"))
     .map((item: any) => toCandidate(item, category.type)))
     // The list itself is the news: say so on each card. (Its release_date is
     // the first release anywhere, not this region's, so no date is claimed.)
@@ -386,7 +388,23 @@ export async function browse(category: DiscoverCategory, page = 1, region = ""):
       const reason = category.reason?.(item);
       return reason ? { ...item, reason } : item;
     });
-  return { items, more: page < Math.min(Number(data.total_pages) || 1, 10) };
+  const pages = Math.min(Number(data.total_pages) || 1, 10);
+  return { items, more: page < pages, pages };
+}
+
+/**
+ * Every page of a list (the ten TMDB lists are capped at here), the first one as soon as it arrives:
+ * `onPage` is given the titles so far, then again with all of them. A page that fails is left out
+ * rather than failing the list, so a row shows what it could get; only the first page failing is an error.
+ */
+export async function browseAll(category: DiscoverCategory, region: string, onPage: (items: Candidate[]) => void): Promise<void> {
+  const first = await browse(category, 1, region);
+  onPage(first.items);
+  if (first.pages < 2) return;
+  const rest = await Promise.all(
+    Array.from({ length: first.pages - 1 }, (_, index) => browse(category, index + 2, region).then((result) => result.items, () => [] as Candidate[]))
+  );
+  onPage(dedupe([...first.items, ...rest.flat()]));
 }
 
 export interface Provider {

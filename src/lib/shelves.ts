@@ -69,7 +69,7 @@ export function providersFor(region: string): { id: string; name: string }[] {
 /** Films and shows from one discover query, taken in turn so a list isn't all of one kind. */
 async function mixed(
   id: string, label: string, params: Record<string, string>, since: string | null, reason: (item: Candidate) => string,
-  kind: "all" | "movie" | "tv" = "all", page = 1
+  kind: "all" | "movie" | "tv" = "all", page = 1, until: string | null = null
 ): Promise<{ items: Candidate[]; more: boolean }> {
   const types = kind === "all" ? (["movie", "tv"] as const) : ([kind] as const);
   // One kind failing still leaves the other's titles; only when every request fails is that an error to report
@@ -80,7 +80,11 @@ async function mixed(
     types.map((type) =>
       browse({
         id: `${id}-${type}`, label, path: `discover/${type}`, type,
-        params: { ...params, ...(since ? { [type === "tv" ? "first_air_date.gte" : "primary_release_date.gte"]: since } : {}) },
+        params: {
+          ...params,
+          ...(since ? { [type === "tv" ? "first_air_date.gte" : "primary_release_date.gte"]: since } : {}),
+          ...(until ? { [type === "tv" ? "first_air_date.lte" : "primary_release_date.lte"]: until } : {})
+        },
         reason
       }, page).catch((error) => {
         failed++;
@@ -98,6 +102,18 @@ async function mixed(
 }
 
 const twoYearsAgo = () => `${new Date().getFullYear() - 2}-01-01`;
+
+/** Discover's list of what has just come out: films and shows that first reached viewers in the last 30 days. */
+export const NEW_RELEASES_ID = "new";
+export const NEW_RELEASES_TITLE = "New movies and shows";
+
+/** One page of it, popular first, films and shows taken in turn (or just one kind). */
+export function browseNew(kind: "all" | "movie" | "tv" = "all", page = 1, now = Date.now()): Promise<{ items: Candidate[]; more: boolean }> {
+  return mixed(
+    NEW_RELEASES_ID, NEW_RELEASES_TITLE, { sort_by: "popularity.desc" }, isoToday(now - 30 * DAY),
+    (item) => (item.tmdbType === "tv" ? "New Show" : "New Movie"), kind, page, isoToday(now)
+  );
+}
 
 /** A streaming chip on Discover: what's free, or what's on one service. */
 export interface StreamChoice {
