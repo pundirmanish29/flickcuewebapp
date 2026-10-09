@@ -43,8 +43,11 @@ Vite + React + TypeScript, no backend. It builds to static files.
 - **Settings**: Google sign-in and sync, streaming region (default `IN`),
   browser notifications for reminders while the tab is
   open, an optional switch that puts reminders on a calendar of their own in
-  Google Calendar (so they alert with FlickCue closed; see below), and JSON
-  backup export/import (import merges, it doesn't overwrite).
+  Google Calendar (so they alert with FlickCue closed; see below), JSON
+  backup export/import (import merges, it doesn't overwrite), and a CSV of the
+  films you watched for Letterboxd's importer (`src/lib/letterboxdExport.ts`): your own
+  stars, reviews and watch dates, films only, TMDB-matched only, and nothing that came
+  from Letterboxd. It is made in the browser and you upload it yourself.
 
 Signed out, the site is just the homepage; the Queue, Discover, Watched and Settings
 need sign-in. A list already kept in `localStorage` on this device is merged into Drive

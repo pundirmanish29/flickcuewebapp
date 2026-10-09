@@ -13,6 +13,7 @@ import { CALENDAR_MIRROR_ENABLED, EXTENSION_URL, FIREFOX_EXTENSION_URL } from ".
 import { ContactReveal } from "../components/ContactReveal";
 import { alertSupport } from "../lib/alerts";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
+import { letterboxdCsvParts, letterboxdFileName, markSent, planExport, readSent, type CsvPart } from "../lib/letterboxdExport";
 import { useTheme, type ThemeChoice } from "../lib/theme";
 import { LANGUAGES, REGIONS } from "../lib/regions";
 import type { LibraryDocument } from "../lib/types";
@@ -360,6 +361,81 @@ function RegionAndCity() {
   );
 }
 
+/** Your watched films as a file Letterboxd's importer reads. Nothing is sent from here; the person uploads it. */
+function LetterboxdExport() {
+  const { library } = useAppState();
+  const [plan, setPlan] = useState<{ parts: CsvPart[]; unmatched: number; all: boolean } | null>(null);
+  const [downloaded, setDownloaded] = useState<number[]>([]);
+  if (!library.movies.some((movie) => movie.watched)) return null;
+
+  const prepare = (all: boolean) => {
+    const { entries, unmatched } = planExport(library.movies, readSent(), { all });
+    setPlan({ parts: letterboxdCsvParts(entries), unmatched, all });
+    setDownloaded([]);
+  };
+
+  const download = (index: number) => {
+    const part = plan?.parts[index];
+    if (!plan || !part) return;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([part.csv], { type: "text/csv;charset=utf-8" }));
+    link.download = letterboxdFileName(index, plan.parts.length);
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    markSent(part.entries);
+    setDownloaded((list) => [...list, index]);
+    toast(plan.parts.length > 1 ? `Downloaded part ${index + 1} of ${plan.parts.length}` : "Downloaded for Letterboxd");
+  };
+
+  const entries = plan?.parts.flatMap((part) => part.entries) ?? [];
+  const films = (count: number) => `${count} ${count === 1 ? "film" : "films"}`;
+
+  return (
+    <div className="restore">
+      <p className="field-label">Send to Letterboxd</p>
+      {!plan ? (
+        <>
+          <p className="muted small-print">Download the films you watched here, with your own stars, reviews and watch dates, as a file Letterboxd's importer reads. Nothing is sent from FlickCue: you upload the file yourself.</p>
+          <button type="button" className="button button-quiet" onClick={() => prepare(false)}>Prepare a file</button>
+        </>
+      ) : (
+        <>
+          {entries.length ? (
+            <>
+              <p>
+                <b>{films(entries.length)} ready.</b>{" "}
+                {entries.filter((entry) => entry.watchedDate).length} with a watch date · {entries.filter((entry) => entry.rating).length} rated · {entries.filter((entry) => entry.review).length} reviewed.
+              </p>
+              <div className="button-row">
+                {plan.parts.map((_, index) => (
+                  <button key={index} type="button" className="button button-ink" onClick={() => download(index)}>
+                    {plan.parts.length > 1 ? `Download part ${index + 1} of ${plan.parts.length}` : "Download the file"}
+                    {downloaded.includes(index) ? " · done" : ""}
+                  </button>
+                ))}
+              </div>
+              {downloaded.length > 0 && (
+                <p className="muted small-print">
+                  Now upload it at <a href="https://letterboxd.com/import/" target="_blank" rel="noreferrer">letterboxd.com/import</a>. Next time only films that are new or changed since are included.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="muted">Nothing new to send. What you watched here is already on Letterboxd, or was in a file you downloaded before.</p>
+          )}
+          {plan.unmatched > 0 && (
+            <p className="muted small-print">{films(plan.unmatched)} you watched {plan.unmatched === 1 ? "was" : "were"} added by hand and {plan.unmatched === 1 ? "has" : "have"} no TMDB link, so Letterboxd could only guess. {plan.unmatched === 1 ? "It's" : "They're"} left out.</p>
+          )}
+          <p className="linked-actions">
+            {!plan.all && <><button type="button" className="inline-link" onClick={() => prepare(true)}>Include everything again</button><span aria-hidden="true"> · </span></>}
+            <button type="button" className="inline-link" onClick={() => setPlan(null)}>Close</button>
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Letterboxd() {
   const { settings, library } = useAppState();
   const [editing, setEditing] = useState(false);
@@ -405,6 +481,7 @@ function Letterboxd() {
         </form>
       )}
       {stats.linked > 0 && <p className="muted small-print">{stats.linked} {stats.linked === 1 ? "title in your list carries" : "titles in your list carry"} Letterboxd ratings, likes or reviews.</p>}
+      <LetterboxdExport />
     </article>
   );
 }
