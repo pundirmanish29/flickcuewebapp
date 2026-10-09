@@ -58,7 +58,7 @@ Success means saved titles actually get watched, and the list is the same on eve
 ## Evidence on Hand
 
 - Homepage screenshots of the web app, taken from a demo list: `public/home-{queue,title,discover,alerts}-{desktop,phone}.webp`. The extension's save card: `public/flickcue-extension-04.webp`. The social preview image is `public/og-image.jpg`.
-- Chrome Web Store listing: FlickCue – Watch Later (id `hmgefidihfkkeleeblhecnhlkbbojmmh`).
+- Chrome Web Store listing: FlickCue (id `hmgefidihfkkeleeblhecnhlkbbojmmh`).
 - Privacy policy: `public/privacy.html`.
 - There are no testimonials, user numbers, press or reviews. Don't invent them.
 
