@@ -92,18 +92,27 @@ const TALK_AND_NEWS = [10763, 10767];
 export function bestKnownWork(credits: any): { work: any[]; role: string } {
   const acted = (credits?.cast ?? []).filter((credit: any) => !/\b(self|himself|herself|themselves)\b/i.test(credit.character || ""));
   const made = (credits?.crew ?? []).filter((credit: any) => PERSON_JOBS.has(credit.job));
-  const usable = (credit: any) => credit.poster_path && (Number(credit.vote_count) || 0) >= 30
-    && !(credit.genre_ids ?? []).some((genre: number) => TALK_AND_NEWS.includes(genre));
+  const shown = (credit: any) => credit.poster_path && !(credit.genre_ids ?? []).some((genre: number) => TALK_AND_NEWS.includes(genre));
+  const wellKnown = (credit: any) => shown(credit) && (Number(credit.vote_count) || 0) >= 30;
+  const dated = (credit: any) => String(credit.release_date || credit.first_air_date || "");
 
-  const best = new Map<string, { credit: any; score: number; job: string }>();
-  for (const [list, weight] of [[made, 1.5], [acted, 1]] as const) {
-    for (const credit of list.filter(usable)) {
-      const key = `${credit.media_type}:${credit.id}`;
-      const score = (Number(credit.vote_count) || 0) * weight;
-      if ((best.get(key)?.score ?? -1) < score) best.set(key, { credit, score, job: credit.job || "Acting" });
+  const rank = (usable: (credit: any) => boolean) => {
+    const best = new Map<string, { credit: any; score: number; job: string }>();
+    for (const [list, weight] of [[made, 1.5], [acted, 1]] as const) {
+      for (const credit of list.filter(usable)) {
+        const key = `${credit.media_type}:${credit.id}`;
+        const score = (Number(credit.vote_count) || 0) * weight;
+        if ((best.get(key)?.score ?? -1) < score) best.set(key, { credit, score, job: credit.job || "Acting" });
+      }
     }
-  }
-  const ranked = [...best.values()].sort((a, b) => b.score - a.score);
+    // Equal votes: the newer work first.
+    return [...best.values()].sort((a, b) => b.score - a.score || dated(b.credit).localeCompare(dated(a.credit)));
+  };
+
+  // Someone new has few votes on anything yet. A list of what TMDB has beats an empty page, so the vote
+  // cutoff only applies while it leaves something to show.
+  let ranked = rank(wellKnown);
+  if (!ranked.length) ranked = rank(shown);
 
   const top = ranked.slice(0, 12).map((entry) => entry.job);
   const roles: string[] = [];
