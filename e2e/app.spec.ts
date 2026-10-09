@@ -31,6 +31,24 @@ test.describe("Discover when the title service can't be reached", () => {
   });
 });
 
+test.describe("Discover while the posters are still downloading", () => {
+  const list = { results: [1, 2, 3].map((id) => ({ id, title: `Film ${id}`, poster_path: `/p${id}.jpg`, release_date: "2026-01-01", vote_average: 7.2, vote_count: 100 })), total_pages: 1 };
+
+  test("every card keeps its poster frame, so the row is cards that fill in, not a line of names", async ({ page }) => {
+    await stub(page, { tmdb: () => list });
+    // Registered after the stub's own, so it answers first: nothing arrives within the test.
+    await page.route("https://image.tmdb.org/**", () => new Promise(() => {}));
+    await signedIn(page);
+    await page.goto("/#/discover");
+    const frame = page.locator(".cinema-row .title-card-art").first();
+    await expect(frame).toBeVisible();
+    const box = (await frame.boundingBox())!;
+    // A card is a 2:3 poster; before this was fixed the frame was 0 wide, with nothing to show where the poster goes.
+    expect(box.width).toBeGreaterThan(100);
+    expect(box.height).toBeCloseTo(box.width * 1.5, 0);
+  });
+});
+
 test.describe("a title's page", () => {
   const prime = { name: "Prime Video", type: "sub", url: "https://app.primevideo.com/detail?gti=amzn1.dv.gti.test" };
 
