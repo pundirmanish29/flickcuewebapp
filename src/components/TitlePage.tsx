@@ -957,7 +957,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
                 {details.cast.map((person) => (
                   <li key={person.name + person.character}>
                     <button type="button" className="cast-link" onClick={() => goDiscover({ search: person.name })} aria-label={`${person.name}: more with them`}>
-                      <Poster src={person.photo} title={person.name} className="cast-photo" />
+                      <Poster src={person.photo} title={person.name} className="cast-photo" person />
                       <span className="cast-name">{person.name}</span>
                       <span className="muted cast-role">{person.character}</span>
                     </button>

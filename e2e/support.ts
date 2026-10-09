@@ -26,8 +26,8 @@ const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers
 const json = (body: unknown, status = 200) => ({ status, headers: { ...CORS, "content-type": "application/json" }, body: JSON.stringify(body) });
 
 export interface Stubs {
-  /** Answers /tmdb/<path>; return undefined to fall through to an empty page of results. */
-  tmdb?: (path: string) => unknown;
+  /** Answers /tmdb/<path> (with its query string as the second argument); return undefined to fall through to an empty page of results. */
+  tmdb?: (path: string, params: URLSearchParams) => unknown;
   /** Make every title-service call fail, as when offline. */
   offline?: boolean;
   mdblist?: unknown;
@@ -56,7 +56,7 @@ export async function stub(page: Page, stubs: Stubs = {}) {
     if (url.pathname.startsWith("/mdblist/")) return route.fulfill(json(stubs.mdblist ?? { ratings: [] }));
     if (url.pathname.startsWith("/links/")) return route.fulfill(json(stubs.links ?? { sources: [] }));
     if (url.pathname.startsWith("/tmdb/")) {
-      const body = stubs.tmdb?.(url.pathname.replace("/tmdb/", ""));
+      const body = stubs.tmdb?.(url.pathname.replace("/tmdb/", ""), url.searchParams);
       return route.fulfill(json(body ?? { results: [], total_pages: 1 }));
     }
     return route.fulfill(json({}, 404));

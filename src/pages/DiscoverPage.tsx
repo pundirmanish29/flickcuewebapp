@@ -15,8 +15,8 @@ import { findExisting } from "../lib/editor";
 import { useSwap } from "../lib/motion";
 import { displayTitle } from "../lib/rules";
 import { useAppState } from "../lib/store";
-import { browseStream, COMING_SOON, HIDDEN_GEMS, streamChoices, TALK_OF_THE_TOWN, type StreamChoice } from "../lib/shelves";
-import { browse, browseGenre, DISCOVER_CATEGORIES, genreHasShows, GENRES_LIST, IN_CINEMAS, recommendRows, searchTitles, upscale, type DiscoverCategory, type PersonMatch } from "../lib/tmdb";
+import { browseNew, browseStream, COMING_SOON, HIDDEN_GEMS, NEW_RELEASES_ID, NEW_RELEASES_TITLE, streamChoices, TALK_OF_THE_TOWN, type StreamChoice } from "../lib/shelves";
+import { browse, browseAll, browseGenre, DISCOVER_CATEGORIES, genreHasShows, GENRES_LIST, IN_CINEMAS, recommendRows, searchTitles, upscale, type DiscoverCategory, type PersonMatch } from "../lib/tmdb";
 import type { Candidate, KindFilter } from "../lib/types";
 
 type Load =
@@ -226,6 +226,7 @@ const BROWSE_LISTS: { id: string; title: string }[] = [
   { id: "trending-shows", title: "Top 10 shows" },
   { id: "upcoming", title: "Coming soon" },
   { id: "now-playing", title: "In cinemas" },
+  { id: NEW_RELEASES_ID, title: NEW_RELEASES_TITLE },
   { id: "to-rent", title: "New to rent" },
   { id: "hidden-gems", title: "Hidden gems" },
   { id: "popular-films", title: "Popular films" },
@@ -253,25 +254,27 @@ const readStream = (): string => {
  * The two lists share one row, switched by the pair of buttons that is its heading; coming soon shows first.
  */
 function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved: Set<string>; onOpen: (id: string) => void; onSeeAll: (list: string) => void }) {
-  const [chosen, setMode] = useState<"now" | "soon">("soon");
-  const [lists, setLists] = useState<Record<"now" | "soon", Candidate[] | null>>({ now: null, soon: null });
+  const [chosen, setMode] = useState<"now" | "soon" | "new">("soon");
+  const [lists, setLists] = useState<Record<"now" | "soon" | "new", Candidate[] | null>>({ now: null, soon: null, new: null });
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let live = true;
-    setLists({ now: null, soon: null });
+    setLists({ now: null, soon: null, new: null });
     setFailed(false);
+    const fail = (key: "now" | "soon" | "new") => {
+      if (!live) return;
+      setLists((current) => ({ ...current, [key]: current[key] ?? [] }));
+      setFailed(true);
+    };
+    // Everything in cinemas and everything coming soon: the first page shows at once, the rest fills in behind it.
     const fetchList = (key: "now" | "soon", category: DiscoverCategory) =>
-      browse(category, 1, region)
-        .then(({ items }) => live && setLists((current) => ({ ...current, [key]: items })))
-        .catch(() => {
-          if (!live) return;
-          setLists((current) => ({ ...current, [key]: [] }));
-          setFailed(true);
-        });
+      browseAll(category, region, (items) => live && setLists((current) => ({ ...current, [key]: items }))).catch(() => fail(key));
     void fetchList("now", IN_CINEMAS);
     void fetchList("soon", COMING_SOON);
+    // What has just come out is a longer list than a row: its first page here, the rest under See all.
+    browseNew("all", 1).then(({ items }) => live && setLists((current) => ({ ...current, new: items }))).catch(() => fail("new"));
     return () => {
       live = false;
     };
@@ -279,26 +282,27 @@ function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved:
 
   // Nothing coming soon in this region: show what's in cinemas instead of an empty row.
   const mode = chosen === "soon" && lists.soon?.length === 0 && lists.now?.length ? "now" : chosen;
-  // Films you haven't saved come first: the row is for finding something, and the rest follow, ticked.
+  // Titles you haven't saved come first: the row is for finding something, and the rest follow, ticked.
   const items = lists[mode]
-    ? [...lists[mode]!.filter((item) => !saved.has(item.key)), ...lists[mode]!.filter((item) => saved.has(item.key))].slice(0, 12)
+    ? [...lists[mode]!.filter((item) => !saved.has(item.key)), ...lists[mode]!.filter((item) => saved.has(item.key))]
     : null;
-  if (!failed && lists.now && lists.soon && !lists.now.length && !lists.soon.length) return null;
+  if (!failed && lists.now && lists.soon && lists.new && !lists.now.length && !lists.soon.length && !lists.new.length) return null;
   return (
     <Row
-      title="At the cinema"
+      title={mode === "new" ? NEW_RELEASES_TITLE : "At the cinema"}
       bare
       heading={
-        <div className="segmented" role="group" aria-label="At the cinema">
+        <div className="segmented" role="group" aria-label="Coming soon, in cinemas, or new">
           <button type="button" aria-pressed={mode === "soon"} onClick={() => setMode("soon")}>Coming soon</button>
           <button type="button" aria-pressed={mode === "now"} onClick={() => setMode("now")}>In cinemas</button>
+          <button type="button" aria-pressed={mode === "new"} onClick={() => setMode("new")}>New</button>
         </div>
       }
       items={items}
       failed={failed && !items?.length}
       onRetry={() => setAttempt((count) => count + 1)}
       onOpen={onOpen}
-      onSeeAll={() => onSeeAll(mode === "now" ? IN_CINEMAS.id : "upcoming")}
+      onSeeAll={() => onSeeAll(mode === "now" ? IN_CINEMAS.id : mode === "new" ? NEW_RELEASES_ID : "upcoming")}
       showtimes={mode === "now"}
       compact
       swapKey={mode}
@@ -410,9 +414,10 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const forYou = root && hasSeeds;
   const genre = list.startsWith(GENRE_PREFIX) ? list.slice(GENRE_PREFIX.length) : "";
   const stream = list.startsWith(STREAM_PREFIX) ? streams.find((item) => STREAM_PREFIX + item.id === list) : undefined;
+  const newReleases = list === NEW_RELEASES_ID;
   const activeCategory = LABELLED_LISTS[list] ?? DISCOVER_CATEGORIES.find((item) => item.id === list) ?? DISCOVER_CATEGORIES[0];
   // A list of one kind shows that kind, fixed; a genre without shows is films only.
-  const fixedKind: KindFilter | null = searching || root || stream ? null : genre ? (genreHasShows(genre) ? null : "movie") : activeCategory.type ?? null;
+  const fixedKind: KindFilter | null = searching || root || stream || newReleases ? null : genre ? (genreHasShows(genre) ? null : "movie") : activeCategory.type ?? null;
   const shownKind = fixedKind ?? kind;
   const ranked = !searching && Boolean(list) && !genre && !stream && Boolean(activeCategory.ranked);
 
@@ -452,7 +457,8 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
   const fetchPage = (pageNumber: number) =>
     genre ? browseGenre(genre, kind === "all" ? "all" : kind, pageNumber)
       : stream ? browseStream(stream, region, kind, pageNumber)
-        : browse(activeCategory, pageNumber, region);
+        : newReleases ? browseNew(kind, pageNumber)
+          : browse(activeCategory, pageNumber, region);
 
   useEffect(() => {
     let live = true;
@@ -474,7 +480,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
       live = false;
       clearTimeout(timer);
     };
-  }, [list, query, searching, forYou, root, seedKey, region, genre || stream ? kind : ""]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [list, query, searching, forYou, root, seedKey, region, genre || stream || newReleases ? kind : ""]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = async () => {
     if (load.state !== "done") return;
@@ -568,7 +574,7 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
           {person && personWork.length > 0 && (
             <div className="person-block">
               <div className="person-head">
-                <Poster src={person.photo} title={person.name} className="person-photo" />
+                <Poster src={person.photo} title={person.name} className="person-photo" person />
                 <div>
                   <p className="eyebrow">{person.role} · best known for</p>
                   <h3>{person.name}</h3>

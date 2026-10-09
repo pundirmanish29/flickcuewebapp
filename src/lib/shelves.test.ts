@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { browseStream, comingSoonReason, daysSinceRelease, hiddenGemReason, providerReason, providersFor, talkOfTheTownReason } from "./shelves";
+import { browseAll, IN_CINEMAS } from "./tmdb";
+import { browseNew, browseStream, comingSoonReason, daysSinceRelease, hiddenGemReason, providerReason, providersFor, talkOfTheTownReason } from "./shelves";
 import type { Candidate } from "./types";
 
 const NOW = new Date(2026, 8, 30, 12, 0).getTime();
@@ -71,5 +72,69 @@ describe("a streaming list when the title service fails", () => {
   it("is a real empty list when the service answers with nothing", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => page([])));
     expect((await browseStream({ id: "free", label: "Free" }, "IN", "all")).items).toEqual([]);
+  });
+});
+
+describe("every film in cinemas, and what's new", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const film = (id: number, extra: Record<string, unknown> = {}) => ({ id, title: `Film ${id}`, poster_path: `/p${id}.jpg`, release_date: "2026-09-20", vote_average: 7, ...extra });
+  const show = (id: number) => ({ id, name: `Show ${id}`, poster_path: `/s${id}.jpg`, first_air_date: "2026-09-25", vote_average: 7 });
+  const answer = (results: unknown[], totalPages = 1) => new Response(JSON.stringify({ results, total_pages: totalPages }));
+
+  it("loads every page of a list, the first page on its own first", async () => {
+    const asked: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const page = Number(new URL(url).searchParams.get("page"));
+      asked.push(`${new URL(url).searchParams.get("region")}:${page}`);
+      return answer([film(page * 10), film(page * 10 + 1)], 3);
+    }));
+    const seen: string[][] = [];
+    await browseAll(IN_CINEMAS, "IN", (items) => seen.push(items.map((item) => item.title)));
+    expect(asked.sort()).toEqual(["IN:1", "IN:2", "IN:3"]);
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).toEqual(["Film 10 (2026)", "Film 11 (2026)"]);
+    expect(seen[1]).toHaveLength(6);
+  });
+
+  it("keeps the films it did get when a later page fails, and reports a failed first page", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => (new URL(url).searchParams.get("page") === "2" ? new Response("{}", { status: 500 }) : answer([film(1)], 2))));
+    const seen: number[] = [];
+    await browseAll(IN_CINEMAS, "IN", (items) => seen.push(items.length));
+    expect(seen).toEqual([1, 1]);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
+    await expect(browseAll(IN_CINEMAS, "IN", () => {})).rejects.toThrow(/Title lookup failed/);
+  });
+
+  it("shows a film in cinemas that has no poster, as a blank cover", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => answer([film(1), film(2, { poster_path: null })])));
+    const seen: string[][] = [];
+    await browseAll(IN_CINEMAS, "IN", (items) => seen.push(items.map((item) => item.title)));
+    expect(seen[0]).toEqual(["Film 1 (2026)", "Film 2 (2026)"]);
+  });
+
+  it("lists what came out in the last 30 days, films and shows in turn, each labelled", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      urls.push(String(url));
+      return answer(String(url).includes("discover/tv") ? [show(1), show(2)] : [film(1), film(2)]);
+    }));
+    const { items } = await browseNew("all", 1, NOW);
+    expect(items.map((item) => item.title)).toEqual(["Film 1 (2026)", "Show 1 (2026)", "Film 2 (2026)", "Show 2 (2026)"]);
+    expect(items.map((item) => item.reason)).toEqual(["New Movie", "New Show", "New Movie", "New Show"]);
+    const movie = new URL(urls.find((url) => url.includes("discover/movie"))!).searchParams;
+    expect(movie.get("primary_release_date.gte")).toBe(isoDate(-30));
+    expect(movie.get("primary_release_date.lte")).toBe(isoDate(0));
+    const tv = new URL(urls.find((url) => url.includes("discover/tv"))!).searchParams;
+    expect(tv.get("first_air_date.gte")).toBe(isoDate(-30));
+    expect(tv.get("first_air_date.lte")).toBe(isoDate(0));
+  });
+
+  it("can ask for only films or only shows", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => { urls.push(String(url)); return answer([show(1)]); }));
+    await browseNew("tv", 2, NOW);
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toContain("discover/tv");
+    expect(new URL(urls[0]).searchParams.get("page")).toBe("2");
   });
 });

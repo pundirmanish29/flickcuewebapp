@@ -822,6 +822,10 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
   color: var(--tint); font-weight: 800; font-size: clamp(18px, 3vw, 34px); letter-spacing: -0.02em;
 }
 
+/* A person with no photo: a blank cover with a user icon, in the page's own paper rather than a film's tint. */
+.poster-person { background: var(--paper-deep); color: var(--muted); }
+.poster-person svg { width: 40%; height: auto; }
+
 .skeleton-card {
   aspect-ratio: 2 / 3; border-radius: 12px;
   background: linear-gradient(90deg, var(--paper-deep), var(--paper-surface), var(--paper-deep));
