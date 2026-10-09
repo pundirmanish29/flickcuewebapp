@@ -90,6 +90,26 @@ describe("bestKnownWork", () => {
     expect(result.work.map((item) => item.id)).toEqual([2, 1, 4]);
     expect(result.role).toBe("Director & Actor");
   });
+
+  it("still lists a newcomer's work when every credit has few votes", () => {
+    const credits = {
+      cast: [
+        { ...film(1, "Few votes"), vote_count: 17 },
+        { ...film(2, "Newest"), vote_count: 0, release_date: "2026-10-23" },
+        { ...film(3, "Older"), vote_count: 0, release_date: "2019-05-01" },
+        { ...film(4, "Late Show"), media_type: "tv", genre_ids: [10767], vote_count: 0 },
+        { ...film(5, "No poster"), poster_path: null, vote_count: 0 }
+      ]
+    };
+    const result = bestKnownWork(credits);
+    expect(result.work.map((item) => item.id)).toEqual([1, 2, 3]);
+    expect(result.role).toBe("Actor");
+  });
+
+  it("keeps the vote cutoff whenever it leaves something to show", () => {
+    const credits = { cast: [{ ...film(1, "Known"), vote_count: 40 }, { ...film(2, "Unseen"), vote_count: 0 }] };
+    expect(bestKnownWork(credits).work.map((item) => item.id)).toEqual([1]);
+  });
 });
 
 describe("recommendations", () => {
