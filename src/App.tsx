@@ -473,13 +473,13 @@ export default function App() {
               <span className="footer-chip">Android soon</span>
             </nav>
           </div>
+          {/* The fine print on one line: TMDB's credit, then where the list lives and that no service is behind this. */}
           <div className="footer-fine">
-            <span>Your list lives in your own Google Drive.</span>
-            <span>Not affiliated with any streaming service.</span>
             <div className="footer-credit">
               <img src="./tmdb-logo.svg" alt="TMDB" width="140" height="12" />
               <span>This product uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB.</span>
             </div>
+            <span>Your list lives in your own Google Drive. Not affiliated with any streaming service.</span>
           </div>
         </div>
       </footer>

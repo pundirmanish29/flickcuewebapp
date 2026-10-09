@@ -418,6 +418,57 @@ export interface CastMember {
   photo: string;
 }
 
+/** Someone behind the camera, with every key job they had on this title ("Director, Writer"). */
+export interface CrewMember {
+  name: string;
+  jobs: string[];
+  photo: string;
+}
+
+// The jobs worth naming on a title's page, in the order they're shown, under the name people know them by.
+// A writer's several credits (Screenplay, Writer, Teleplay) read as one; so do a show's producers.
+const CREW_JOBS: { job: string; as: string; limit: number }[] = [
+  { job: "Director", as: "Director", limit: 2 },
+  { job: "Screenplay", as: "Writer", limit: 3 },
+  { job: "Writer", as: "Writer", limit: 3 },
+  { job: "Teleplay", as: "Writer", limit: 3 },
+  { job: "Novel", as: "Novel", limit: 1 },
+  { job: "Story", as: "Story", limit: 2 },
+  { job: "Producer", as: "Producer", limit: 3 },
+  { job: "Executive Producer", as: "Executive producer", limit: 2 },
+  { job: "Director of Photography", as: "Cinematographer", limit: 2 },
+  { job: "Original Music Composer", as: "Music", limit: 2 },
+  { job: "Editor", as: "Editor", limit: 2 }
+];
+
+/**
+ * The key crew from TMDB's credits: a show's creators first, then each job in
+ * CREW_JOBS order, a person with several jobs once ("Director, Writer").
+ * Executive producers only fill in for a title that names no producer.
+ */
+export function pickCrew(crew: any[], createdBy: any[] = []): CrewMember[] {
+  const people = new Map<string, CrewMember>();
+  const counts = new Map<string, number>();
+  const add = (person: any, as: string, limit: number) => {
+    const name = String(person?.name || "").trim();
+    if (!name) return;
+    const key = String(person.id ?? name);
+    const existing = people.get(key);
+    if (existing?.jobs.includes(as)) return;
+    if ((counts.get(as) ?? 0) >= limit) return;
+    counts.set(as, (counts.get(as) ?? 0) + 1);
+    if (existing) existing.jobs.push(as);
+    else people.set(key, { name, jobs: [as], photo: posterUrl(person.profile_path, "w185") });
+  };
+  for (const person of createdBy) add(person, "Creator", 3);
+  const hasProducer = crew.some((person) => person?.job === "Producer");
+  for (const { job, as, limit } of CREW_JOBS) {
+    if (job === "Executive Producer" && hasProducer) continue;
+    for (const person of crew) if (person?.job === job) add(person, as, limit);
+  }
+  return [...people.values()].slice(0, 12);
+}
+
 export interface TitleDetails {
   overview: string;
   tagline: string;
@@ -431,6 +482,8 @@ export interface TitleDetails {
   releaseDate: string;
   director: string;
   cast: CastMember[];
+  /** Director, writers, producers, cinematographer, music and editor (a show's creators first). */
+  crew: CrewMember[];
   seasons: Season[];
   streaming: Provider[];
   rentOrBuy: Provider[];
@@ -535,6 +588,7 @@ export function fetchDetails(movie: Pick<Movie, "tmdbId" | "tmdbType">, region: 
         cast: (data.credits?.cast ?? []).slice(0, 10).map((person: any) => ({
           name: person.name, character: person.character || "", photo: posterUrl(person.profile_path, "w185")
         })),
+        crew: pickCrew(data.credits?.crew ?? [], type === "tv" ? data.created_by ?? [] : []),
         seasons: (data.seasons ?? [])
           .filter((season: any) => season.season_number > 0)
           .map((season: any) => ({

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as actions from "../lib/actions";
 import { episodesAired, formatRuntime, localIsoDate, readerDate } from "../lib/rules";
 import { safeImage } from "../lib/safe";
@@ -6,9 +6,50 @@ import { fetchEpisode, fetchSeason, type EpisodeInfo, type SeasonEpisode } from 
 import type { UpNext } from "../lib/newEpisode";
 import type { Movie } from "../lib/types";
 import { Icon } from "./Icon";
+import { Popover } from "./ReminderMenu";
 import { ScrollArrows } from "./ScrollArrows";
 
 const realName = (name: string | undefined, episode: number) => (name && !/^episode \d+$/i.test(name) ? name : `Episode ${episode}`);
+
+type SeasonChoice = { number: number; name?: string; seen?: number; total?: number };
+const seasonLabel = (item: SeasonChoice) => (item.name && !/^season \d+$/i.test(item.name) ? `Season ${item.number} · ${item.name}` : `Season ${item.number}`);
+
+/**
+ * The other seasons, as a pill that opens a short menu on the page's own
+ * colours (a native select's list is the system's, white on a dark page): each
+ * season with how much of it you've watched, the one shown ticked.
+ */
+function SeasonPicker({ season, seasons, onSeason }: { season: number; seasons: SeasonChoice[]; onSeason: (season: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  const current = seasons.find((item) => item.number === season);
+  return (
+    <div className="season-pick">
+      <button ref={trigger} type="button" className="season-pick-button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <span>{current ? seasonLabel(current) : `Season ${season}`}</span>
+        <Icon name="chevron" size={14} />
+      </button>
+      <Popover open={open} onClose={close} label="Choose a season" anchor={trigger} focusFirst>
+        <ul className="season-menu">
+          {seasons.map((item) => (
+            <li key={item.number}>
+              <button
+                type="button"
+                aria-current={item.number === season || undefined}
+                onClick={() => { onSeason(item.number); close(); trigger.current?.focus(); }}
+              >
+                <span className="season-menu-name">{seasonLabel(item)}</span>
+                {item.total ? <span className="season-menu-count">{item.seen ? `${item.seen} of ${item.total}` : `${item.total} episode${item.total === 1 ? "" : "s"}`}</span> : null}
+                {item.number === season && <Icon name="check" size={16} className="season-menu-tick" />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Popover>
+    </div>
+  );
+}
 
 /**
  * In a show's stub: the episode to watch next, its still across the stub with
@@ -90,7 +131,7 @@ export function EpisodeStrip({ movie, season, seasonName, seasons = [], onSeason
   season: number;
   seasonName?: string;
   /** Every season, for the picker. */
-  seasons?: { number: number; name?: string }[];
+  seasons?: SeasonChoice[];
   onSeason?: (season: number) => void;
   /** The next episode's number in this season, outlined and scrolled to (0: none in this season). */
   upNext: number;
@@ -135,19 +176,7 @@ export function EpisodeStrip({ movie, season, seasonName, seasons = [], onSeason
           <h2 className="ep-strip-title">{label} {episodes && <span className="count">{watched} of {episodes.length} watched</span>}</h2>
         </div>
         <div className="ep-strip-tools">
-          {seasons.length > 1 && onSeason && (
-            <label className="season-pick">
-              <span className="visually-hidden">Season</span>
-              <select value={season} onChange={(event) => onSeason(Number(event.target.value))}>
-                {seasons.map((item) => (
-                  <option key={item.number} value={item.number}>
-                    {item.name && !/^season \d+$/i.test(item.name) ? `Season ${item.number} · ${item.name}` : `Season ${item.number}`}
-                  </option>
-                ))}
-              </select>
-              <Icon name="chevron" size={14} />
-            </label>
-          )}
+          {seasons.length > 1 && onSeason && <SeasonPicker season={season} seasons={seasons} onSeason={onSeason} />}
           <ScrollArrows target={row} label={`${label} episodes`} watch={episodes?.length} />
         </div>
       </div>
@@ -179,7 +208,7 @@ export function EpisodeStrip({ movie, season, seasonName, seasons = [], onSeason
                 </div>
                 <p className="ep-meta">E{episode.number}{episode.runtimeMinutes ? ` · ${formatRuntime(episode.runtimeMinutes)}` : ""}</p>
                 <b className="ep-name">{realName(episode.name, episode.number)}</b>
-                {next && onDismiss && <button type="button" className="link-button inline ep-dismiss" onClick={onDismiss}>Not now</button>}
+                {next && onDismiss && <button type="button" className="ep-dismiss" onClick={onDismiss}>Not now</button>}
               </li>
             );
           })}

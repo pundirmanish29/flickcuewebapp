@@ -56,6 +56,35 @@ function WatchName({ name }: { name: string }) {
   );
 }
 
+/** Watchmode's terms ask for a credit wherever its pages are used; "Wrong link?" sends what the buttons offered. */
+function WatchCredit({ title, tmdb, region, providers, direct, credit }: { title: string; tmdb: { type?: string; id?: string }; region: string; providers: Provider[]; direct: (provider: string) => string; credit: boolean }) {
+  const report = linkReportHref({ title, tmdbType: tmdb.type, tmdbId: tmdb.id, region, links: providers.map((provider) => ({ provider: provider.name, url: direct(provider.name) })) });
+  return (
+    <p className="watch-credit">
+      {credit && <>Links by <a href="https://api.watchmode.com" target="_blank" rel="noreferrer">Watchmode</a> · </>}
+      <a href={report}>Wrong link?</a>
+    </p>
+  );
+}
+
+/** The big steps nobody takes by accident (finish the series, remove it), behind a More button at the end of the bar's buttons. */
+function MoreMenu({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  return (
+    <div className="tp-more">
+      <button ref={trigger} type="button" className="tp-button tp-more-button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <span className="tp-dots" aria-hidden="true"><i /><i /><i /></span><span>More</span>
+      </button>
+      <Popover open={open} onClose={close} label="More actions" anchor={trigger}>
+        {/* Any choice closes the menu; "Mark all watched" then asks in the bar. */}
+        <div className="tp-more-list" onClick={close}>{children}</div>
+      </Popover>
+    </div>
+  );
+}
+
 /**
  * Where it streams, beside the title: up to three services as cards, each
  * opening that service; more as a "Watch on" pill opening a list of every
@@ -66,14 +95,7 @@ function WatchOn({ title, tmdb, region, streaming, rentOrBuy, direct, credit }: 
   const href = (provider: Provider) => appLink(provider.name, title, undefined, direct(provider.name));
   // A button opens the title's own page, or the service's search when there's no page to open: say which.
   const isSearch = (provider: Provider) => !direct(provider.name);
-  // Watchmode's terms ask for a credit wherever its pages are used; "Wrong link?" sends what these buttons offered.
-  const report = linkReportHref({ title, tmdbType: tmdb.type, tmdbId: tmdb.id, region, links: [...streaming, ...rentOrBuy].map((provider) => ({ provider: provider.name, url: direct(provider.name) })) });
-  const creditLine = (
-    <p className="watch-credit">
-      {credit && <>Links by <a href="https://api.watchmode.com" target="_blank" rel="noreferrer">Watchmode</a> · </>}
-      <a href={report}>Wrong link?</a>
-    </p>
-  );
+  const creditLine = <WatchCredit title={title} tmdb={tmdb} region={region} providers={[...streaming, ...rentOrBuy]} direct={direct} credit={credit} />;
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const close = useCallback(() => setOpen(false), []);
@@ -208,9 +230,9 @@ function WatchButton({ href, provider, action, where, search }: { href: string; 
 /**
  * A title's own page: a saved one by its id, or one that isn't saved by its
  * Discover key (tmdb:<type>:<id>), which offers Save and turns into the saved
- * view once it's saved. A ticket stub holds where you stand with the title and
- * the one thing to do next; on a phone it is also pinned above the dock while
- * you scroll.
+ * view once it's saved. Under the title, a bar holds where you stand with it
+ * and the one thing to do next (the episode to watch, when there is one); on a
+ * phone it is also pinned above the dock while you scroll.
  */
 export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: string; onBack: () => void }) {
   const { library, settings, sync: syncState } = useAppState();
@@ -272,6 +294,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const { place } = useWhere();
   const showing = Boolean(movie && inCinemas?.has(cinemaKey(movie)));
   const castRow = useRef<HTMLUListElement>(null);
+  const crewRow = useRef<HTMLUListElement>(null);
   const moreRow = useRef<HTMLDivElement>(null);
   const stubRef = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -425,46 +448,8 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     return () => observer.disconnect();
   }, [ready]);
 
-  // The stub stays in view on a wide screen; one taller than the window keeps its buttons in view (CSS reads --stub-h).
-  useEffect(() => {
-    const stub = stubRef.current;
-    if (!stub || typeof ResizeObserver === "undefined") return;
-    // Everything but the poster, measured while the poster shows, so CSS can give the poster whatever height is left.
-    let rest = 0;
-    const observer = new ResizeObserver(() => {
-      stub.style.setProperty("--stub-h", `${stub.offsetHeight}px`);
-      const poster = stub.querySelector<HTMLElement>(".tp-poster-stub")?.offsetHeight ?? 0;
-      if (poster > 0) {
-        rest = stub.offsetHeight - poster;
-        stub.style.setProperty("--stub-rest", `${rest}px`);
-      }
-    });
-    observer.observe(stub);
-    // Stuck under the header, the poster shrinks to fit the window (CSS, .is-stuck); with too little room even
-    // for a small one it steps aside (.is-artless). At the top of the page it's whole.
-    let frame = 0;
-    const update = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header")) || 64;
-        const stuck = window.scrollY > 0 && stub.getBoundingClientRect().top <= header + 17;
-        stub.classList.toggle("is-stuck", stuck);
-        stub.classList.toggle("is-artless", stuck && window.innerHeight - header - 32 - rest < 140);
-      });
-    };
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    update();
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      cancelAnimationFrame(frame);
-    };
-  }, [ready]);
-
   const back = (
-    <button type="button" className="tp-back" onClick={onBack}>
+    <button type="button" className="tp-back glass" onClick={onBack}>
       <Icon name="back" size={18} /> <span className="tp-back-label">{backLabel}</span>
     </button>
   );
@@ -544,9 +529,12 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const currentSeason = progress.find((season) => season.number === (episodeAction?.season ?? furthestSeason));
   const seasonCounted = episodesTotal > 100 && currentSeason && currentSeason.seen > 0 ? currentSeason : null;
   const seasons = details?.seasonCount ? `${details.seasonCount} season${details.seasonCount === 1 ? "" : "s"}` : "";
-  const statusNamesSeasons = /\bseasons?\b/i.test(status?.text || "");
-  const facts = show && details?.seasonCount
-    ? [statusNamesSeasons ? "" : seasons, details.episodeCount ? `${details.episodeCount} episodes` : "", isSaved && episodesSeen && movie.watched ? `${episodesSeen} watched` : ""].filter(Boolean).join(" · ")
+  // The season count joins the meta line, unless the status beside the title already names seasons.
+  const statusNamesSeasons = !nextAiring && /\bseasons?\b/i.test(status?.text || "");
+  const metaSeasons = show && !statusNamesSeasons ? seasons : "";
+  // A finished show says how much of it you saw; one you're watching has the bar's progress.
+  const facts = show && isSaved && movie.watched && episodesSeen
+    ? `${episodesSeen}${details?.episodeCount ? ` of ${details.episodeCount}` : ""} episodes watched`
     : "";
 
   // Your own rating beats Letterboxd's, as in the other clients (SHARED.md, "Your take").
@@ -592,8 +580,13 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
   const providerCount = (details?.streaming.length ?? 0) + (details?.rentOrBuy.length ?? 0);
   // With somewhere to watch it, the next episode's main button plays it there and its tick sits in the up-next row.
   const watchEpisode = episodeAction && provider ? episodeAction : null;
-  // Where it streams always shows beside the title, even when the stub's button goes to the same place.
-  const watchOnShown = providerCount > 0;
+  // The bar's main button opens a service (its logo, "on Apple TV") when it's a watch button.
+  const buttonWatches = Boolean(provider) && (Boolean(watchEpisode) || stub.primary === "watch" || stub.primary === "watchAgain");
+  // Where it streams shows beside the title, unless the bar's button already opens the only service.
+  const watchOnShown = providerCount > 1 || (providerCount === 1 && !buttonWatches);
+  // The bar's summary leaves out what the page says elsewhere: the next episode to air (the line under the
+  // ratings) and where to watch (the main button). The phone's pinned bar keeps both, as the header is gone by then.
+  const planFields = barFields.filter((item) => !(item.label === "Next episode" && nextAiring) && !(item.label === "Where" && buttonWatches));
   const watchDirect = provider ? directLink(provider.name, serviceIds, streamSources, { title: movie.title, tmdbType: movie.tmdbType }) : "";
   const watchIsSearch = Boolean(provider) && !watchDirect;
   const watchHref = provider ? appLink(provider.name, movie.title, undefined, directLink(provider.name, serviceIds, streamSources, { title: movie.title, tmdbType: movie.tmdbType })) : "";
@@ -632,9 +625,9 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
     return map[stub.primary];
   };
 
-  // Everything else you can do, under the main button.
+  // Everything else you can do, beside the main button.
   const secondary: ReactNode[] = [];
-  // Under those, as quiet links: the big steps nobody takes by accident (finish the series, remove it).
+  // Behind More: the big steps nobody takes by accident (finish the series, remove it).
   const quiet: ReactNode[] = [];
   if (isSaved) {
     if (movie.watched) {
@@ -693,7 +686,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
           <div className="wrap tp-hero-bar">
             {back}
             {details?.trailerKey && (
-              <button type="button" className="tp-play" onClick={() => setPlaying(true)} aria-label={`Play the trailer for ${title}`}>
+              <button type="button" className="tp-play glass" onClick={() => setPlaying(true)} aria-label={`Play the trailer for ${title}`}>
                 <span className="tp-play-icon"><Icon name="play" size={18} /></span>
                 <span className="tp-play-label">Trailer</span>
               </button>
@@ -708,14 +701,15 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
           <div className="tp-heading">
             <p className="eyebrow tp-meta">
               {details?.certification && <span className="certification" title="Age rating">{details.certification}</span>}
-              <span>{[movie.mediaType, movie.year, details?.episodeMinutes ? `${formatRuntime(details.episodeMinutes)} ep` : formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes)].filter(Boolean).join(" · ")}</span>
+              <span>{[movie.mediaType, movie.year, metaSeasons, details?.episodeMinutes ? `${formatRuntime(details.episodeMinutes)} ep` : formatRuntime(movie.runtimeMinutes || details?.runtimeMinutes)].filter(Boolean).join(" · ")}</span>
             </p>
-            {weekly && <p className="sheet-cadence">New episode every {weekly}</p>}
             <h1 id="title-heading" ref={heading} tabIndex={-1}>{title}</h1>
             {credit && <p className="tp-credit">{credit}</p>}
             <RatingsPanel ratings={ratings} tmdb={movie.rating || details?.rating} imdbId={imdbId} />
+            {/* The airing schedule, once: "New episode Friday · S2 E8 · in 7 days “Its name”". */}
             {nextAiring ? (
               <p className="sheet-status tone-green">
+                {weekly && <span className="sheet-status-cadence">New episode {weekly} · </span>}
                 {nextAiring.text}
                 {nextAiring.sub && <span className="sheet-status-sub"> {nextAiring.sub}</span>}
               </p>
@@ -725,35 +719,9 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
           </div>
         </header>
 
-        <aside className={`tp-stub tp-tone-${stub.tone}`} ref={stubRef} aria-label="Your plan for this title">
-          <div className="tp-stub-art">
-            <div className="tp-stub-frame" style={safeImage(posterSrc) ? { ["--art" as string]: `url("${safeImage(posterSrc)}")` } : undefined}>
-              <Poster src={posterSrc} title={movie.title} className="tp-poster tp-poster-stub" priority />
-            </div>
-          </div>
-          <div className="tp-perf" aria-hidden="true" />
+        {/* The bar: the episode to watch next, where you stand, and the buttons. Its parts sit in a row on a wide screen and stack on a phone. */}
+        <section className={`tp-stub tp-tone-${stub.tone}`} ref={stubRef} aria-label="Your plan for this title">
           <div className="tp-stub-body">
-            <p className="tp-stub-label">{stub.label}</p>
-            {/* A phone shows the fields as one line under the state; the grid is for a wide screen. */}
-            {barFields.length > 0 && <p className="tp-summary">{barFields.slice(0, 2).map((item) => item.value).join(" · ")}</p>}
-            {/* A booked film's screen and seats too: what you need at the door, without scrolling. */}
-            {stub.label === "Booked" && stub.fields.length > 2 && (
-              <p className="tp-summary tp-summary-sub">{stub.fields.slice(2).map((item) => (item.label === "Seats" ? `Seats ${item.value}` : item.value)).join(" · ")}</p>
-            )}
-            {stub.fields.length > 0 && (
-              <dl className="tp-fields">
-                {stub.fields.map((item) => (
-                  <div key={item.label}>
-                    <dt>{item.label}</dt>
-                    <dd>{item.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-            {reminderActive && !movie.watched && <CalendarMark movie={movie} label />}
-            {isSaved && show && !movie.watched && (seasonCounted
-              ? <SeriesProgress seen={seasonCounted.seen} total={seasonCounted.total} label={`This season · ${seasonCounted.name && !/^season \d+$/i.test(seasonCounted.name) ? seasonCounted.name : `Season ${seasonCounted.number}`}`} />
-              : episodesSeen > 0 && episodesTotal > 0 && <SeriesProgress seen={episodesSeen} total={episodesTotal} />)}
             {episodeAction && (
               <UpNextRow
                 tmdbId={movie.tmdbId}
@@ -764,11 +732,27 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
                 onWatched={() => actions.toggleEpisode(movie.id, episodeAction.season, episodeAction.episode)}
               />
             )}
-            {primary("stub")}
-            {secondary.length > 0 && (
-              <div className="tp-secondary" onClickCapture={(event) => pop((event.target as Element).closest(".tp-button"))}>{secondary}</div>
-            )}
-            {quiet.length > 0 && <div className="tp-quiet">{quiet}</div>}
+            <div className="tp-plan-info">
+              <p className="tp-stub-label">{stub.label}</p>
+              {planFields.length > 0 && <p className="tp-summary">{planFields.slice(0, 2).map((item) => item.value).join(" · ")}</p>}
+              {/* A booked film's screen and seats too: what you need at the door, without scrolling. */}
+              {stub.label === "Booked" && stub.fields.length > 2 && (
+                <p className="tp-summary tp-summary-sub">{stub.fields.slice(2).map((item) => (item.label === "Seats" ? `Seats ${item.value}` : item.value)).join(" · ")}</p>
+              )}
+              {reminderActive && !movie.watched && <CalendarMark movie={movie} label />}
+              {isSaved && show && !movie.watched && (seasonCounted
+                ? <SeriesProgress seen={seasonCounted.seen} total={seasonCounted.total} label={`This season · ${seasonCounted.name && !/^season \d+$/i.test(seasonCounted.name) ? seasonCounted.name : `Season ${seasonCounted.number}`}`} />
+                : episodesSeen > 0 && episodesTotal > 0 && <SeriesProgress seen={episodesSeen} total={episodesTotal} />)}
+            </div>
+            <div className="tp-plan-actions">
+              {primary("stub")}
+              {(secondary.length > 0 || quiet.length > 0) && (
+                <div className="tp-secondary" onClickCapture={(event) => pop((event.target as Element).closest(".tp-button"))}>
+                  {secondary}
+                  {quiet.length > 0 && <MoreMenu>{quiet}</MoreMenu>}
+                </div>
+              )}
+            </div>
             {confirmingFinish && isSaved && show && !movie.watched && (
               <div className="tp-confirm" ref={confirmRef} role="group" aria-label="Mark all watched">
                 <p>Mark all of {title} watched? It leaves your queue.</p>
@@ -809,7 +793,7 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
               </div>
             )}
           </div>
-        </aside>
+        </section>
 
         <div className="tp-body">
           {/* A ticket already added comes first: it's what matters on the day. */}
@@ -967,6 +951,27 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             </section>
           )}
 
+          {/* Behind the camera, the same way: the director, writers, producers, cinematographer, music and editor. */}
+          {details && details.crew.length > 0 && (
+            <section className="sheet-section">
+              <div className="rail-head">
+                <h2 className="section-label">Crew</h2>
+                <ScrollArrows target={crewRow} label="Crew" watch={details.crew} />
+              </div>
+              <ul className="cast-row crew-row" ref={crewRow}>
+                {details.crew.map((person) => (
+                  <li key={person.name}>
+                    <button type="button" className="cast-link" onClick={() => goDiscover({ search: person.name })} aria-label={`${person.name}, ${person.jobs.join(", ")}: more of their work`}>
+                      <Poster src={person.photo} title={person.name} className="cast-photo" person />
+                      <span className="cast-name">{person.name}</span>
+                      <span className="muted cast-role">{person.jobs.join(", ")}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {details && details.recommendations.length > 0 && (
             <section className="sheet-section">
               <div className="rail-head">
@@ -985,6 +990,11 @@ export function TitlePage({ id, backLabel, onBack }: { id: string; backLabel: st
             <div className="sheet-links">
               <a className="link-chip" href={safeLink(movie.sourceUrl)} target="_blank" rel="noreferrer">Where you found it</a>
             </div>
+          )}
+
+          {/* With "Watch on" left out, its credit still goes with the bar's watch button, at the foot of the page. */}
+          {details && buttonWatches && !watchOnShown && (
+            <WatchCredit title={movie.title} tmdb={{ type: movie.tmdbType, id: movie.tmdbId }} region={settings.region} providers={[...details.streaming, ...details.rentOrBuy]} direct={(name) => directLink(name, serviceIds, streamSources, { title: movie.title, tmdbType: movie.tmdbType })} credit={Boolean(streamSources?.length)} />
           )}
         </div>
       </div>

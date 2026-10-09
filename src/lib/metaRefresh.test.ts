@@ -10,7 +10,7 @@ const details = (extra: Partial<TitleDetails> = {}): TitleDetails => ({
   overview: "Taking place after alien crafts land around the world, an expert linguist is recruited by the military to determine whether they come in peace or are a threat.",
   tagline: "Why are they here?", genres: ["Drama", "Science Fiction"], runtimeMinutes: 116, status: "Released", imdbId: "tt2543164", rating: "7.6",
   backdrop: "https://image.tmdb.org/t/p/w1280/new-backdrop.jpg", poster: "https://image.tmdb.org/t/p/w500/new-poster.jpg", releaseDate: "2016-11-10",
-  director: "Denis Villeneuve", cast: [], seasons: [], streaming: [], rentOrBuy: [], watchLink: "", trailer: "", trailerKey: "", certification: "",
+  director: "Denis Villeneuve", cast: [], crew: [], seasons: [], streaming: [], rentOrBuy: [], watchLink: "", trailer: "", trailerKey: "", certification: "",
   episodeMinutes: 0, seasonCount: 0, episodeCount: 0, network: "", nextEpisode: null, lastEpisode: null, language: "", regionalRelease: "", recommendations: [],
   ...extra
 });

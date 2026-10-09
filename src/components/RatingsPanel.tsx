@@ -46,10 +46,10 @@ export function PopcornMark({ score, size = 28 }: { score: number; size?: number
 const imdbText = (value: number) => value.toFixed(1);
 
 /**
- * A title's scores as a column of rows, each with its icon, a large value,
- * a label and how many reviews or votes stand behind it: Tomatometer and
- * Audience as percentages, IMDb out of 10 (linking to IMDb's page when its id
- * is known), and TMDB's score as a star.
+ * A title's scores as a strip, like the Queue's stats: a large value over
+ * the source's mark and name, and how many reviews or votes stand behind it.
+ * Tomatometer and Audience as percentages, IMDb out of 10 (linking to IMDb's
+ * page when its id is known), and TMDB's score as a star.
  */
 export function RatingsPanel({ ratings, tmdb, imdbId }: { ratings: RatingSet; tmdb?: unknown; imdbId?: string }) {
   const tmdbText = formatRating(tmdb);
@@ -58,36 +58,27 @@ export function RatingsPanel({ ratings, tmdb, imdbId }: { ratings: RatingSet; tm
     <ul className="ratings" aria-label="Ratings">
       {ratings.critic && (
         <li className="rating-row" aria-label={`Tomatometer ${ratings.critic.value} percent${ratings.critic.count ? `, ${formatCount(ratings.critic.count)} reviews` : ""}`}>
-          <TomatoMark score={ratings.critic.value} />
           <b className="rating-value">{ratings.critic.value}%</b>
-          <span className="rating-meta">
-            <span className="rating-label">Tomatometer</span>
-            {ratings.critic.count && <span className="rating-count"><i aria-hidden="true">·</i> {formatCount(ratings.critic.count)} reviews</span>}
-          </span>
+          <span className="rating-source"><TomatoMark score={ratings.critic.value} size={18} /><span className="rating-label">Tomatometer</span></span>
+          {ratings.critic.count && <span className="rating-count">{formatCount(ratings.critic.count)} reviews</span>}
         </li>
       )}
       {ratings.audience && (
         <li className="rating-row" aria-label={`Audience ${ratings.audience.value} percent${ratings.audience.count ? `, ${formatCount(ratings.audience.count)} ratings` : ""}`}>
-          <PopcornMark score={ratings.audience.value} />
           <b className="rating-value">{ratings.audience.value}%</b>
-          <span className="rating-meta">
-            <span className="rating-label">Audience</span>
-            {ratings.audience.count && <span className="rating-count is-audience"><i aria-hidden="true">·</i> {formatCount(ratings.audience.count)} ratings</span>}
-          </span>
+          <span className="rating-source"><PopcornMark score={ratings.audience.value} size={18} /><span className="rating-label">Audience</span></span>
+          {ratings.audience.count && <span className="rating-count">{formatCount(ratings.audience.count)} ratings</span>}
         </li>
       )}
       {(ratings.imdb || imdbId) && (
         <li className="rating-row">
           {(() => {
+            // With no score yet, the strip keeps IMDb's place as a dash that still opens its page.
             const body = (
               <>
-                <span className="imdb-badge" aria-hidden="true">IMDb</span>
-                {ratings.imdb && (
-                  <>
-                    <b className="rating-value">{imdbText(ratings.imdb.value)}<small>/10</small></b>
-                    {ratings.imdb.count && <span className="rating-count"><Icon name="star" size={13} className="rating-star" /> {formatCount(ratings.imdb.count)}</span>}
-                  </>
-                )}
+                {ratings.imdb ? <b className="rating-value">{imdbText(ratings.imdb.value)}<small>/10</small></b> : <b className="rating-value is-empty" aria-hidden="true">–</b>}
+                <span className="rating-source"><span className="imdb-badge is-small" aria-hidden="true">IMDb</span>{imdbId && <Icon name="external" size={12} className="rating-external" />}</span>
+                {ratings.imdb?.count && <span className="rating-count">{formatCount(ratings.imdb.count)} votes</span>}
               </>
             );
             return imdbId ? (
@@ -103,9 +94,8 @@ export function RatingsPanel({ ratings, tmdb, imdbId }: { ratings: RatingSet; tm
       )}
       {tmdbText && (
         <li className="rating-row" aria-label={`TMDB ${tmdbText} out of 10`}>
-          <span className="rating-mark tmdb-mark" aria-hidden="true"><Icon name="star" size={18} /></span>
           <b className="rating-value">{tmdbText}<small>/10</small></b>
-          <span className="rating-label">TMDB</span>
+          <span className="rating-source"><span className="rating-mark tmdb-mark" aria-hidden="true"><Icon name="star" size={10} /></span><span className="rating-label">TMDB</span></span>
         </li>
       )}
     </ul>

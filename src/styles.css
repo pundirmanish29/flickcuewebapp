@@ -690,6 +690,15 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 /* Sideways rows move by their arrows (or a swipe), never a scrollbar. */
 .cinema-row::-webkit-scrollbar, .cast-row::-webkit-scrollbar, .season-rail::-webkit-scrollbar { display: none; }
 .cinema-row > * { scroll-snap-align: start; }
+/* Discover's rows run to the window's edges, so a wide screen doesn't cut the last poster off at the column's edge;
+   the first poster still lines up with the headings. The shelf is the container so cqw is the column's width
+   in every property (a percentage in scroll-padding would be the row's own). main clips the half scrollbar 100vw overshoots by. */
+.cinema-shelf { container-type: inline-size; }
+.cinema-shelf .cinema-row {
+  --bleed: max(var(--gutter, 16px), (100vw - 100cqw) / 2);
+  margin-inline: calc(-1 * var(--bleed)); padding-inline: var(--bleed); scroll-padding-inline: var(--bleed);
+}
+#root > main { overflow-x: clip; }
 /* A scrolling row clips anything that overflows it, so a card's reminder and showtimes open as a dialog over a dimmed page. */
 .cinema-row .popover, .candidate-card .popover {
   position: fixed; inset: 50% auto auto 50%; z-index: 100; transform: translate(-50%, -50%);
@@ -1246,36 +1255,43 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 
 /* ---- Title page (components/TitlePage.tsx) ---- */
 
-/* A title's own page: its backdrop across the top, the title beside a ticket stub that holds where you stand with it and what to do next. */
+/* A title's own page: its backdrop across the top, the poster and title over its foot, then a bar that holds where you stand with it and what to do next. */
 .title-page { position: relative; padding-bottom: clamp(48px, 8vw, 96px); }
-/* The backdrop starts below the header rather than behind it, so the bar never covers the picture. */
-.tp-hero { position: relative; height: clamp(300px, 54vh, 560px); background: var(--night) center 22% / cover no-repeat; }
+/* The backdrop runs up under the floating header, as the Queue's does, so there's no hard edge below the pill. */
+.tp-hero { position: relative; height: clamp(300px, 54vh, 560px); margin-top: calc(-1 * var(--header)); background: var(--night) center 22% / cover no-repeat; }
+/* The "sync is paused" banner sits between the header and the page: the backdrop starts below it. */
+.sync-banner ~ main .tp-hero { margin-top: 0; }
 /* On a wide 2x screen the backdrop is the larger copy (set by the page as --hero-hi); a phone never needs it. */
 @media (min-resolution: 1.5dppx) and (min-width: 700px) { .tp-hero[style*="--hero-hi"] { background-image: var(--hero-hi) !important; } }
 /* Dark at the top for Back and Trailer, the page colour at the foot for the title, in either theme. */
 .tp-hero::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background:
-    linear-gradient(to top, var(--paper) 4%, color-mix(in srgb, var(--paper) 78%, transparent) 42%, transparent 82%),
+    linear-gradient(to top, var(--paper) 0%, color-mix(in srgb, var(--paper) 88%, transparent) 18%, color-mix(in srgb, var(--paper) 70%, transparent) 42%, transparent 82%),
     linear-gradient(to bottom, rgba(11, 13, 15, 0.6), transparent 34%);
 }
-.tp-hero-bar { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; padding-top: 14px; }
+.tp-hero-bar { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; padding-top: calc(var(--header) + 14px); }
+.sync-banner ~ main .tp-hero-bar { padding-top: 14px; }
+/* Back and Trailer: glass pills like the header above them (.glass gives the material), the play button a solid disc. */
 .tp-back, .tp-play {
-  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px 0 12px; border: 0; border-radius: 999px;
-  background: rgba(11, 13, 15, 0.72); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: background-color 160ms ease;
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px 0 14px; border: 0; border-radius: 999px;
+  color: #fff; font: inherit; font-size: 14px; font-weight: 700; letter-spacing: -0.005em; cursor: pointer;
+  transition: transform var(--dur-slow) var(--ease-spring), box-shadow var(--dur-fast) ease;
 }
 .tp-play { padding-left: 6px; }
-.tp-back:hover, .tp-play:hover { background: rgba(11, 13, 15, 0.9); }
-.tp-play-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.85); }
-.tp-play-icon svg { margin-left: 2px; }
+.tp-back:hover, .tp-play:hover { box-shadow: var(--glass-shadow), inset 0 0 0 1px rgb(255 255 255 / 0.32), inset 0 1px 0 rgb(255 255 255 / 0.18); }
+.tp-back:hover svg { transform: translateX(-2px); }
+.tp-back svg { transition: transform var(--dur-fast) ease; }
+.tp-back:active, .tp-play:active { transform: scale(0.96); transition-duration: 90ms; }
+.tp-play-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #fff; color: var(--night); }
+.tp-play-icon svg { margin-left: 2px; fill: currentColor; }
 .tp-trailer { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
 .tp-layout { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr); }
 .tp-heading { min-width: 0; }
 .tp-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .tp-head h1 {
-  margin: 10px 0 0; font-size: clamp(2rem, 1.1rem + 3.8vw, 5.25rem); line-height: 0.94; letter-spacing: -0.045em; font-weight: 800;
+  margin: 10px 0 0; font-size: clamp(2rem, 0.9rem + 2.6vw, 3.5rem); line-height: 0.98; letter-spacing: -0.04em; font-weight: 800;
   text-wrap: balance; overflow-wrap: anywhere;
 }
 .tp-head h1:focus { outline: none; }
@@ -1288,7 +1304,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tp-body .sheet-section { margin-top: 40px; }
 .tp-empty { padding: 40px 0 80px; }
 
-/* The stub: the page's inverse, a ticket torn along a perforation under the poster. */
+/* The plan bar (still called the stub): the page's inverse, under the title. */
 .tp-stub, .tp-bar {
   --stub-muted: color-mix(in srgb, var(--paper) 64%, var(--ink));
   --stub-line: color-mix(in srgb, var(--paper) 24%, var(--ink));
@@ -1298,21 +1314,35 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tp-tone-blue { --stub-tone: var(--stub-blue); }
 .tp-tone-green { --stub-tone: var(--stub-green); }
 .tp-tone-neutral { --stub-tone: var(--stub-muted); }
-.tp-stub { border-radius: 24px; box-shadow: 0 28px 60px -28px rgba(0, 0, 0, 0.55); }
-.tp-stub-art { padding: 18px 18px 0; }
-.tp-poster-stub { display: block; width: 100%; border-radius: 12px; }
-.tp-perf {
-  position: relative; height: 30px;
-  background: radial-gradient(circle at 0 50%, var(--paper) 13px, transparent 14px), radial-gradient(circle at 100% 50%, var(--paper) 13px, transparent 14px);
+/* The bar itself is set on the page's own surface (the pinned phone bar stays inverse, to stand off the page). */
+.tp-stub {
+  --stub-muted: var(--muted); --stub-line: var(--rule);
+  border-radius: 24px; background: var(--paper-surface); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule), 0 28px 60px -32px rgba(0, 0, 0, 0.5);
 }
-.tp-perf::before { content: ""; position: absolute; left: 24px; right: 24px; top: 50%; border-top: 2px dashed var(--stub-line); }
-.tp-stub-body { display: grid; gap: 16px; padding: 2px 22px 22px; }
+.tp-stub.tp-tone-orange { --stub-tone: var(--page-orange); }
+.tp-stub.tp-tone-blue { --stub-tone: var(--page-blue); }
+.tp-stub.tp-tone-green { --stub-tone: var(--page-green); }
+.tp-stub .tp-button:hover { border-color: var(--ink); }
+.tp-stub .tp-button-primary { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.tp-stub .tp-button-primary:hover { background: color-mix(in srgb, var(--ink) 88%, var(--paper)); }
+.tp-stub :focus-visible { outline-color: var(--ink); }
+.tp-stub-body { display: grid; gap: 16px; }
+.tp-plan-info { display: grid; gap: 10px; min-width: 0; }
+.tp-plan-actions { display: grid; gap: 10px; min-width: 0; }
 .tp-stub-label { margin: 0; color: var(--stub-tone); font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; }
-.tp-summary { display: none; }
-.tp-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; margin: 0; }
-.tp-fields dt { color: var(--stub-muted); font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase; }
-.tp-fields dd { margin: 3px 0 0; font-size: 16px; font-weight: 800; line-height: 1.25; letter-spacing: -0.01em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.tp-stub .on-calendar { display: flex; align-items: center; gap: 6px; margin: -4px 0 0; color: var(--stub-muted); font-size: 13px; font-weight: 600; }
+.tp-summary { margin: 0; font-size: 18px; font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.tp-summary-sub { color: var(--stub-muted); font-size: 15px; font-weight: 600; }
+.tp-stub .on-calendar { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--stub-muted); font-size: 13px; font-weight: 600; }
+/* More: three dots in the button row, opening the big steps as a short menu on the page's colours. */
+.tp-more { position: relative; display: flex; }
+.tp-more .tp-button { width: 100%; }
+.tp-dots { display: inline-flex; align-items: center; gap: 3px; width: 18px; justify-content: center; }
+.tp-dots i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.tp-more .popover { top: auto; bottom: calc(100% + 8px); left: auto; right: 0; width: 220px; padding: 6px; color: var(--ink); }
+.tp-more-list { display: grid; }
+.tp-more-list .tp-quiet-link { justify-content: flex-start; min-height: 44px; padding: 0 12px; border-radius: 10px; color: var(--ink); text-align: left; }
+.tp-more-list .tp-quiet-link:hover { background: var(--paper-deep); text-decoration: none; }
+.tp-more-list .tp-quiet-link.is-danger { color: var(--page-orange); }
 .tp-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px;
   border: 1.5px solid var(--stub-line); background: transparent; color: inherit; font: inherit; font-size: 14px; font-weight: 700; line-height: 1.2;
@@ -1333,17 +1363,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .tp-watch-text small { font-size: 12.5px; font-weight: 600; opacity: 0.72; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tp-watch-out { flex: none; opacity: 0.6; }
 .tp-secondary { display: flex; flex-wrap: wrap; gap: 8px; }
-/* Mark all watched · Remove: quiet links under the buttons, a dot between them. */
-.tp-quiet { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: -4px; }
+/* Mark all watched, Remove: rows in the More menu. */
 .tp-quiet-link {
   display: inline-flex; align-items: center; min-height: 40px; padding: 0 10px; border: 0; background: none;
   color: var(--stub-muted); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
 }
-.tp-quiet-link + .tp-quiet-link::before { content: "·"; margin: 0 14px 0 -10px; color: var(--stub-line); }
-.tp-quiet-link:hover { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
-.tp-quiet-link.is-danger:hover { color: var(--stub-orange); }
-.tp-quiet-link[aria-expanded="true"] { color: inherit; }
-/* "Mark all of it watched?": asked in the stub, under the button that asked. */
+/* "Mark all of it watched?": asked in the bar, under its buttons. */
 .tp-confirm { display: grid; gap: 10px; padding: 12px; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--stub-line); }
 .tp-confirm p { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; }
 .tp-confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -1377,19 +1402,36 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .ep-strip-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; margin: 0; font-size: clamp(22px, 1.4rem + 0.5vw, 30px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
 .ep-strip-title .count { font-family: inherit; font-size: 14px; font-weight: 500; letter-spacing: 0; }
 .ep-strip-tools { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.season-pick { position: relative; display: inline-flex; align-items: center; }
-.season-pick select {
-  appearance: none; height: 40px; max-width: 240px; padding: 0 34px 0 14px; border-radius: 999px; border: 1px solid var(--rule);
-  background: var(--paper-surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; text-overflow: ellipsis; cursor: pointer;
+/* The season picker: a pill like the arrows beside it, opening a short menu of seasons on the page's colours. */
+.season-pick { position: relative; display: inline-flex; }
+.season-pick-button {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; height: 44px; max-width: 260px; padding: 0 14px 0 18px;
+  border: 1px solid var(--rule); border-radius: 999px; background: var(--paper-surface); color: var(--ink);
+  font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: border-color var(--dur-fast) ease, background-color var(--dur-fast) ease;
 }
-.season-pick select:hover { border-color: var(--ink); }
-.season-pick svg { position: absolute; right: 12px; pointer-events: none; }
+.season-pick-button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.season-pick-button svg { flex: none; color: var(--muted); transition: transform var(--dur-fast) ease; }
+.season-pick-button:hover { border-color: var(--ink); }
+.season-pick-button[aria-expanded="true"] { border-color: var(--ink); background: var(--paper-deep); }
+.season-pick-button[aria-expanded="true"] svg { transform: rotate(180deg); }
+.season-pick .popover { left: auto; right: 0; width: 280px; max-height: min(360px, 60vh); overflow-y: auto; padding: 6px; }
+.season-menu { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.season-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-radius: 10px;
+  background: none; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer;
+}
+.season-menu button:hover { background: var(--paper-deep); }
+.season-menu button[aria-current] { font-weight: 800; }
+.season-menu-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.season-menu-count { color: var(--muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.season-menu-tick { flex: none; color: var(--green); }
 /* On a phone the heading takes the full width and the picker sits under it. */
 @media (max-width: 600px) {
   .ep-strip .rail-head { flex-direction: column; align-items: stretch; gap: 12px; }
   .ep-strip-tools { justify-content: space-between; }
   .season-pick { flex: 1; min-width: 0; }
-  .season-pick select { width: 100%; max-width: none; height: 44px; }
+  .season-pick-button { width: 100%; max-width: none; }
+  .season-pick .popover { left: 0; right: auto; width: 100%; }
   .tp-quiet-link { min-height: 44px; }
 }
 .ep-row { list-style: none; margin: 0; padding: 4px 4px 8px; display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
@@ -1415,12 +1457,22 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .ep-name { font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ep-card.is-done .ep-name { color: var(--ink-soft); font-weight: 600; }
 .ep-card.is-unaired .ep-name { color: var(--muted); }
-.ep-card .ep-dismiss { align-self: flex-start; display: inline-flex; align-items: center; min-height: 44px; margin-top: -6px; margin-bottom: -10px; color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+/* "Not now": a small quiet pill under the episode's name, not an underlined link. */
+.ep-card .ep-dismiss {
+  align-self: flex-start; display: inline-flex; align-items: center; height: 32px; margin-top: 4px; padding: 0 12px; border: 1px solid var(--rule); border-radius: 999px;
+  background: none; color: var(--ink-soft); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.ep-card .ep-dismiss:hover { border-color: var(--ink); color: var(--ink); }
+/* Its 44px tap target, without a taller pill. */
+.ep-card .ep-dismiss { position: relative; }
+.ep-card .ep-dismiss::after { content: ""; position: absolute; inset: -6px 0; }
 .ep-strip + .seasons-head { margin-top: 36px; }
 .tp-secondary .tp-button { flex: 1 1 auto; }
-.tp-stub :focus-visible { outline-color: var(--paper); }
-/* The reminder choices are page content, set on the page's own colours inside the stub. */
+/* The reminder choices are page content, set on the page's own colours inside the bar. */
 .tp-choices { padding: 14px; border-radius: 16px; background: var(--paper-surface); color: var(--ink); }
+/* Inside the bar, which is that colour too, an outline sets them apart. */
+.tp-stub .tp-sheet:not(.is-sheet) .tp-choices { background: var(--paper); box-shadow: inset 0 0 0 1px var(--rule); }
 .tp-choices-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .tp-choices-head .popover-label { margin: 0; }
 .tp-choices-close { display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -10px -10px 0; border: 0; border-radius: 50%; background: none; color: var(--ink-soft); cursor: pointer; }
@@ -1436,34 +1488,51 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
 .tp-bar { display: none; }
 
 @media (min-width: 901px) {
-  .tp-layout { grid-template-columns: 340px minmax(0, 1fr); column-gap: clamp(40px, 5vw, 72px); margin-top: -232px; }
+  /* A tall backdrop with the title over its foot only, so the picture has room above it. */
+  .tp-hero { height: clamp(480px, 68vh, 740px); }
+  .tp-layout { margin-top: -130px; }
   .tp-layout.after-trailer { margin-top: 32px; }
-  .tp-head { grid-column: 2; grid-row: 1; padding-top: 36px; }
-  .tp-poster-head { display: none; }
-  /* The stub stays in view while the details scroll; one taller than the window keeps its buttons on screen. */
-  /* Its top lines up with the first line of the details beside it (.tp-head's padding). */
-  .tp-stub { margin-top: 36px; grid-column: 1; grid-row: 1 / span 2; align-self: start; position: sticky; top: min(calc(var(--header) + 16px), calc(100vh - var(--stub-h, 0px) - 16px)); }
-  /* Stuck under the header on a short window, the poster gives up height (down to 140px, else it steps aside) so the whole stub fits; --stub-rest is the rest of the stub. */
-  .tp-stub.is-stuck .tp-poster-stub { max-height: max(140px, calc(100vh - var(--header) - 32px - var(--stub-rest, 0px))); }
-  /* Shrunk, the poster stays whole (its logo is often at the foot) and narrows, centred on a blur of itself. */
-  img.tp-poster-stub { width: auto; max-width: 100%; margin: 0 auto; }
-  .tp-stub-frame { position: relative; border-radius: 12px; overflow: hidden; background: var(--paper-deep); }
-  .tp-stub-frame::before { content: ""; position: absolute; inset: -24px; background: var(--art) center / cover no-repeat; filter: blur(18px) saturate(1.1); opacity: 0.7; }
-  .tp-stub-frame .tp-poster-stub { position: relative; }
-  .tp-stub.is-artless .tp-stub-art, .tp-stub.is-artless .tp-perf { display: none; }
-  .tp-stub.is-artless .tp-stub-body { padding-top: 20px; }
-  /* The other two as one split pill: same width each, a hairline between. */
-  .tp-stub .tp-secondary { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0; border-radius: 999px; box-shadow: inset 0 0 0 1.5px var(--stub-line); overflow: hidden; }
-  .tp-stub .tp-secondary .tp-button { gap: 6px; padding: 0 8px; border: 0; border-radius: 0; white-space: nowrap; }
-  .tp-stub .tp-secondary .tp-button + .tp-button { box-shadow: inset 1.5px 0 0 var(--stub-line); }
+  /* The poster beside the title, their feet in line. */
+  .tp-head { display: grid; grid-template-columns: clamp(140px, 12vw, 172px) minmax(0, 1fr); align-items: end; column-gap: clamp(24px, 2.6vw, 40px); }
+  .tp-poster-head { width: 100%; border-radius: 16px; box-shadow: var(--poster-shadow), 0 0 0 1px rgba(255, 255, 255, 0.08); }
+  /* The bar across the page: the episode to watch (still, then its name), where you stand, then the buttons. */
+  .tp-stub { margin-top: 32px; }
+  .tp-stub-body { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "still info actions"; align-items: center; gap: 16px 28px; padding: 16px 18px 16px 16px; }
+  .tp-stub-body:not(:has(.tp-upnext)) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "info actions"; padding-left: 24px; }
+  .tp-stub-body > .tp-upnext { grid-area: still; }
+  .tp-plan-info { grid-area: info; }
+  .tp-plan-actions { grid-area: actions; display: flex; align-items: center; gap: 10px; }
+  .tp-stub-body > .tp-confirm, .tp-stub-body > .tp-sheet { grid-column: 1 / -1; }
+  .tp-upnext { grid-template-columns: 168px minmax(0, 180px); align-items: center; gap: 16px; }
+  .tp-upnext-tag { font-size: 11px; }
+  .tp-upnext-tick { width: 40px; height: 40px; right: 8px; bottom: 8px; }
+  .tp-plan-info .tp-series { max-width: 320px; }
+  .tp-plan-actions .tp-button-primary { width: auto; min-width: 200px; }
+  .tp-plan-info { min-width: 190px; }
+  .tp-plan-actions .tp-button-primary:not(.tp-watch) { padding: 0 22px; }
+  /* The rest as one split pill: same width each, a hairline between; More is its dots alone. */
+  .tp-stub .tp-secondary { display: grid; grid-auto-flow: column; gap: 0; border-radius: 999px; box-shadow: inset 0 0 0 1.5px var(--stub-line); }
+  .tp-stub .tp-secondary .tp-button { min-height: 52px; gap: 6px; padding: 0 14px; border: 0; border-radius: 0; white-space: nowrap; }
+  .tp-stub .tp-secondary > :first-child, .tp-stub .tp-secondary > :first-child .tp-button { border-radius: 999px 0 0 999px; }
+  .tp-stub .tp-secondary > :last-child, .tp-stub .tp-secondary > :last-child .tp-button { border-radius: 0 999px 999px 0; }
+  .tp-stub .tp-secondary > :only-child, .tp-stub .tp-secondary > :only-child .tp-button { border-radius: 999px; }
+  .tp-stub .tp-secondary > * + * { box-shadow: inset 1.5px 0 0 var(--stub-line); }
   .tp-stub .tp-secondary .tp-button:hover { background: color-mix(in srgb, currentColor 7%, transparent); }
   .tp-stub .tp-secondary .tp-button.on { box-shadow: none; }
-  .tp-body { grid-column: 2; grid-row: 2; }
-  html[data-opening] .tp-poster-stub { view-transition-name: title-poster; }
+  .tp-more-button > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .tp-more-button { padding: 0 18px; }
+  .tp-body { margin-top: 8px; }
+  html[data-opening] .tp-poster-head { view-transition-name: title-poster; }
+}
+/* Not quite wide enough for one row: the buttons go under where you stand. */
+@media (min-width: 901px) and (max-width: 1240px) {
+  .tp-stub-body { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "still info" "still actions"; }
+  .tp-stub-body:not(:has(.tp-upnext)) { grid-template-columns: minmax(0, 1fr); grid-template-areas: "info" "actions"; }
+  .tp-plan-actions { flex-wrap: wrap; }
 }
 
 @media (max-width: 900px) {
-  .tp-hero { height: clamp(220px, 34vh, 300px); }
+  .tp-hero { height: clamp(284px, calc(34vh + 64px), 364px); }
   .tp-layout { margin-top: -104px; }
   .tp-layout.after-trailer { margin-top: 20px; }
   .tp-head { display: flex; align-items: flex-end; gap: 14px; }
@@ -1482,23 +1551,20 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
   .tp-back, .tp-play { width: 44px; padding: 0; justify-content: center; }
   .tp-play-icon { width: 30px; height: 30px; box-shadow: none; }
   .tp-back-label, .tp-play-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  /* The poster already sits beside the title, so on a phone the stub is just its plan, set on the page between two tear lines: no card. */
+  /* On a phone the bar is just its plan, set on the page between two tear lines: no card. */
   .tp-stub {
-    --stub-muted: var(--muted); --stub-line: var(--rule);
-    margin-top: 26px; padding: 20px 0; border-radius: 0; background: none; color: var(--ink); box-shadow: none;
+    margin-top: 26px; padding: 20px 0; border-radius: 0; background: none; box-shadow: none;
     border-top: 2px dashed var(--rule); border-bottom: 2px dashed var(--rule);
   }
-  .tp-stub.tp-tone-orange { --stub-tone: var(--page-orange); }
-  .tp-stub.tp-tone-blue { --stub-tone: var(--page-blue); }
-  .tp-stub.tp-tone-green { --stub-tone: var(--page-green); }
-  .tp-stub-art, .tp-perf, .tp-fields { display: none; }
   .tp-stub-body { gap: 14px; padding: 0; }
+  /* Stacked as before: where you stand, the episode to watch, then the buttons. */
+  .tp-plan-info, .tp-plan-actions { display: contents; }
+  .tp-stub-body > .tp-upnext { order: 1; }
+  .tp-plan-actions > * { order: 2; }
+  .tp-stub-body > .tp-confirm, .tp-stub-body > .tp-sheet { order: 3; }
   .tp-stub-label { margin-bottom: -8px; }
-  .tp-summary { display: block; margin: 0; font-size: 18px; font-weight: 800; line-height: 1.3; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
-  .tp-summary-sub { margin-top: -10px; color: var(--ink-soft); font-size: 15px; font-weight: 600; }
-  .tp-stub .tp-button-primary { border-color: var(--ink); background: var(--ink); color: var(--paper); }
-  .tp-stub .tp-button-primary:hover { background: color-mix(in srgb, var(--ink) 88%, var(--paper)); }
-  .tp-stub :focus-visible { outline-color: var(--ink); }
+  .tp-summary-sub { margin-top: -10px; color: var(--ink-soft); }
+  .tp-stub .on-calendar { margin-top: -6px; }
   /* The other actions: a quiet row of icons with their names under them. */
   .tp-stub .tp-secondary { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
   .tp-stub .tp-secondary .tp-button { flex-direction: column; gap: 5px; min-height: 58px; padding: 4px 2px; border: 0; border-radius: 14px; color: var(--ink-soft); font-size: 12px; font-weight: 600; }
@@ -1506,7 +1572,7 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
   .tp-stub .tp-secondary .tp-button svg { width: 22px; height: 22px; }
   .tp-stub .tp-secondary .tp-button.on { background: none; color: var(--ink); }
   .tp-stub .tp-secondary .tp-button.on svg { padding: 5px; box-sizing: content-box; margin: -5px; border-radius: 50%; background: var(--lime); color: var(--on-accent); }
-  .tp-stub .on-calendar { margin-top: -6px; }
+  .tp-dots { width: 22px; height: 22px; }
   html[data-opening] .tp-poster-head { view-transition-name: title-poster; }
   .tp-body .sheet-section { margin-top: 40px; }
   /* The pinned bar and the dock already sit where the scroll arrows would. */
@@ -1554,7 +1620,9 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
 .watch-credit { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 .watch-search { font-style: normal; color: var(--ink-soft); }
 .watch-search-tag { margin-left: auto; padding: 2px 8px; border: 1px solid var(--rule); border-radius: 999px; color: var(--muted); font-size: 11px; font-style: normal; letter-spacing: .04em; text-transform: uppercase; }
-.watch-credit a { color: inherit; text-underline-offset: 2px; }
+/* Credit links read as links by their weight and colour; the underline comes on hover. */
+.watch-credit a { color: var(--ink-soft); font-weight: 600; text-decoration: none; }
+.watch-credit a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 .popover .watch-credit { margin: 6px 10px 2px; }
 .watch-cards ul { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .watch-card {
@@ -1635,23 +1703,23 @@ body:has(.tp-sheet.is-sheet) .dock, body:has(.tp-sheet.is-sheet) .tp-bar { visib
   display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 4px; box-shadow: inset 0 0 0 1px currentColor;
   color: var(--ink); font-size: 11px; font-weight: 700; letter-spacing: 0.02em; text-transform: none;
 }
-/* Ratings: a column of rows, each an icon, a large value, a label and the count behind it. */
-.ratings { display: grid; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
-.rating-row { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 10px; min-height: 36px; color: var(--ink); }
-.rating-mark { flex: none; width: 32px; height: 32px; }
-.tmdb-mark { display: grid; place-items: center; border-radius: 50%; background: var(--green); color: var(--on-accent); }
-.tmdb-mark { width: 26px; height: 26px; margin: 3px; }
+/* Ratings: a strip like the Queue's stats. Each score is a large value over its source's mark and name and the
+   count behind it, with a hairline between scores. On a phone they sit two by two. */
+.ratings { display: flex; flex-wrap: wrap; row-gap: 14px; margin: 16px 0 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+.rating-row { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; padding: 0 22px; border-left: 1px solid var(--rule); color: var(--ink); }
+.rating-row:first-child { padding-left: 0; border-left: 0; }
+.rating-mark { flex: none; width: 18px; height: 18px; }
+.tmdb-mark { display: grid; place-items: center; width: 16px; height: 16px; margin: 1px; border-radius: 50%; background: var(--green); color: var(--on-accent); }
 .tmdb-mark svg { fill: currentColor; }
-.rating-value { font-size: 22px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
-.rating-value small { margin-left: 1px; color: var(--muted); font-size: 14px; font-weight: 500; letter-spacing: 0; }
-.rating-label { color: var(--muted); font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
-.rating-count { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 13px; }
-.rating-count i { font-style: normal; margin-right: 4px; }
-.rating-meta { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 0 10px; min-width: 0; }
-.rating-count.is-audience { color: var(--green-ink); }
-.rating-star { color: var(--green); fill: currentColor; }
-.rating-link { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; border-radius: 8px; }
-a.rating-link:hover .rating-value { text-decoration: underline; text-underline-offset: 3px; }
+.rating-value { font-size: 26px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+.rating-value small { margin-left: 1px; color: var(--muted); font-size: 15px; font-weight: 500; letter-spacing: 0; }
+.rating-value.is-empty { color: var(--muted); }
+.rating-source { display: inline-flex; align-items: center; gap: 6px; min-height: 18px; }
+.rating-label { color: var(--muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+.rating-count { color: var(--muted); font-size: 12px; }
+.rating-external { color: var(--muted); }
+.rating-link { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; color: inherit; text-decoration: none; border-radius: 8px; }
+a.rating-link:hover .rating-value { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
 .imdb-badge { flex: none; display: inline-grid; place-items: center; min-width: 46px; height: 26px; padding: 0 6px; border-radius: 4px; background: #f5c518; color: #000; font-size: 16px; font-weight: 900; letter-spacing: -0.04em; line-height: 1; }
 .imdb-badge.is-small { min-width: 0; height: 15px; padding: 0 3px; border-radius: 2px; font-size: 9.5px; }
 /* On a card, the same three in a line of small icons. */
@@ -1681,11 +1749,6 @@ a.rating-link:hover .rating-value { text-decoration: underline; text-underline-o
 .season-toggle svg { color: var(--muted); transition: transform 160ms ease; flex-shrink: 0; }
 .season-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 .seasons-more { margin-top: 12px; font-size: 14px; }
-/* Apple TV's "New Episode Every Wednesday": a small pill above the title. */
-.sheet-cadence {
-  display: inline-block; margin: 0 0 8px; padding: 3px 10px; border-radius: 999px;
-  background: var(--paper-deep); color: var(--ink); font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
-}
 .sheet-section { margin-top: 28px; }
 /* A cinema ticket on a film: added from a screenshot, photo or PDF, checked, then shown as a card. */
 .ticket-panel { padding: 16px; border-radius: 16px; background: var(--paper-surface); border: 1px solid var(--rule); }
@@ -1835,12 +1898,12 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
 .footer-link { display: inline-flex; align-items: center; min-height: 44px; color: #c2c6ca; text-decoration: none; transition: color var(--dur-fast) ease; }
 .footer-link:hover { color: #fff; }
 .footer-chip { padding: 3px 9px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--dark-line); color: var(--dark-muted); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
-.footer-credit { flex-basis: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 6px; font-size: 13px; line-height: 1.45; color: rgb(255 255 255 / 0.8); }
-.footer-credit img { display: block; width: 140px; height: auto; }
+.footer-credit { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; line-height: 1.45; color: rgb(255 255 255 / 0.8); }
+.footer-credit img { display: block; flex: none; width: 96px; height: auto; }
 .tmdb-credit { margin: 14px 0 6px; }
 .tmdb-credit img { display: block; width: 140px; height: auto; }
 @media (max-width: 700px) { .footer-credit { padding-right: 60px; } }
-.footer-fine { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; padding-top: 12px; border-top: 1px solid var(--dark-line); color: var(--dark-muted); font-size: 12px; }
+.footer-fine { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; padding-top: 12px; border-top: 1px solid var(--dark-line); color: var(--dark-muted); font-size: 12px; }
 /* Contact: a button until clicked, then the address and a Copy button. */
 .contact-reveal { display: inline-flex; align-items: baseline; gap: 10px; }
 .contact-address { user-select: all; }
@@ -1965,16 +2028,12 @@ body:has(.toast) .scroll-jump { transform: translateY(-72px); }
   }
   .watch-sheet-title { display: block; margin: 0; padding: 12px 10px 4px; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .watch-sheet-title b { color: var(--ink); font-weight: 700; }
-  .ratings { gap: 4px; margin-top: 10px; }
-  .rating-row { min-height: 32px; gap: 1px 8px; }
-  .rating-mark { width: 26px; height: 26px; }
-  .rating-value { font-size: 19px; }
-  .rating-label { font-size: 12px; }
-  .rating-count { font-size: 12.5px; }
-  /* Label over count on a phone, so the count never wraps with a dot on its own line. */
-  .rating-meta { flex-direction: column; align-items: flex-start; gap: 1px; }
-  .rating-count i { display: none; }
-  .imdb-badge { min-width: 42px; height: 22px; font-size: 14px; }
+  .ratings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px; margin-top: 12px; }
+  .rating-row { padding: 0 8px 0 14px; }
+  .rating-row:nth-child(odd) { padding-left: 0; border-left: 0; }
+  .rating-value { font-size: 22px; }
+  /* Beside the poster the column is narrow; tighter tracking keeps TOMATOMETER clear of the hairline. */
+  .rating-label { letter-spacing: 0.04em; }
   .sheet-status { font-size: 15px; line-height: 1.3; }
   .season-row { grid-template-columns: 1fr auto; }
   .season-row .progress { grid-column: 1 / -1; grid-row: 2; }

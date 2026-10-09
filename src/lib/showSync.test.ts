@@ -16,7 +16,7 @@ import { mergeWatchlists } from "./merge";
 const movie = (note: string, updatedAt: number): Movie => ({ id: "show", title: "A followed show", mediaType: "Show", tmdbId: "1", tmdbType: "tv", updatedAt, createdAt: 1, personal: { status: "watching", note } });
 const details = (): TitleDetails => ({
   overview: "New metadata", tagline: "", genres: [], runtimeMinutes: 24, status: "Returning Series", imdbId: "", rating: "",
-  backdrop: "", poster: "", releaseDate: "2000-01-01", director: "", cast: [], seasons: [], streaming: [], rentOrBuy: [], watchLink: "", trailer: "", trailerKey: "", certification: "",
+  backdrop: "", poster: "", releaseDate: "2000-01-01", director: "", cast: [], crew: [], seasons: [], streaming: [], rentOrBuy: [], watchLink: "", trailer: "", trailerKey: "", certification: "",
   episodeMinutes: 24, seasonCount: 1, episodeCount: 2, network: "", nextEpisode: null, lastEpisode: null, language: "", regionalRelease: "", recommendations: []
 });
 
