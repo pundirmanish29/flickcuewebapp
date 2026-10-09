@@ -20,16 +20,18 @@ export function Poster({ src: given, retina: givenRetina, priority = false, pers
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
+  // The class says what it is, not "placeholder": a browser extension that hides anything with that word in its
+  // class (some content blockers do) left a gap where this cover should be.
   if (!src || failed) {
     if (person) {
       return (
-        <div className={`poster poster-placeholder poster-person ${className}`} aria-hidden="true">
+        <div className={`poster poster-blank poster-person ${className}`} aria-hidden="true">
           <Icon name="user" size={36} />
         </div>
       );
     }
     return (
-      <div className={`poster poster-placeholder ${className}`} style={{ ["--tint" as string]: placeholderTint(title) }} aria-hidden="true">
+      <div className={`poster poster-blank ${className}`} style={{ ["--tint" as string]: placeholderTint(title) }} aria-hidden="true">
         <span>{titleInitials(title)}</span>
       </div>
     );

@@ -723,7 +723,7 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
   transition: transform var(--dur-slow) var(--ease-spring), box-shadow var(--dur-base) ease;
 }
 .title-card-art .poster { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 600ms var(--ease-out); }
-.title-card-art .poster-placeholder { display: grid; }
+.title-card-art .poster-blank { display: grid; }
 @media (hover: hover) {
   .title-card-open:hover .title-card-art { transform: translateY(-4px); box-shadow: 0 22px 44px -16px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(127, 127, 127, 0.14); }
   .title-card-open:hover .poster { transform: scale(1.045); }
@@ -815,8 +815,8 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 .inline-link:hover { text-decoration-line: underline; }
 
 /* Zero specificity, so each place a poster sits keeps its own size. */
-:where(.poster-placeholder) { width: 100%; }
-.poster-placeholder {
+:where(.poster-blank) { width: 100%; }
+.poster-blank {
   display: grid; place-items: center; aspect-ratio: 2 / 3;
   background: linear-gradient(160deg, color-mix(in srgb, var(--tint) 34%, var(--night)), var(--night));
   color: var(--tint); font-weight: 800; font-size: clamp(18px, 3vw, 34px); letter-spacing: -0.02em;
@@ -890,7 +890,7 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 .coming-list li { border-bottom: 1px dashed var(--rule); }
 .coming-item { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 72px; padding: 10px 2px; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .coming-poster { width: 40px; flex: none; border-radius: 8px; }
-.coming-poster.poster-placeholder { font-size: 12px; }
+.coming-poster.poster-blank { font-size: 12px; }
 .coming-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .coming-text b { font-size: 15px; font-weight: 700; line-height: 1.25; }
 .coming-when { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
@@ -908,7 +908,7 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 .notification-open { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .notification-art { position: relative; flex: none; }
 .notification-poster { width: 56px; border-radius: 12px; box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.4); }
-.notification-poster.poster-placeholder { font-size: 16px; }
+.notification-poster.poster-blank { font-size: 16px; }
 /* What kind of news it is, in the colour it has everywhere: orange for a reminder (a nudge), green for what's out. */
 .notification-kind {
   position: absolute; right: -7px; bottom: -5px; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
@@ -1035,7 +1035,7 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 
 .person-block { margin-bottom: 8px; }
 .person-head { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
-.person-head .poster, .person-head .poster-placeholder {
+.person-head .poster, .person-head .poster-blank {
   width: 64px; height: 64px; aspect-ratio: 1; border-radius: 50%; object-fit: cover; font-size: 20px;
 }
 .person-head .eyebrow { margin: 0; }
@@ -1065,7 +1065,7 @@ input:not([type="checkbox"]):not([type="search"]), select, textarea {
 }
 .manual-match:hover { background: var(--paper-deep); }
 .manual-match-poster { width: 30px; flex-shrink: 0; border-radius: 5px; }
-.manual-match-poster.poster-placeholder { font-size: 11px; }
+.manual-match-poster.poster-blank { font-size: 11px; }
 .manual-match-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .manual-match-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 600; }
 .manual-match-text span { color: var(--muted); font-size: 13px; }
