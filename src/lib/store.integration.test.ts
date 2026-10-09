@@ -288,3 +288,73 @@ describe("verified Google account ownership", () => {
     expect(writes).toBe(0);
   });
 });
+
+describe("pushing a change to Drive", () => {
+  // The fake clock stands still, so each edit is stamped a little later than the last, as real ones are.
+  let tick = 0;
+  const edited = (store: typeof import("./store"), note: string) => {
+    const library = store.getState().library;
+    return { ...library, movies: library.movies.map((movie) => ({ ...movie, updatedAt: NOW + 1000 + ++tick, personal: { ...movie.personal, note } })) };
+  };
+
+  it("sends an edit to Drive within a second, not at the next poll", async () => {
+    const store = await import("./store");
+    await store.sync();
+    writes = 0;
+    store.commit(edited(store, "tapped"));
+    expect(writes).toBe(0);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(writes).toBe(1);
+    expect(remote.movies[0].personal?.note).toBe("tapped");
+  });
+
+  it("sends a burst of quick edits as one push", async () => {
+    const store = await import("./store");
+    await store.sync();
+    writes = 0;
+    for (const note of ["a", "ab", "abc"]) {
+      store.commit(edited(store, note));
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(writes).toBe(1);
+    expect(remote.movies[0].personal?.note).toBe("abc");
+  });
+
+  it("sends a waiting edit the moment the tab is hidden", async () => {
+    const handlers: Record<string, () => void> = {};
+    const doc = { visibilityState: "visible", addEventListener: (type: string, fn: () => void) => { handlers[type] = fn; } };
+    vi.stubGlobal("document", doc);
+    vi.stubGlobal("window", { addEventListener: (type: string, fn: () => void) => { handlers[type] = fn; } });
+    const store = await import("./store");
+    store.startBackgroundSync();
+    await vi.advanceTimersByTimeAsync(0);
+    await store.sync();
+    writes = 0;
+    store.commit(edited(store, "before leaving"));
+    doc.visibilityState = "hidden";
+    handlers.visibilitychange();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writes).toBe(1);
+    expect(remote.movies[0].personal?.note).toBe("before leaving");
+    // The timer that was waiting must not send it a second time.
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(writes).toBe(1);
+  });
+
+  it("sends edits made offline as soon as the connection returns", async () => {
+    const handlers: Record<string, () => void> = {};
+    vi.stubGlobal("document", { visibilityState: "visible", addEventListener: () => {} });
+    vi.stubGlobal("window", { addEventListener: (type: string, fn: () => void) => { handlers[type] = fn; } });
+    const store = await import("./store");
+    store.startBackgroundSync();
+    await vi.advanceTimersByTimeAsync(0);
+    await store.sync();
+    writes = 0;
+    remote = { movies: [], deleted: [] };
+    handlers.online();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(writes).toBe(1);
+    expect(remote.movies).toHaveLength(1);
+  });
+});

@@ -31,7 +31,9 @@ const LIBRARY_ACCOUNT_KEY = "flickcue.libraryAccount";
 // again on the next visit; signing in here clears it.
 const EXTENSION_OFF_KEY = "flickcue.extensionSignInOff";
 
-const PUSH_DELAY = 4000;
+// A change goes up to Drive almost at once. The short wait only lets a burst of taps (ticking episodes, a swipe and
+// its undo) leave as one sync.
+const PUSH_DELAY = 400;
 const POLL_INTERVAL = 5 * 60 * 1000;
 const SYNC_CONFLICT_ATTEMPTS = 4;
 const SYNC_CONFLICT_MESSAGE = "Your list changed on another device during sync. Your changes are safe here; sync again shortly.";
@@ -187,6 +189,7 @@ if (state.sync.account?.email) {
 applyRegionAndLanguage(state.settings);
 const listeners = new Set<() => void>();
 let pushTimer: ReturnType<typeof setTimeout> | undefined;
+let pushPending = false;
 let activeSync: Promise<void> | null = null;
 let syncAgain = false;
 
@@ -230,13 +233,28 @@ export function useAppState(): AppState {
   return useSyncExternalStore(subscribe, getState, getState);
 }
 
-/** Saves an edited document and schedules a push to Drive. */
+function schedulePush() {
+  if (!state.sync.connected) return;
+  pushPending = true;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    pushPending = false;
+    void sync();
+  }, PUSH_DELAY);
+}
+
+/** Pushes what is waiting right now, for a tab that is being hidden or closed. */
+function flushPush() {
+  if (!pushPending) return;
+  clearTimeout(pushTimer);
+  pushPending = false;
+  void sync();
+}
+
+/** Saves an edited document and pushes it to Drive. */
 export function commit(library: LibraryDocument) {
   setLibrary(library);
-  if (state.sync.connected) {
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => void sync(), PUSH_DELAY);
-  }
+  schedulePush();
 }
 
 /**
@@ -249,10 +267,7 @@ export function updateSettings(patch: Partial<Settings>, fromDrive = false) {
   write(SETTINGS_KEY, settings);
   applyRegionAndLanguage(settings);
   setState({ settings });
-  if (changesSynced && state.sync.connected) {
-    clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => void sync(), PUSH_DELAY);
-  }
+  if (changesSynced) schedulePush();
 }
 
 // A Drive sync has succeeded in this page session: only then is the library known to be whole enough to compare
@@ -787,7 +802,11 @@ export function startBackgroundSync() {
   }, POLL_INTERVAL);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void sync();
+    // Leaving the tab (or closing it) must not strand an edit that is still waiting its short turn.
+    else flushPush();
   });
+  // Edits made offline go up the moment the connection is back, not at the next poll.
+  window.addEventListener("online", () => void sync());
   // Another tab of this app edited the library or signed in.
   window.addEventListener("storage", (event) => {
     if (event.key === LIBRARY_KEY || event.key === SYNC_KEY || event.key === SETTINGS_KEY) {
