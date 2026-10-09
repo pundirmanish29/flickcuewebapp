@@ -715,7 +715,8 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 }
 
 .title-card { position: relative; display: flex; flex-direction: column; min-width: 0; }
-.title-card-open { display: block; padding: 0; border: 0; background: none; text-align: left; }
+/* Full width: a button is only as wide as its content, and a poster still downloading has none, so without this the whole frame collapsed until the image arrived. */
+.title-card-open { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; }
 .title-card-art {
   position: relative; aspect-ratio: 2 / 3; border-radius: var(--r-m); overflow: hidden; background: var(--paper-deep);
   box-shadow: 0 1px 0 rgba(22, 24, 27, 0.08), inset 0 0 0 1px rgba(127, 127, 127, 0.14);
