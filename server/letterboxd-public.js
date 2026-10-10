@@ -56,7 +56,9 @@ export function parseWatchlist(html) {
   return { entries, displayName: owner ? text(owner[2]).slice(0, 100) : "", avatarUrl: avatar(owner?.[1] || ""), total: total ? Number(total[1].replace(/,/g, "")) : null, next: /class="[^"]*\bnext\b[^\"]*"[^>]*href=|href="[^"]*\/watchlist\/page\/\d+\/"[^>]*class="[^"]*\bnext\b/.test(html) };
 }
 async function readPage(path, fetchImpl) {
-  const response = await fetchImpl(`https://letterboxd.com/${path}`, { redirect: "error", signal: AbortSignal.timeout(12_000), headers: { Accept: "application/rss+xml,text/html;q=0.9" } });
+  // Workers supports manual/follow only. Reject 3xx below rather than following
+  // a redirect outside the fixed public-profile URL.
+  const response = await fetchImpl(`https://letterboxd.com/${path}`, { redirect: "manual", signal: AbortSignal.timeout(12_000), headers: { Accept: "application/rss+xml,text/html;q=0.9" } });
   if (!response.ok) throw new Error(`Letterboxd didn't serve this public page (${response.status}).`);
   if (Number(response.headers.get("content-length")) > MAX_BYTES) throw new Error("The public page was too large.");
   const reader = response.body?.getReader();
@@ -95,7 +97,10 @@ export async function publicProfile(username, fetchImpl = fetch) {
     }
     watchlistCount = seen.size;
   } else warnings.push("The public watchlist is unavailable. Older imports were kept.");
-  if (feed.status === "rejected" && list.status === "rejected") throw new Error("Letterboxd didn't make this public profile available. Check the username or try again later.");
+  if (feed.status === "rejected" && list.status === "rejected") {
+    console.warn("Letterboxd public import failed", { diary: String(feed.reason), watchlist: String(list.reason) });
+    throw new Error("Letterboxd didn't make this public profile available. Check the username or try again later.");
+  }
   return { username, ...identity, entries: [...entries.values()].slice(0, 600), recentAvailable, recentCount: feed.status === "fulfilled" ? feed.value.entries.length : 0, watchlistAvailable: list.status === "fulfilled", watchlistComplete, watchlistCount, warnings, fetchedAt: Date.now() };
 }
 export async function handlePublicProfile(username, { fetchImpl = fetch, cache = null } = {}) {
