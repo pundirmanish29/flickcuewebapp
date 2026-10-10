@@ -21,7 +21,7 @@ export function letterboxdHandle(raw: unknown): string {
 
 export const letterboxdProfileUrl = (handle: string) => `https://letterboxd.com/${handle}/`;
 
-interface LetterboxdData {
+export interface LetterboxdData {
   rating?: number;
   liked?: boolean;
   review?: string;

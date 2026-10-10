@@ -216,6 +216,48 @@ test("ticking the last episode of an ended show moves it to Watched, and Undo ta
   expect(await watched()).toBe(false);
 });
 
+test.describe("Settings: a file for Letterboxd", () => {
+  const watchedOn = new Date(2025, 4, 3, 21, 0).getTime();
+  const film = (over: Record<string, unknown>) => title({ mediaType: "Movie", tmdbType: "movie", watched: true, watchedAt: watchedOn, ...over });
+  const library = [
+    film({ id: "a", title: "Arrival (2016)", year: "2016", tmdbId: "329865", personal: { rating: 4.5, review: 'Slow, "lovely".' } }),
+    film({ id: "b", title: "Heat (1995)", year: "1995", tmdbId: "949" }),
+    // Left out: a show, a film added by hand (no TMDB id), and one that came from Letterboxd.
+    title({ id: "s", watched: true }),
+    film({ id: "h", title: "Home Video", tmdbId: undefined }),
+    film({ id: "l", title: "Dune (2021)", tmdbId: "438631", origin: "letterboxd", letterboxd: { watched: true, rating: 4 } })
+  ];
+
+  test("builds the file from the person's own watched films, and the next one carries only what is new", async ({ page }) => {
+    await stub(page);
+    await signedIn(page, library);
+    await page.goto("/#/settings");
+    await page.getByRole("button", { name: "Prepare a file" }).click();
+    await expect(page.getByText("2 films ready.")).toBeVisible();
+    await expect(page.getByText("2 with a watch date · 1 rated · 1 reviewed.")).toBeVisible();
+    await expect(page.getByText(/1 film you watched was added by hand/)).toBeVisible();
+    await expectNoAxeViolations(page, "Settings, Letterboxd file ready");
+
+    const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Download the file" }).click()]);
+    expect(download.suggestedFilename()).toMatch(/^flickcue-letterboxd-\d{4}-\d{2}-\d{2}\.csv$/);
+    const { readFileSync } = await import("node:fs");
+    const lines = readFileSync((await download.path())!, "utf8").trimEnd().split("\n");
+    expect(lines).toEqual([
+      "tmdbID,Title,Year,WatchedDate,Rating,Review",
+      '329865,"Arrival",2016,2025-05-03,4.5,"<p>Slow, \\"lovely\\".</p>"',
+      '949,"Heat",1995,2025-05-03,,'
+    ]);
+    await expect(page.getByRole("link", { name: "letterboxd.com/import" })).toHaveAttribute("href", "https://letterboxd.com/import/");
+
+    // A second file carries nothing until a title changes, and "everything again" still can.
+    await page.getByRole("button", { name: "Close" }).click();
+    await page.getByRole("button", { name: "Prepare a file" }).click();
+    await expect(page.getByText("Nothing new to send.")).toBeVisible();
+    await page.getByRole("button", { name: "Include everything again" }).click();
+    await expect(page.getByText("2 films ready.")).toBeVisible();
+  });
+});
+
 for (const scheme of ["dark", "light"] as const) {
   test.describe(`accessibility (${scheme})`, () => {
     test.use({ colorScheme: scheme });
