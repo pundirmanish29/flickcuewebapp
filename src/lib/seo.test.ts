@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 
 // The static files search engines read: the page head, robots.txt, the sitemap and the guides.
 const files = import.meta.glob(
-  ["../../index.html", "../../public/robots.txt", "../../public/sitemap.xml", "../../public/privacy.html", "../../public/contact.html", "../../public/guides/**/index.html"],
+  ["../../index.html", "../../public/robots.txt", "../../public/sitemap.xml", "../../public/privacy.html", "../../public/contact.html", "../../public/about.html", "../../public/guides/**/index.html"],
   { query: "?raw", import: "default", eager: true }
 ) as Record<string, string>;
+
+// The pages of the app that carry the footer links, read as source.
+const sources = import.meta.glob(["../App.tsx", "../components/Landing.tsx"], { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
 const byPath = new Map(Object.entries(files).map(([path, text]) => [path.replace("../../", ""), text]));
 const read = (path: string) => byPath.get(path) ?? "";
@@ -21,8 +24,9 @@ describe("sitemap and robots", () => {
     expect(read("public/robots.txt")).not.toMatch(/Disallow: \/\s*$/m);
   });
 
-  it("list the home page, the privacy and contact pages and every guide, and nothing that doesn't exist", () => {
+  it("list the home page, the about, privacy and contact pages and every guide, and nothing that doesn't exist", () => {
     expect(listed).toContain("https://flickcue.in/");
+    expect(listed).toContain("https://flickcue.in/about.html");
     expect(listed).toContain("https://flickcue.in/privacy.html");
     expect(listed).toContain("https://flickcue.in/contact.html");
     for (const guide of guides) expect(listed).toContain(`https://flickcue.in/${guide.replace("public/", "").replace("index.html", "")}`);
@@ -101,6 +105,46 @@ describe("the contact page", () => {
     expect(read("index.html")).toContain("./contact.html");
     expect(read("public/privacy.html")).toContain("./contact.html");
     for (const path of guides) expect(read(path), path).toContain("../../contact.html");
+  });
+});
+
+describe("the about page", () => {
+  const html = read("public/about.html");
+
+  it("has its own title, description, canonical address and one heading", () => {
+    expect(title(html)).toBe("About FlickCue");
+    expect(meta(html, "description").length).toBeGreaterThanOrEqual(70);
+    expect(meta(html, "description").length).toBeLessThanOrEqual(160);
+    expect(/<link rel="canonical" href="([^"]*)"/.exec(html)?.[1]).toBe("https://flickcue.in/about.html");
+    expect(html.match(/<h1>/g)?.length).toBe(1);
+  });
+
+  it("carries structured data that parses", () => {
+    const block = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)?.[1] ?? "";
+    expect(JSON.parse(block)["@type"]).toBe("AboutPage");
+  });
+
+  it("runs no inline script and loads nothing from outside the site", () => {
+    const policy = /Content-Security-Policy" content="([^"]*)"/.exec(html)?.[1] ?? "";
+    expect(policy).toMatch(/script-src 'self'(;|$)/);
+    expect(policy).not.toMatch(/unsafe-eval|script-src[^;]*unsafe-inline/);
+    expect(html).not.toMatch(/<script>[^<]/);
+  });
+
+  it("credits TMDB in its required words", () => {
+    expect(html).toContain("This product uses TMDB and the TMDB APIs but is not endorsed, certified, or otherwise approved by TMDB.");
+  });
+
+  it("is linked from the footer of the home page, the privacy and contact pages and every guide", () => {
+    expect(read("index.html")).toContain("./about.html");
+    expect(read("public/privacy.html")).toContain("./about.html");
+    expect(read("public/contact.html")).toContain("./about.html");
+    for (const path of guides) expect(read(path), path).toContain("../../about.html");
+  });
+
+  it("is linked from the app's footer and the signed-out page", () => {
+    expect(sources["../App.tsx"]).toContain('href="./about.html"');
+    expect(sources["../components/Landing.tsx"]).toContain('href="./about.html"');
   });
 });
 

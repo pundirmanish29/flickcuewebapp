@@ -388,7 +388,7 @@ export function Landing() {
           <Actions tone="ink" extensionLine />
           <p className="l-cta-note">
             {ANDROID_URL ? <a href={ANDROID_URL} target="_blank" rel="noreferrer">Get the Android app</a> : "Android app coming soon"}
-            {" · "}<a href="./privacy.html">Privacy</a>{" · "}<a href="./contact.html">Contact</a>
+            {" · "}<a href="./about.html">About</a>{" · "}<a href="./privacy.html">Privacy</a>{" · "}<a href="./contact.html">Contact</a>
           </p>
           <nav className="l-cta-note l-guides" aria-label="Guides">
             <a href="./guides/movie-watchlist-app/">Watchlist app</a>

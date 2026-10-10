@@ -24,6 +24,18 @@ for (const scheme of ["dark", "light"] as const) {
       await page.waitForTimeout(1500);
       await expectNoAxeViolations(page, "landing page");
     });
+
+    test("links to the About page from the footer, and that page has no accessibility violations", async ({ page }) => {
+      await stub(page);
+      await page.goto("/");
+      const about = page.getByRole("navigation", { name: "Footer" }).getByRole("link", { name: "About" });
+      await expect(about).toHaveAttribute("href", "./about.html");
+      await about.click();
+      await expect(page).toHaveURL(/\/about\.html$/);
+      await expect(page.getByRole("heading", { level: 1, name: "About FlickCue" })).toBeVisible();
+      await expect(page.getByRole("contentinfo").getByRole("link", { name: "About" })).toHaveAttribute("aria-current", "page");
+      await expectNoAxeViolations(page, "about page");
+    });
   });
 }
 
