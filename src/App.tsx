@@ -461,6 +461,7 @@ export default function App() {
             <span className="brand"><Logo size={9} /> <span className="brand-name">FLICKCUE</span></span>
             <span className="footer-tag">One watchlist. Everywhere.</span>
             <nav className="footer-links" aria-label="Footer">
+              <a className="footer-link" href="./about.html">About</a>
               <a className="footer-link" href="./privacy.html">Privacy</a>
               <a className="footer-link" href="./contact.html">Contact</a>
               {/* Not offered to a phone, or to someone who already has it. */}
