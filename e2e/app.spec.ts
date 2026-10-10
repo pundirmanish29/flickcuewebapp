@@ -12,7 +12,7 @@ test("an error while drawing a page shows the notice, not a blank page", async (
 });
 
 test.describe("Discover when the title service can't be reached", () => {
-  const list = { results: [{ id: 1, title: "A Film", poster_path: "/a.jpg", release_date: "2026-01-01", vote_average: 7.2 }], total_pages: 1 };
+  const list = { results: [{ id: 1, title: "A Film", poster_path: "/a.jpg", release_date: "2026-01-01", vote_average: 7.2, vote_count: 100, popularity: 20 }], total_pages: 1 };
 
   test("says each list failed, offers another try, and fills the row when it works", async ({ page }) => {
     const stubs: Stubs = { offline: true, tmdb: () => list };
