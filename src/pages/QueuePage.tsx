@@ -3,6 +3,7 @@ import { Icon } from "../components/Icon";
 import { CalendarMark } from "../components/CalendarMark";
 import { Poster } from "../components/Poster";
 import { TitleCard } from "../components/TitleCard";
+import { QueueSuggestions } from "../components/QueueSuggestions";
 import { TonightStrip } from "../components/TonightStrip";
 import { ScrollArrows } from "../components/ScrollArrows";
 import { airingToday, readDismissed, upNextEpisode } from "../lib/newEpisode";
@@ -380,6 +381,8 @@ export function QueuePage({ onOpen, query }: { onOpen: (id: string) => void; que
           </div>
         </section>
       )}
+
+      {sync.connected && !searching && <QueueSuggestions movies={library.movies} onOpen={onOpen} />}
 
       {/* Nothing to sort or filter yet: the ways to save something instead. */}
       {sync.connected && !queue.length && (

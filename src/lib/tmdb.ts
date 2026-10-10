@@ -144,6 +144,8 @@ function toCandidate(item: any, defaultType?: "movie" | "tv"): Candidate {
     releaseDate: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "",
     overview: item.overview || "",
     rating: rating > 0 ? rating.toFixed(1) : "",
+    popularity: Math.max(0, Number(item.popularity) || 0),
+    voteCount: Math.max(0, Number(item.vote_count) || 0),
     poster: posterUrl(item.poster_path, "w185"),
     backdrop: posterUrl(item.backdrop_path, "w780"),
     upcoming: false
@@ -373,6 +375,13 @@ export function inCinemasNow(region: string): Promise<Set<string>> {
 export const cinemaKey = (movie: { tmdbId?: string; tmdbType?: string }) =>
   movie.tmdbId && movie.tmdbType !== "tv" ? `tmdb:movie:${movie.tmdbId}` : "";
 
+/** Coming soon follows the dates shown on its cards; undated films follow the dated ones. */
+function orderBrowseItems(category: DiscoverCategory, items: Candidate[]): Candidate[] {
+  return category.id === "upcoming"
+    ? [...items].sort((a, b) => (a.releaseDate || "9999-99-99").localeCompare(b.releaseDate || "9999-99-99"))
+    : items;
+}
+
 export async function browse(category: DiscoverCategory, page = 1, region = ""): Promise<{ items: Candidate[]; more: boolean; pages: number }> {
   const params: Record<string, string> = { include_adult: "false", page: String(page), ...(category.params ?? {}) };
   if (category.regional && /^[A-Z]{2}$/i.test(region)) params.region = region.toUpperCase();
@@ -389,7 +398,7 @@ export async function browse(category: DiscoverCategory, page = 1, region = ""):
       return reason ? { ...item, reason } : item;
     });
   const pages = Math.min(Number(data.total_pages) || 1, 10);
-  return { items, more: page < pages, pages };
+  return { items: orderBrowseItems(category, items), more: page < pages, pages };
 }
 
 /**
@@ -404,7 +413,7 @@ export async function browseAll(category: DiscoverCategory, region: string, onPa
   const rest = await Promise.all(
     Array.from({ length: first.pages - 1 }, (_, index) => browse(category, index + 2, region).then((result) => result.items, () => [] as Candidate[]))
   );
-  onPage(dedupe([...first.items, ...rest.flat()]));
+  onPage(orderBrowseItems(category, dedupe([...first.items, ...rest.flat()])));
 }
 
 export interface Provider {

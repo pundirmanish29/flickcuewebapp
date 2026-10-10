@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { TitleCard } from "../components/TitleCard";
+import { WatchedHighlights } from "../components/WatchedHighlights";
 import { importDays, knownWatchedAt, matchesKind, matchesSearch, watchedGroups } from "../lib/rules";
 import { PageHeader } from "../components/PageHeader";
 import { EmptyStart } from "../components/EmptyStart";
@@ -77,6 +78,8 @@ export function WatchedPage({ onOpen, query }: { onOpen: (id: string) => void; q
               ))}
             </div>
           </div>
+          <WatchedHighlights movies={visible} onOpen={onOpen} />
+          <h2 className="section-title watched-history-title">Your watch history</h2>
           {groups.length ? (
             <>
               <div ref={months}>

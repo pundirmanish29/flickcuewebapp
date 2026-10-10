@@ -50,8 +50,9 @@ test.describe("Discover while the posters are still downloading", () => {
 });
 
 test.describe("Discover's cinema row", () => {
-  const film = (id: number, extra: Record<string, unknown> = {}) => ({ id, title: `Film ${id}`, poster_path: `/p${id}.jpg`, release_date: "2026-09-20", vote_average: 7, vote_count: 100, ...extra });
-  const show = (id: number) => ({ id, name: `Show ${id}`, poster_path: `/s${id}.jpg`, first_air_date: "2026-09-25", vote_average: 7, vote_count: 100 });
+  const recentDate = new Date(Date.now() - 10 * 86400000).toISOString().slice(0, 10);
+  const film = (id: number, extra: Record<string, unknown> = {}) => ({ id, title: `Film ${id}`, poster_path: `/p${id}.jpg`, release_date: recentDate, vote_average: 7, vote_count: 100, popularity: 20, ...extra });
+  const show = (id: number) => ({ id, name: `Show ${id}`, poster_path: `/s${id}.jpg`, first_air_date: recentDate, vote_average: 7, vote_count: 100, popularity: 20 });
   const results = (items: unknown[], total_pages = 1) => ({ results: items, total_pages });
   const stubs = (path: string, params: URLSearchParams) => {
     const page = Number(params.get("page") || "1");
@@ -63,13 +64,17 @@ test.describe("Discover's cinema row", () => {
     return undefined;
   };
 
-  test("shows every film in cinemas and every film coming soon, not the first few", async ({ page }) => {
+  test("features titles with posters while keeping every film in the full cinema lists", async ({ page }) => {
     await stub(page, { tmdb: stubs });
     await signedIn(page);
     await page.goto("/#/discover");
     const cards = page.locator(".cinema-shelf").first().locator(".candidate-card");
-    await expect(cards).toHaveCount(3);
+    await expect(cards).toHaveCount(2);
+    await expect(cards.locator("h3")).toHaveText(["Film 901", "Film 903"]);
+    await page.locator(".cinema-shelf").first().getByRole("button", { name: "See all" }).click();
+    await expect(page.locator(".candidate-card")).toHaveCount(3);
     await expect(page.getByText("Film 902")).toBeVisible();
+    await page.getByRole("button", { name: "Back to Discover" }).click();
     await page.getByRole("button", { name: "In cinemas", exact: true }).click();
     // 3 pages of 4, loaded behind the first.
     await expect(cards).toHaveCount(12);

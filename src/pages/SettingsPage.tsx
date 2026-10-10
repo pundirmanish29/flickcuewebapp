@@ -14,6 +14,7 @@ import { ContactReveal } from "../components/ContactReveal";
 import { alertSupport } from "../lib/alerts";
 import { letterboxdHandle, letterboxdProfileUrl, letterboxdStats } from "../lib/letterboxd";
 import { letterboxdCsvParts, letterboxdFileName, markSent, planExport, readSent, type CsvPart } from "../lib/letterboxdExport";
+import { usePublicLetterboxd } from "../lib/usePublicLetterboxd";
 import { useTheme, type ThemeChoice } from "../lib/theme";
 import { LANGUAGES, REGIONS } from "../lib/regions";
 import type { LibraryDocument } from "../lib/types";
@@ -366,7 +367,6 @@ function LetterboxdExport() {
   const { library } = useAppState();
   const [plan, setPlan] = useState<{ parts: CsvPart[]; unmatched: number; all: boolean } | null>(null);
   const [downloaded, setDownloaded] = useState<number[]>([]);
-  if (!library.movies.some((movie) => movie.watched)) return null;
 
   const prepare = (all: boolean) => {
     const { entries, unmatched } = planExport(library.movies, readSent(), { all });
@@ -391,8 +391,8 @@ function LetterboxdExport() {
   const films = (count: number) => `${count} ${count === 1 ? "film" : "films"}`;
 
   return (
-    <div className="restore">
-      <p className="field-label">Send to Letterboxd</p>
+    <div className="restore lb-export">
+      <h3 className="field-label">Send to Letterboxd</h3>
       {!plan ? (
         <>
           <p className="muted small-print">Download the films you watched here, with your own stars, reviews and watch dates, as a file Letterboxd's importer reads. Nothing is sent from FlickCue: you upload the file yourself.</p>
@@ -421,7 +421,9 @@ function LetterboxdExport() {
               )}
             </>
           ) : (
-            <p className="muted">Nothing new to send. What you watched here is already on Letterboxd, or was in a file you downloaded before.</p>
+            <p className="muted">{library.movies.some((movie) => movie.watched)
+              ? "Nothing new to send. What you watched here is already on Letterboxd, or was in a file you downloaded before."
+              : "No watched films to export yet. Mark a film watched, then prepare a file."}</p>
           )}
           {plan.unmatched > 0 && (
             <p className="muted small-print">{films(plan.unmatched)} you watched {plan.unmatched === 1 ? "was" : "were"} added by hand and {plan.unmatched === 1 ? "has" : "have"} no TMDB link, so Letterboxd could only guess. {plan.unmatched === 1 ? "It's" : "They're"} left out.</p>
@@ -436,52 +438,117 @@ function LetterboxdExport() {
   );
 }
 
-function Letterboxd() {
-  const { settings, library } = useAppState();
+export function Letterboxd() {
+  const { settings, library, sync: syncState } = useAppState();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(settings.letterboxd);
+  const [error, setError] = useState("");
   const stats = letterboxdStats(library.movies);
-  const linked = settings.letterboxd && !editing;
+  const linked = Boolean(settings.letterboxd);
+  const input = useRef<HTMLInputElement>(null);
+  const connection = usePublicLetterboxd(syncState.account?.email || "", settings.letterboxd);
+  const profile = connection.profile;
+  const [failedAvatar, setFailedAvatar] = useState("");
+  const avatar = profile?.avatarUrl && profile.avatarUrl !== failedAvatar ? profile.avatarUrl : "";
+  const status = connection.progress ? "Importing" : connection.error ? "Needs attention" : connection.record ? "Imported" : connection.loading ? "Checking profile" : profile ? "Ready to import" : "Profile unavailable";
+
+  useEffect(() => {
+    if (editing) input.current?.focus();
+  }, [editing]);
+
+  const edit = () => {
+    setValue(settings.letterboxd);
+    setError("");
+    setEditing(true);
+  };
 
   const save = () => {
     const handle = letterboxdHandle(value);
-    if (value.trim() && !handle) return toast("That doesn't look like a Letterboxd username.");
-    updateSettings({ letterboxd: handle, letterboxdUnlinked: !handle });
+    if (!handle) {
+      setError("Enter a Letterboxd username or profile link.");
+      input.current?.focus();
+      return;
+    }
+    updateSettings({ letterboxd: handle, letterboxdUnlinked: false });
     setEditing(false);
-    toast(handle ? `Linked letterboxd.com/${handle}` : "Letterboxd unlinked");
+    setError("");
+    toast(`Linked letterboxd.com/${handle}`);
   };
 
   return (
-    <article className="card" id="letterboxd">
-      <h2>Letterboxd</h2>
-      {linked ? (
+    <article className="card lb-card" id="letterboxd" aria-labelledby="letterboxd-heading">
+      <div className="lb-card-inner">
+      <header className="lb-heading">
+        <h2 id="letterboxd-heading">Letterboxd</h2>
+        <span className={`lb-status${profile ? " has-sync" : ""}`}>{linked ? "Public profile" : "Not connected"}</span>
+      </header>
+      {linked && !editing ? (
         <>
-          <p className="linked-row">
-            <a href={letterboxdProfileUrl(settings.letterboxd)} target="_blank" rel="noreferrer">
-              letterboxd.com/{settings.letterboxd}
-            </a>
-          </p>
+          <a className="lb-profile" href={letterboxdProfileUrl(settings.letterboxd)} target="_blank" rel="noreferrer">
+            <span className="lb-avatar" aria-hidden="true">{avatar ? <img src={avatar} alt="" referrerPolicy="no-referrer" onError={() => setFailedAvatar(avatar)} /> : settings.letterboxd[0].toUpperCase()}</span>
+            <span className="lb-profile-name"><strong>{profile?.displayName || `@${settings.letterboxd}`}</strong><span>letterboxd.com/{settings.letterboxd}</span></span>
+            <Icon name="external" size={16} />
+          </a>
+          <div className="lb-sync-status" role="status" aria-live="polite">
+            <span className={`lb-sync-label${status === "Importing" || status === "Imported" ? " is-active" : status === "Needs attention" ? " is-warning" : ""}`}><span aria-hidden="true" className="lb-sync-dot" />{status}</span>
+            <span className="muted small-print">Import your linked public profile here. No extension or Letterboxd API access is needed.</span>
+            {connection.record && <>
+              <span className="muted small-print">Last imported {timeAgo(connection.record.syncedAt)} on this device · {connection.record.added} added · {connection.record.updated} updated.</span>
+              <span className="muted small-print">Changes use FlickCue's Google Drive sync. Check Account above for its upload status.</span>
+              {connection.record.warnings.map(warning => <span key={warning} className="lb-error small-print">{warning}</span>)}
+            </>}
+            {connection.progress && <span className="small-print">{connection.progress.total ? `${connection.progress.done} of ${connection.progress.total} films checked` : "Reading public profile…"}</span>}
+          </div>
+          <div className="lb-summary">
+            <span className="lb-eyebrow">Letterboxd → FlickCue</span>
+            <p><b>What imports</b></p>
+            {profile ? <>
+              <ul className="lb-sync-items">
+                <li><span>Recent diary · watched films and dates</span><span className={profile.recentAvailable ? "lb-import-on" : "muted"}>{profile.recentAvailable ? `${profile.recentCount} films` : "Unavailable"}</span></li>
+                <li><span>Stars, likes and reviews</span><span className="muted">From recent diary</span></li>
+                <li><span>Public watchlist</span><span className={profile.watchlistAvailable ? "lb-import-on" : "muted"}>{profile.watchlistAvailable ? `${profile.watchlistCount} films${profile.watchlistComplete ? "" : " · partial"}` : "Unavailable"}</span></li>
+              </ul>
+              {profile.warnings.map(warning => <p key={warning} className="lb-error small-print">{warning}</p>)}
+            </> : <p className="muted small-print">{connection.loading ? "Reading the public profile…" : "Refresh to check available public diary entries and watchlist films."}</p>}
+            <p className="muted small-print">The public feed contains recent activity, not your full watched history. Imports run when you choose Sync now. Older imports, your own reviews and removed films are kept as you left them.</p>
+            <p className="small-print">{stats.linked} titles in your list carry Letterboxd data: {stats.rated} rated · {stats.liked} liked · {stats.reviewed} reviewed. These totals can include earlier imports.</p>
+            <span className="lb-eyebrow">FlickCue → Letterboxd</span>
+            <p><b>Manual file export</b></p>
+            <p className="muted small-print">Watched films, your stars, reviews and watch dates. Prepare a file below and upload it to Letterboxd. Nothing is sent automatically.</p>
+          </div>
+          <div className="button-row lb-refresh">
+            <button type="button" className="button button-ink" onClick={() => void connection.startImport()} disabled={Boolean(connection.progress) || connection.loading}><Icon name="sync" size={16} />{connection.progress ? "Importing…" : "Sync now"}</button>
+            <button type="button" className="button button-quiet" onClick={connection.refresh} disabled={connection.loading || Boolean(connection.progress)}>{connection.loading ? "Checking…" : "Refresh status"}</button>
+          </div>
+          {connection.error && <p className="lb-error small-print" role="alert">{connection.error}</p>}
           <p className="linked-actions">
-            <button type="button" className="inline-link" onClick={() => { setValue(settings.letterboxd); setEditing(true); }}>Change</button>
+            <button type="button" className="inline-link" onClick={edit}>Change profile link</button>
             <span aria-hidden="true"> · </span>
-            <button type="button" className="inline-link" onClick={() => { setValue(""); updateSettings({ letterboxd: "", letterboxdUnlinked: true }); toast("Letterboxd unlinked"); }}>Unlink</button>
+            <button type="button" className="inline-link" onClick={() => { setValue(""); updateSettings({ letterboxd: "", letterboxdUnlinked: true }); toast("Letterboxd profile link removed"); }}>Remove profile link</button>
           </p>
         </>
-      ) : (
-        <form className="field-stack" onSubmit={(event) => { event.preventDefault(); save(); }}>
-          <p className="muted">Show your Letterboxd profile in your account menu.</p>
+      ) : editing ? (
+        <form className="field-stack lb-profile-form" onSubmit={(event) => { event.preventDefault(); save(); }}>
+          <p className="muted small-print" id="lb-profile-hint">Link your own public Letterboxd profile to import recent diary entries and watchlist films. This doesn't sign in to Letterboxd or verify ownership.</p>
           <label>
             <span className="field-label">Username or profile link</span>
-            <input value={value} onChange={(event) => setValue(event.target.value)} placeholder="letterboxd.com/yourname" autoComplete="off" autoCapitalize="none" spellCheck={false} />
+            <input ref={input} value={value} onChange={(event) => { setValue(event.target.value); setError(""); }} placeholder="letterboxd.com/yourname" autoComplete="off" autoCapitalize="none" spellCheck={false} aria-invalid={Boolean(error)} aria-describedby={error ? "lb-profile-hint lb-profile-error" : "lb-profile-hint"} />
           </label>
+          {error && <p className="lb-error small-print" id="lb-profile-error" role="alert">{error}</p>}
           <div className="button-row">
-            <button type="submit" className="button button-ink">{settings.letterboxd ? "Save" : "Link profile"}</button>
-            {editing && <button type="button" className="button button-quiet" onClick={() => setEditing(false)}>Cancel</button>}
+            <button type="submit" className="button button-ink">{linked ? "Save profile link" : "Link profile"}</button>
+            <button type="button" className="button button-quiet" onClick={() => { setEditing(false); setError(""); }}>Cancel</button>
           </div>
         </form>
+      ) : (
+        <div className="lb-intro">
+          <p>Keep your Letterboxd profile close, and take the films you watch here with you.</p>
+          <button type="button" className="button button-ink lb-primary" onClick={edit}>Link a public profile</button>
+          <p className="muted small-print">Import recent diary entries and watchlist films directly in the webapp. Sending films to Letterboxd uses a file export below.</p>
+        </div>
       )}
-      {stats.linked > 0 && <p className="muted small-print">{stats.linked} {stats.linked === 1 ? "title in your list carries" : "titles in your list carry"} Letterboxd ratings, likes or reviews.</p>}
       <LetterboxdExport />
+      </div>
     </article>
   );
 }
