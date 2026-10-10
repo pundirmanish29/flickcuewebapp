@@ -80,10 +80,29 @@ export function showDetails(over: Record<string, unknown> = {}) {
 }
 
 /**
- * Runs axe on the page as it stands and fails with the rules and elements broken. `exclude` leaves out parts axe
- * can't measure honestly (text laid over a title's backdrop photo); say why where it is used.
+ * Waits for every animation that ends to end. A dialog is "visible" to Playwright from the first frame of its fade-in, but
+ * axe reads what is drawn: half-way through the fade its text is washed out (colour-contrast), and at the first frame it
+ * isn't counted as an open dialog, so the page behind it, which is inert, seems to have no heading. Endless ones (a spinner)
+ * are left running, and so are those that follow the scroll position rather than the clock (the Queue's drifting poster),
+ * which only move when the page does.
+ */
+async function settleAnimations(page: Page) {
+  await page.evaluate(async () => {
+    for (let pass = 0; pass < 5; pass++) {
+      const running = document.getAnimations().filter((animation) => animation.timeline === document.timeline && animation.effect?.getComputedTiming().iterations !== Infinity && animation.playState === "running");
+      if (!running.length) return;
+      // A cancelled animation (its element left the page) rejects `finished`; it is over all the same.
+      await Promise.all(running.map((animation) => animation.finished.catch(() => undefined)));
+    }
+  });
+}
+
+/**
+ * Runs axe on the page as it stands, once its animations have finished, and fails with the rules and elements broken.
+ * `exclude` leaves out parts axe can't measure honestly (text laid over a title's backdrop photo); say why where it is used.
  */
 export async function expectNoAxeViolations(page: Page, context?: string, exclude: string[] = []) {
+  await settleAnimations(page);
   // evaluate() isn't subject to the page's policy (which refuses inline scripts), as addScriptTag would be.
   await page.evaluate(axeSource);
   const violations = await page.evaluate(async (skip) => {
