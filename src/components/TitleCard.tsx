@@ -7,15 +7,12 @@ import { Icon } from "./Icon";
 import { RatingScore } from "./RatingScore";
 import { RatingChips } from "./RatingsPanel";
 import { savedRatings } from "../lib/ratings";
-import { verdictLabel, verdictOf } from "../lib/verdict";
+import { SourceRatings } from "./SourceRatings";
 import { CalendarMark } from "./CalendarMark";
 import { Poster } from "./Poster";
 
-/** Stars out of five, halves as ½: "★★★★½". */
-const stars = (value: number) => "★".repeat(Math.floor(value)) + (value % 1 ? "½" : "");
-
 /** A saved title in the poster grid. Clicking opens its details; hover shows quick actions. */
-export function TitleCard({ movie, onOpen, priority = false }: { movie: Movie; onOpen: (id: string) => void; priority?: boolean }) {
+export function TitleCard({ movie, onOpen, priority = false, personalFocus = false }: { movie: Movie; onOpen: (id: string) => void; priority?: boolean; personalFocus?: boolean }) {
   const badge = gridBadge(movie);
   const status = getShowStatus(movie);
   const unreleased = isUnreleased(movie);
@@ -39,18 +36,14 @@ export function TitleCard({ movie, onOpen, priority = false }: { movie: Movie; o
           {/* The rating sits here, not on the poster, where it would cover the title art. */}
           <p className="meta">
             {[movie.mediaType, movie.year].filter(Boolean).join(" · ")}
-            {formatRating(movie.rating) && <>{" · "}<RatingScore value={movie.rating} /></>}
+            {!personalFocus && formatRating(movie.rating) && <>{" · "}<RatingScore value={movie.rating} /></>}
           </p>
-          <RatingChips ratings={savedRatings(movie)} />
-          {(line || take.stars > 0 || take.liked) && (
+          {!personalFocus && <RatingChips ratings={savedRatings(movie)} />}
+          <SourceRatings movie={movie} showNames={personalFocus} />
+          {!personalFocus && (line || take.liked) && (
             <p className={`meta ${statusLine ? `tone-${status!.tone}` : ""}`}>
               {line}
               <CalendarMark movie={movie} />
-              {take.stars > 0 && (
-                <span className={`your-take verdict-word verdict-${verdictOf(take.stars)}`} title={stars(take.stars)} aria-label={`Your verdict: ${verdictLabel(verdictOf(take.stars)!)}, ${take.stars} out of 5`}>
-                  {line ? " · " : ""}{verdictLabel(verdictOf(take.stars)!)}
-                </span>
-              )}
               {take.liked && <span className="your-heart" aria-label="Liked"> <Icon name="heart" size={11} /></span>}
             </p>
           )}

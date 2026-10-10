@@ -119,6 +119,9 @@ export interface Candidate {
   poster: string;
   backdrop: string;
   upcoming: boolean;
+  /** TMDB audience signals used to select featured Discover cards. */
+  popularity?: number;
+  voteCount?: number;
   /** Why it was suggested, e.g. "Because you saved Arrival". */
   reason?: string;
   /** Its main genre, short: "Thriller", "Sci-Fi". */

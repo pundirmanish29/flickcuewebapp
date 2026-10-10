@@ -62,6 +62,24 @@ never revoked here, since that would sign the extension out too. Signing out on 
 stops this until you sign in on the site again. Firefox has no way for a site to reach
 an extension, so there it's the usual Google sign-in.
 
+**Standalone Letterboxd imports.** Settings reads the linked public profile's picture,
+recent diary feed and watchlist without an extension or official API access. **Sync now**
+imports watched films, dates, stars, likes and up to 600 characters of public reviews
+from recent activity, plus available watchlist films. The feed is not a full watched
+history. Failed pages produce warnings, never deletions. Ambiguous title matches are
+skipped; personal edits and existing titles are preserved. Imports stop on account or
+profile changes or when leaving Settings. Results and removal bookkeeping are stored
+per Google account/profile on this device. Changes use the normal Drive sync; its
+upload status is separate from the local import result. CSV export stays manual.
+
+Development uses the Vite `/letterboxd-public/{username}` handler. Production uses
+the same route on `api.flickcue.in` (Worker in `flickcueextension/proxy`); deploy that
+route before publishing this frontend. Keep `server/letterboxd-public.js` identical
+to the Worker's `proxy/src/letterboxd-public.js`. Only fixed public Letterboxd paths
+are fetched, without cookies, credentials or arbitrary URLs; replies may be cached
+for five minutes. Watchlists are bounded to ten pages. Extension hourly imports
+remain independent; the webapp imports only on explicit Sync now.
+
 ## Staying compatible with the extension and the app
 
 `src/lib/merge.ts` and `src/lib/editor.ts` port `drive-sync.js`'s

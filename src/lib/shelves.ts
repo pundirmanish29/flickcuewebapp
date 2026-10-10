@@ -39,10 +39,12 @@ export function hiddenGemReason(item: Candidate): string {
   return item.rating ? `Hidden gem · rated ${item.rating}` : "Hidden gem";
 }
 
-/** On a streaming service: "New on Netflix" when recent, else nothing (the card shows its summary). */
+const STREAM_NEW_DAYS = 90;
+
+/** Release age describes a new title, not the date it joined a provider's catalogue. */
 export function providerReason(item: Candidate, provider: string, now = Date.now()): string {
   const age = daysSinceRelease(item.releaseDate, now);
-  return age !== null && age >= 0 && age <= 120 ? `New on ${provider}` : "";
+  return age !== null && age >= 0 && age <= STREAM_NEW_DAYS ? `New ${item.tmdbType === "tv" ? "Show" : "Movie"} · ${provider}` : "";
 }
 
 const category = (id: string) => DISCOVER_CATEGORIES.find((item) => item.id === id)!;
@@ -55,6 +57,37 @@ export const TALK_SEE_ALL = "trending";
 
 export const COMING_SOON: DiscoverCategory = { ...category("upcoming"), reason: comingSoonReason };
 export const HIDDEN_GEMS: DiscoverCategory = { ...category("hidden-gems"), reason: hiddenGemReason };
+
+/** Homepage picks only; See all continues to use the unfiltered catalogue. */
+export function featuredCinemaItems(items: readonly Candidate[], mode: "soon" | "now" | "new", now = Date.now()): Candidate[] {
+  const ranked = items.filter((item) => {
+    if (!item.poster) return false;
+    const popularity = item.popularity ?? 0;
+    // Unreleased films cannot be judged by votes. Keep a modest interest floor for regional releases.
+    if (mode === "soon") return popularity >= 3;
+    if (popularity < 10) return false;
+    const age = daysSinceRelease(item.releaseDate, now);
+    const established = (item.voteCount ?? 0) >= (item.tmdbType === "tv" ? 20 : 50);
+    const freshInterest = age !== null && age >= 0 && age <= 14 && popularity >= 30;
+    return established || freshInterest;
+  }).sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0) || (b.voteCount ?? 0) - (a.voteCount ?? 0));
+
+  if (mode === "soon") {
+    return ranked.slice(0, 12).sort((a, b) => (a.releaseDate || "9999-99-99").localeCompare(b.releaseDate || "9999-99-99"));
+  }
+  if (mode === "new") {
+    // Preserve the movies-and-shows mix, ranking each kind by audience interest.
+    const movies = ranked.filter((item) => item.tmdbType === "movie");
+    const shows = ranked.filter((item) => item.tmdbType === "tv");
+    const mixed: Candidate[] = [];
+    for (let index = 0; index < Math.max(movies.length, shows.length); index++) {
+      if (movies[index]) mixed.push(movies[index]);
+      if (shows[index]) mixed.push(shows[index]);
+    }
+    return mixed.slice(0, 12);
+  }
+  return ranked.slice(0, 12);
+}
 
 /** TMDB's watch-provider ids; the Indian catalogue has JioHotstar where others have Disney+. */
 export function providersFor(region: string): { id: string; name: string }[] {
@@ -101,8 +134,6 @@ async function mixed(
   return { items, more: results.some((result) => result.more) };
 }
 
-const twoYearsAgo = () => `${new Date().getFullYear() - 2}-01-01`;
-
 /** Discover's list of what has just come out: films and shows that first reached viewers in the last 30 days. */
 export const NEW_RELEASES_ID = "new";
 export const NEW_RELEASES_TITLE = "New movies and shows";
@@ -128,16 +159,47 @@ export function streamChoices(region: string): StreamChoice[] {
   return [FREE_CHOICE, ...providersFor(region).map((provider) => ({ id: provider.id, label: provider.name }))];
 }
 
-/** One page of a streaming choice, films and shows or just one kind: the list behind its chip. */
-export function browseStream(choice: StreamChoice, region: string, kind: "all" | "movie" | "tv", page = 1): Promise<{ items: Candidate[]; more: boolean }> {
-  if (choice.id === "free") {
-    return mixed("free", "Free to watch", {
-      watch_region: region, with_watch_monetization_types: "free|ads",
-      sort_by: "popularity.desc", "vote_count.gte": "200", "vote_average.gte": "6.5"
-    }, null, () => "Free to watch", kind, page);
+/** New releases plus weekly TMDB trends, always restricted to regional streaming availability. */
+export async function browseStream(choice: StreamChoice, region: string, kind: "all" | "movie" | "tv", page = 1, now = Date.now()): Promise<{ items: Candidate[]; more: boolean }> {
+  const provider = choice.id === "free" ? "Free to watch" : choice.label;
+  const params: Record<string, string> = {
+    watch_region: region, sort_by: "popularity.desc",
+    with_watch_monetization_types: choice.id === "free" ? "free|ads" : "flatrate",
+    ...(choice.id === "free" ? {} : { with_watch_providers: choice.id })
+  };
+  const released = (item: Candidate) => {
+    const age = daysSinceRelease(item.releaseDate, now);
+    return age !== null && age >= 0;
+  };
+  const newReason = (item: Candidate) => providerReason(item, provider, now);
+  const [recent, trending] = await Promise.allSettled([
+    // No vote/rating floor: a new film or show may not have collected votes yet.
+    mixed(choice.id, choice.label, params, isoToday(now - STREAM_NEW_DAYS * DAY), newReason, kind, page, isoToday(now))
+      .then(result => ({ ...result, items: result.items.filter(item => released(item) && newReason(item)) })),
+    (async () => {
+      const [catalogue, trends] = await Promise.all([
+        mixed(choice.id, choice.label, params, null, () => "", kind, page, isoToday(now)),
+        Promise.all([1, 2, 3].map(trendPage => browse({
+          id: "stream-weekly-trends", label: "Trending this week", path: `trending/${kind}/week`,
+          ...(kind === "all" ? {} : { type: kind })
+        }, trendPage)))
+      ]);
+      const keys = new Set(trends.flatMap(result => result.items.map(item => item.key)));
+      return { ...catalogue, items: catalogue.items.filter(item => released(item) && keys.has(item.key)).map(item => ({
+        ...item, reason: newReason(item) || `Trending ${item.tmdbType === "tv" ? "Show" : "Movie"} · ${provider}`
+      })) };
+    })()
+  ]);
+  if (recent.status === "rejected" && trending.status === "rejected") throw recent.reason;
+  const fresh = recent.status === "fulfilled" ? recent.value : { items: [], more: false };
+  const current = trending.status === "fulfilled" ? trending.value : { items: [], more: false };
+  const items: Candidate[] = [];
+  const seen = new Set<string>();
+  // Both sources get space in the row; mixed() already alternates movies and shows.
+  for (let index = 0; index < Math.max(fresh.items.length, current.items.length); index++) {
+    for (const item of [fresh.items[index], current.items[index]]) {
+      if (item && !seen.has(item.key)) { seen.add(item.key); items.push(item); }
+    }
   }
-  return mixed(choice.id, choice.label, {
-    with_watch_providers: choice.id, watch_region: region, with_watch_monetization_types: "flatrate",
-    sort_by: "popularity.desc", "vote_count.gte": "100", "vote_average.gte": "6.5"
-  }, twoYearsAgo(), (item) => providerReason(item, choice.label), kind, page);
+  return { items, more: fresh.more || current.more };
 }

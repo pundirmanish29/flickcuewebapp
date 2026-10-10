@@ -335,7 +335,7 @@ export default function App() {
     <>
       <a className="skip-link" href="#main" onClick={skipTo("main")}>Skip to content</a>
       {sync.connected && route === "queue" && !showingTitle && <a className="skip-link skip-link-second" href="#titles" onClick={skipTo("titles")}>Skip to your queue</a>}
-      <header className="site-header">
+      <header className={`site-header${route === "discover" && !showingTitle ? " discover-header" : ""}`}>
         <div className={`wrap header-inner ${searching ? "is-searching" : ""}`}>
           <a className="brand" href="#/" aria-label="FlickCue home">
             <Logo />

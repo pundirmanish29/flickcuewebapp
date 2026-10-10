@@ -15,7 +15,7 @@ import { findExisting } from "../lib/editor";
 import { useSwap } from "../lib/motion";
 import { displayTitle } from "../lib/rules";
 import { useAppState } from "../lib/store";
-import { browseNew, browseStream, COMING_SOON, HIDDEN_GEMS, NEW_RELEASES_ID, NEW_RELEASES_TITLE, streamChoices, TALK_OF_THE_TOWN, type StreamChoice } from "../lib/shelves";
+import { browseNew, browseStream, COMING_SOON, featuredCinemaItems, HIDDEN_GEMS, NEW_RELEASES_ID, NEW_RELEASES_TITLE, streamChoices, TALK_OF_THE_TOWN, type StreamChoice } from "../lib/shelves";
 import { browse, browseAll, browseGenre, DISCOVER_CATEGORIES, genreHasShows, GENRES_LIST, IN_CINEMAS, recommendRows, searchTitles, upscale, type DiscoverCategory, type PersonMatch } from "../lib/tmdb";
 import type { Candidate, KindFilter } from "../lib/types";
 
@@ -171,7 +171,7 @@ function Results({ items, onOpen, showtimes = false, ranked = false, compact = f
 }
 
 /** A sideways row of titles, with arrows for a mouse in place of a scrollbar. */
-function Row({ title, heading, bare = false, items, failed = false, onRetry, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true, compact = false, swapKey }: {
+function Row({ title, heading, bare = false, items, failed = false, emptyMessage, onRetry, onOpen, onSeeAll, ranked = false, showtimes = false, reasons = true, compact = false, swapKey }: {
   title: string;
   /** What the heading shows in place of the plain title, such as a menu. */
   heading?: ReactNode;
@@ -180,6 +180,7 @@ function Row({ title, heading, bare = false, items, failed = false, onRetry, onO
   items: Candidate[] | null;
   /** The list couldn't be loaded (not the same as having nothing in it): say so, and offer another try. */
   failed?: boolean;
+  emptyMessage?: string;
   onRetry?: () => void;
   onOpen: (id: string) => void;
   onSeeAll?: () => void;
@@ -208,6 +209,8 @@ function Row({ title, heading, bare = false, items, failed = false, onRetry, onO
       <div className="cinema-row" ref={row} aria-busy={!items && !failed}>
         {failed
           ? <p className="row-failed" role="status">Couldn't load this list. {onRetry && <button type="button" className="link-button" onClick={onRetry}>Try again</button>}</p>
+          : items?.length === 0 && emptyMessage
+          ? <p className="row-failed" role="status">{emptyMessage}</p>
           : items
           ? items.map((item, index) => <CandidateCard key={item.key} candidate={item} onOpenSaved={onOpen} showtimes={showtimes} rank={ranked ? index + 1 : undefined} compact={compact} />)
           : Array.from({ length: 6 }, (_, index) => <div key={index} className="skeleton-card" />)}
@@ -268,9 +271,18 @@ function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved:
       setLists((current) => ({ ...current, [key]: current[key] ?? [] }));
       setFailed(true);
     };
-    // Everything in cinemas and everything coming soon: the first page shows at once, the rest fills in behind it.
-    const fetchList = (key: "now" | "soon", category: DiscoverCategory) =>
-      browseAll(category, region, (items) => live && setLists((current) => ({ ...current, [key]: items }))).catch(() => fail(key));
+    // Curate after all pages settle, so the featured selection doesn't change underneath a scrolling reader.
+    const fetchList = async (key: "now" | "soon", category: DiscoverCategory) => {
+      let complete: Candidate[] = [];
+      try {
+        await browseAll(category, region, (items) => {
+          complete = items;
+        });
+        if (live) setLists((current) => ({ ...current, [key]: complete }));
+      } catch {
+        fail(key);
+      }
+    };
     void fetchList("now", IN_CINEMAS);
     void fetchList("soon", COMING_SOON);
     // What has just come out is a longer list than a row: its first page here, the rest under See all.
@@ -282,9 +294,11 @@ function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved:
 
   // Nothing coming soon in this region: show what's in cinemas instead of an empty row.
   const mode = chosen === "soon" && lists.soon?.length === 0 && lists.now?.length ? "now" : chosen;
-  // Titles you haven't saved come first: the row is for finding something, and the rest follow, ticked.
-  const items = lists[mode]
-    ? [...lists[mode]!.filter((item) => !saved.has(item.key)), ...lists[mode]!.filter((item) => saved.has(item.key))]
+  const featured = lists[mode] ? featuredCinemaItems(lists[mode]!, mode) : null;
+  // Coming soon keeps its release-date order, including saved titles. Other lists put unsaved titles first.
+  const items = featured
+    ? mode === "soon" ? featured
+      : [...featured.filter((item) => !saved.has(item.key)), ...featured.filter((item) => saved.has(item.key))]
     : null;
   if (!failed && lists.now && lists.soon && lists.new && !lists.now.length && !lists.soon.length && !lists.new.length) return null;
   return (
@@ -300,6 +314,7 @@ function CinemaRow({ region, saved, onOpen, onSeeAll }: { region: string; saved:
       }
       items={items}
       failed={failed && !items?.length}
+      emptyMessage="No featured titles right now. See all to browse the full list."
       onRetry={() => setAttempt((count) => count + 1)}
       onOpen={onOpen}
       onSeeAll={() => onSeeAll(mode === "now" ? IN_CINEMAS.id : mode === "new" ? NEW_RELEASES_ID : "upcoming")}
@@ -355,6 +370,7 @@ function StreamingRow({ region, streams, saved, onOpen, onSeeAll }: {
       heading={<HeadingMenu label="Streaming service" value={choice.id} options={streams.map((item) => ({ id: item.id, label: label(item) }))} onPick={pick} />}
       items={shown}
       failed={failed}
+      emptyMessage={choice.id === "free" ? "No new or trending titles are available to watch free in your region right now." : `No new or trending titles found on ${choice.label} in your region right now.`}
       onRetry={() => setAttempt((count) => count + 1)}
       onOpen={onOpen}
       onSeeAll={() => onSeeAll(STREAM_PREFIX + choice.id)}
@@ -454,11 +470,18 @@ export function DiscoverPage({ onOpen, query }: { onOpen: (id: string) => void; 
     };
   }, [root, region, rowsAttempt]);
 
-  const fetchPage = (pageNumber: number) =>
-    genre ? browseGenre(genre, kind === "all" ? "all" : kind, pageNumber)
+  const fetchPage = async (pageNumber: number) => {
+    // Coming soon must be chronological across pages, not just within each popularity-ranked response.
+    if (!genre && !stream && !newReleases && activeCategory.id === "upcoming") {
+      let items: Candidate[] = [];
+      await browseAll(activeCategory, region, (loaded) => { items = loaded; });
+      return { items, more: false };
+    }
+    return genre ? browseGenre(genre, kind === "all" ? "all" : kind, pageNumber)
       : stream ? browseStream(stream, region, kind, pageNumber)
         : newReleases ? browseNew(kind, pageNumber)
           : browse(activeCategory, pageNumber, region);
+  };
 
   useEffect(() => {
     let live = true;

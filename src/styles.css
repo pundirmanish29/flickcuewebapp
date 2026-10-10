@@ -264,6 +264,8 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 
 /* The header is a pill that floats over the page, so a hero can run right up under it. */
 .site-header { position: sticky; top: 0; z-index: 30; height: var(--header); color: #fff; pointer-events: none; }
+/* Discover's controls scroll behind the whole header, rather than peeking around the floating pill. */
+.site-header.discover-header { background: var(--paper); pointer-events: auto; }
 .site-header .header-inner {
   position: relative; pointer-events: auto; display: flex; align-items: center; gap: 12px;
   width: min(1200px, calc(100% - 2 * var(--gutter))); max-width: none; height: 52px; margin: 8px auto 0; padding: 0 8px 0 18px;
@@ -690,13 +692,19 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 /* Sideways rows move by their arrows (or a swipe), never a scrollbar. */
 .cinema-row::-webkit-scrollbar, .cast-row::-webkit-scrollbar, .season-rail::-webkit-scrollbar { display: none; }
 .cinema-row > * { scroll-snap-align: start; }
-/* Discover's rows run to the window's edges, so a wide screen doesn't cut the last poster off at the column's edge;
-   the first poster still lines up with the headings. The shelf is the container so cqw is the column's width
-   in every property (a percentage in scroll-padding would be the row's own). main clips the half scrollbar 100vw overshoots by. */
-.cinema-shelf { container-type: inline-size; }
-.cinema-shelf .cinema-row {
-  --bleed: max(var(--gutter, 16px), (100vw - 100cqw) / 2);
-  margin-inline: calc(-1 * var(--bleed)); padding-inline: var(--bleed); scroll-padding-inline: var(--bleed);
+/* Desktop shelves share their heading's boundaries. Phones keep the gutter-to-edge swipe area above. */
+@media (min-width: 901px) {
+  /* A small paint gutter preserves the focus ring and hover lift without moving the posters off the heading's edge. */
+  .discover .cinema-shelf .cinema-row {
+    --shelf-columns: 5;
+    --shelf-gap: clamp(12px, 1.6vw, 22px);
+    grid-auto-columns: calc((100% - (var(--shelf-columns) - 1) * var(--shelf-gap)) / var(--shelf-columns));
+    gap: var(--shelf-gap); scroll-snap-type: x mandatory;
+    margin: -6px -6px 0; padding: 6px 6px 8px; scroll-padding-inline: 6px;
+  }
+}
+@media (min-width: 1200px) {
+  .discover .cinema-shelf .cinema-row { --shelf-columns: 6; }
 }
 #root > main { overflow-x: clip; }
 /* A scrolling row clips anything that overflows it, so a card's reminder and showtimes open as a dialog over a dimmed page. */
@@ -985,6 +993,31 @@ p a:not([class]):hover, .about-links a:hover { text-decoration-line: underline; 
 }
 .watched-month-title .count { font-style: normal; }
 .watched-undated-note { margin: -8px 0 14px; }
+.library-section-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px 20px; margin-bottom: 20px; }
+.library-section-head .section-title { margin: 0; }
+.library-section-head p { margin: 8px 0 0; max-width: 60ch; }
+.library-section-head > .button, .library-section-head > .select { flex-shrink: 0; }
+.queue-picks-row {
+  display: grid; grid-auto-flow: column; grid-template-rows: auto;
+  grid-auto-columns: calc((100% - 5 * var(--pick-gap)) / 6); --pick-gap: clamp(12px, 1.6vw, 22px); gap: var(--pick-gap);
+  overflow-x: auto; overflow-anchor: none; scroll-snap-type: x mandatory; scrollbar-width: none;
+  margin: -6px -6px 0; padding: 6px 6px 8px; scroll-padding-inline: 6px;
+}
+.queue-picks-row::-webkit-scrollbar { display: none; }
+.queue-picks-row > * { scroll-snap-align: start; }
+@media (min-width: 601px) and (max-width: 999px) { .queue-picks-row { grid-auto-columns: calc((100% - 3 * var(--pick-gap)) / 4); } }
+@media (max-width: 600px) { .queue-picks-row { grid-auto-columns: calc((100% - var(--pick-gap)) / 2); } }
+.watched-highlights { margin: 24px 0 40px; }
+.highlights-tabs { margin-bottom: 20px; }
+.highlight-card { min-width: 0; }
+.highlight-review-source { margin: 12px 2px 0; }
+.highlight-review-label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.highlight-review { margin: 6px 0 0; padding-left: 12px; border-left: 2px solid var(--rule); color: var(--ink-soft); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.highlight-empty { color: var(--muted); padding: 20px 0; }
+.watched-history-title { margin-bottom: 0; }
+@media (min-width: 1000px) {
+  .watched-highlights .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
 .your-take { color: var(--orange-ink); letter-spacing: 0.02em; }
 .your-heart { display: inline-flex; vertical-align: -1px; color: var(--red); }
 .your-heart svg { fill: currentColor; }
@@ -1244,6 +1277,46 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--ink); outli
 .card { padding: clamp(20px, 2.4vw, 32px); border-radius: var(--r-l); background: var(--paper-surface); border: 1px solid var(--rule); }
 .card h2 { margin: 0 0 var(--space-xs); font-size: var(--step-1); font-weight: 800; letter-spacing: -0.04em; line-height: 1.1; }
 .card p { margin: 0 0 16px; }
+/* Letterboxd's inset panel uses the same paper and ink in both themes. A profile link is never a verified sign-in. */
+.card.lb-card { padding: 10px; }
+.lb-card-inner { padding: clamp(16px, 2vw, 24px); border: 1px solid var(--rule); border-radius: calc(var(--r-l) - 10px); }
+.lb-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.lb-heading h2 { margin: 0; }
+.lb-status { padding: 5px 9px; border: 1px solid var(--rule); border-radius: var(--r-pill); color: var(--muted); font: 600 10px/1.4 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.lb-primary { width: 100%; margin-bottom: 14px; }
+.lb-intro > p:first-child { line-height: 1.6; }
+.lb-profile { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; color: var(--ink); text-decoration: none; }
+.lb-profile > svg { flex-shrink: 0; color: var(--muted); }
+.lb-avatar { display: grid; place-items: center; flex-shrink: 0; width: 42px; height: 42px; border: 1px solid var(--rule); border-radius: 50%; background: var(--paper-deep); font-weight: 700; }
+.lb-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.lb-sync-status { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.lb-sync-label { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; }
+.lb-sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.lb-sync-label.is-active, .lb-status.has-sync, .lb-import-on { color: var(--green-ink); }
+.lb-sync-label.is-warning { color: var(--orange-ink); }
+.lb-sync-label.is-active .lb-sync-dot, .lb-sync-label.is-warning .lb-sync-dot { background: currentColor; }
+.lb-sync-items { margin: 0 0 12px; padding: 0; list-style: none; }
+.lb-sync-items li { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
+.lb-sync-items li > :last-child { font-weight: 700; }
+.lb-refresh { margin-bottom: 8px; }
+.lb-profile-name { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.lb-profile-name > span { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.lb-profile:hover strong { text-decoration: underline; text-underline-offset: 3px; }
+.lb-summary { padding: 14px 16px; margin-bottom: 16px; border-radius: 12px; background: var(--paper-deep); }
+.lb-eyebrow { display: block; margin-bottom: 5px; color: var(--ink-soft); font: 500 10px/1.5 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+.lb-summary p { font-size: 13px; line-height: 1.5; }
+.lb-summary > :last-child { margin-bottom: 0; }
+.lb-card .linked-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lb-card .inline-link { min-height: 44px; }
+.lb-profile-form { align-items: stretch; }
+.lb-profile-form p { margin-bottom: 0; }
+.lb-profile-form input { min-width: 0; width: 100%; }
+.lb-error { color: var(--red); }
+.lb-export h3 { margin: 0 0 10px; }
+.lb-export .small-print { line-height: 1.6; }
+.lb-export .button-row { flex-wrap: wrap; }
+.lb-export .button { max-width: 100%; white-space: normal; }
+.lb-card-inner > :last-child { margin-bottom: 0; }
 .account { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .account img { width: 44px; height: 44px; border-radius: 50%; }
 .account div { display: flex; flex-direction: column; }
@@ -1745,6 +1818,22 @@ a.rating-link:hover .rating-value { text-decoration: underline; text-decoration-
 .section-label .take-source { margin-left: 6px; color: var(--muted); font-family: var(--font-ui); font-size: 12px; letter-spacing: 0; text-transform: none; }
 /* Your review: the note's box, under the stars. */
 .take-review-edit { margin-top: 12px; }
+.take-sources { display: grid; gap: 16px; }
+.take-source-panel { min-width: 0; padding: 16px; border: 1px solid var(--rule); border-radius: 16px; }
+.take-source-panel h3 { margin: 0 0 12px; font-size: 15px; }
+.take-source-panel h3 .take-source { margin-left: 6px; font-weight: 500; }
+.take-source-panel .take { gap: 8px 10px; }
+.take-source-panel .take-review { overflow-wrap: anywhere; }
+.take-unrated { color: var(--muted); font-size: 12px; font-weight: 500; }
+.card-personal-ratings { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.card-personal-ratings > span { display: inline-flex; align-items: center; gap: 5px; }
+.card-personal-ratings b { color: var(--green-ink); font-variant-numeric: tabular-nums; }
+.card-personal-ratings.named-ratings { flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.named-ratings .rating-source-logo { width: 24px; }
+.named-ratings .rating-source-logo svg { width: 24px; height: 16px; }
+.rating-source-logo { display: inline-flex; align-items: center; justify-content: center; flex: none; vertical-align: middle; }
+.rating-source-logo img { border-radius: 6px; border: 1px solid var(--rule); }
+@media (min-width: 1100px) { .take-sources.has-letterboxd { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .add-note {
   display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border: 1px dashed var(--rule); border-radius: 999px;
   background: none; color: var(--ink-soft); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
@@ -2238,8 +2327,6 @@ html[data-direction] ::view-transition-new(root) { animation: vt-in 160ms ease-o
 .heading-menu-list li.active { background: var(--paper-deep); color: var(--ink); }
 .heading-menu-list li[aria-selected="true"] { color: var(--ink); font-weight: 800; }
 
-.cinema-shelf { margin-bottom: clamp(32px, 5vw, 52px); }
-
 /* On a phone the bottom bar already says this is Discover; the page title is only for screen readers. */
 @media (max-width: 900px) {
   .discover-head { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -2267,10 +2354,10 @@ html[data-direction] ::view-transition-new(root) { animation: vt-in 160ms ease-o
 body:has(.popover[aria-modal="true"]) .dock { visibility: hidden; }
 .rail .tonight-list { margin-bottom: 20px; }
 @media (max-width: 600px) {
- /* The cinema toggle and See all share a row when they fit (they do at 360px), and wrap rather than leave a gap. */
+ /* The cinema toggle and See all share a row when they fit, and wrap on narrow phones. */
  .cinema-shelf-head:has(.cinema-shelf-title .segmented) { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
  .cinema-shelf-head:has(.cinema-shelf-title .segmented) .shelf-tools { margin-left: auto; }
- .cinema-shelf-title .segmented button { white-space: nowrap; padding-inline: 16px; }
+ .cinema-shelf-title .segmented button { white-space: nowrap; padding-inline: 12px; font-size: 14px; }
  .tonight-actions { flex-wrap: wrap; }
  .tonight-actions .button-green { flex-basis: 100%; }
  .tonight-actions .icon-when-small { flex: 1; width: auto; }
@@ -2292,4 +2379,5 @@ body:has(.popover[aria-modal="true"]) .dock { visibility: hidden; }
 
 /* A Discover row whose list couldn't be loaded says so, where its posters would be. */
 .row-failed { margin: 0; padding: 20px 0; color: var(--ink-soft); font-size: 15px; }
+.cinema-row:has(> .row-failed) { display: block; }
 .row-failed .link-button { min-height: 44px; margin-left: 4px; }

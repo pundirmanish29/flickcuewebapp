@@ -8,6 +8,7 @@ import type { Candidate } from "../lib/types";
 import { Icon } from "./Icon";
 import { RatingScore } from "./RatingScore";
 import { Poster } from "./Poster";
+import { SourceRatings } from "./SourceRatings";
 import { Popover, ReminderChoices } from "./ReminderMenu";
 import { ShowtimeLinks } from "./Showtimes";
 import { useWhere } from "../lib/useCinemas";
@@ -87,6 +88,7 @@ export function CandidateCard({ candidate, onOpenSaved, showtimes = false, rank,
           </>
         )}
       </button>
+      {saved && <SourceRatings movie={saved} />}
       <div className="candidate-save">
         {showtimes && (
           <button type="button" className="showtimes-button" onClick={() => setShowing((open) => !open)} aria-expanded={showing}>
