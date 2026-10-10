@@ -38,6 +38,15 @@ describe("public source parsing and failures", () => {
     expect(result.watchlistAvailable).toBe(false);
     expect(result.warnings).toHaveLength(1);
   });
+  it("uses Workers-compatible manual redirects and rejects redirected profiles", async () => {
+    const request = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      expect(init?.redirect).toBe("manual");
+      return new Response(null, { status: 302, headers: { Location: "https://elsewhere.example/" } });
+    });
+    await expect(publicProfile("fan", request as typeof fetch)).rejects.toThrow("public profile");
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request.mock.calls.every(([url]) => String(url).startsWith("https://letterboxd.com/fan/"))).toBe(true);
+  });
   it("never fetches arbitrary hosts or treats a failed profile as an empty import", async () => {
     const request = vi.fn(async () => new Response("blocked", { status: 403 }));
     await expect(publicProfile("../../evil", request as typeof fetch)).rejects.toThrow("valid");
